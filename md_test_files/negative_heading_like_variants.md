@@ -2,6 +2,17 @@
 
 Expect: `no-heading-like-lines` (italic and numbered-list variants).
 
+```markdownlint-expect
+{
+  "total": 3,
+  "errors": [
+    { "line": 18, "rule": "no-heading-like-lines" },
+    { "line": 20, "rule": "no-heading-like-lines" },
+    { "line": 22, "rule": "no-heading-like-lines" }
+  ]
+}
+```
+
 ## Pseudo-headings
 
 *Italic with colon inside:*
@@ -9,14 +20,3 @@ Expect: `no-heading-like-lines` (italic and numbered-list variants).
 *Italic with colon outside*:
 
 1. **Numbered list with bold only**
-
-```markdownlint-expect
-{
-  "total": 3,
-  "errors": [
-    { "line": 7, "rule": "no-heading-like-lines" },
-    { "line": 9, "rule": "no-heading-like-lines" },
-    { "line": 11, "rule": "no-heading-like-lines" }
-  ]
-}
-```

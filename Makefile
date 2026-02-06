@@ -1,4 +1,26 @@
-.PHONY: lint-js test-markdownlint lint-readmes venv lint-python
+.PHONY: ci lint-js lint-readmes lint-python test-markdownlint test-python test-rules venv
+
+# Run all CI checks (same as GitHub Actions workflows). Run after 'npm install' and optionally 'make venv'.
+ci: lint-js test-rules test-markdownlint lint-python test-python lint-readmes
+
+# README linting - performs same checks as GitHub Actions workflow
+# NOTE: This target must be kept in sync with .github/workflows/lint-readmes.yml.
+#       When adding or modifying README linting, update both this Makefile and
+#       the workflow file to ensure local 'make lint-readmes' matches CI behavior.
+lint-readmes:
+	@command -v node >/dev/null 2>&1 || { \
+		echo "Error: node not found. Install Node.js to run README linting."; \
+		exit 1; \
+	}
+	@if [ -x "$(CURDIR)/node_modules/.bin/markdownlint-cli2" ]; then \
+		MDL="$(CURDIR)/node_modules/.bin/markdownlint-cli2"; \
+	elif command -v markdownlint-cli2 >/dev/null 2>&1; then \
+		MDL="markdownlint-cli2"; \
+	else \
+		MDL="npx markdownlint-cli2"; \
+	fi; \
+	echo "Linting READMEs..."; \
+	$$MDL README.md **/README.md .markdownlint-rules/README.md CONTRIBUTING.md
 
 # JavaScript linting - performs same checks as GitHub Actions workflow
 # NOTE: This target must be kept in sync with .github/workflows/js-lint.yml.
@@ -29,48 +51,6 @@ lint-js:
 	echo "Running eslint on $$LINT_PATHS..."; \
 	$$ESLINT $$LINT_PATHS --ext .js; \
 	exit $$?
-
-# Markdownlint positive/negative tests - same as .github/workflows/markdownlint-tests.yml
-# NOTE: Keep in sync with that workflow. Positive must pass; each negative must fail.
-# Requires: Node.js, npm; run 'npm install' or 'npm ci' first.
-test-markdownlint:
-	@command -v node >/dev/null 2>&1 || { \
-		echo "Error: node not found. Install Node.js and run npm install."; \
-		exit 1; \
-	}
-	@python3 test-scripts/verify_markdownlint_fixtures.py
-
-# README linting - performs same checks as GitHub Actions workflow
-# NOTE: This target must be kept in sync with .github/workflows/lint-readmes.yml.
-#       When adding or modifying README linting, update both this Makefile and
-#       the workflow file to ensure local 'make lint-readmes' matches CI behavior.
-lint-readmes:
-	@command -v node >/dev/null 2>&1 || { \
-		echo "Error: node not found. Install Node.js to run README linting."; \
-		exit 1; \
-	}
-	@if [ -x "$(CURDIR)/node_modules/.bin/markdownlint-cli2" ]; then \
-		MDL="$(CURDIR)/node_modules/.bin/markdownlint-cli2"; \
-	elif command -v markdownlint-cli2 >/dev/null 2>&1; then \
-		MDL="markdownlint-cli2"; \
-	else \
-		MDL="npx markdownlint-cli2"; \
-	fi; \
-	echo "Linting READMEs..."; \
-	$$MDL README.md **/README.md .markdownlint-rules/README.md CONTRIBUTING.md
-
-# Python venv for lint tooling - creates .venv and installs test-scripts/requirements-lint.txt
-# Run once (or after adding/updating test-scripts/requirements-lint.txt) so make lint-python uses the venv.
-# Usage: make venv
-venv:
-	@command -v python3 >/dev/null 2>&1 || { \
-		echo "Error: python3 not found. Install Python 3 to create the venv."; \
-		exit 1; \
-	}
-	@python3 -m venv .venv
-	@.venv/bin/pip install -q --upgrade pip
-	@.venv/bin/pip install -q -r test-scripts/requirements-lint.txt
-	@echo "Created .venv with lint tooling. Use 'make lint-python' (it will use .venv when present)."
 
 # Python linting - performs same checks as GitHub Actions workflow
 # NOTE: This target must be kept in sync with .github/workflows/python-lint.yml.
@@ -139,3 +119,44 @@ lint-python:
 	bandit -r $$LINT_PATHS; BANDIT_RESULT=$$?; \
 	echo ""; echo "Lint exit codes: flake8=$$FLAKE8_RESULT pylint=$$PYLINT_RESULT xenon=$$XENON_RESULT radon_mi=$$MI_RESULT bandit=$$BANDIT_RESULT"; \
 	[ $$FLAKE8_RESULT -ne 0 ] || [ $$PYLINT_RESULT -ne 0 ] || [ $$XENON_RESULT -ne 0 ] || [ $$MI_RESULT -ne 0 ] || [ $$BANDIT_RESULT -ne 0 ] && exit 1; exit 0
+
+# Unit tests for .markdownlint-rules/*.js - same as .github/workflows/rule-unit-tests.yml
+# NOTE: Keep in sync with that workflow. Requires: Node.js, npm; run 'npm install' first.
+test-rules:
+	@command -v node >/dev/null 2>&1 || { \
+		echo "Error: node not found. Install Node.js and run npm install."; \
+		exit 1; \
+	}
+	@node --test 'test/markdownlint-rules/*.test.js'
+
+# Markdownlint positive/negative tests - same as .github/workflows/markdownlint-tests.yml
+# NOTE: Keep in sync with that workflow. Positive must pass; each negative must fail.
+# Requires: Node.js, npm; run 'npm install' or 'npm ci' first.
+test-markdownlint:
+	@command -v node >/dev/null 2>&1 || { \
+		echo "Error: node not found. Install Node.js and run npm install."; \
+		exit 1; \
+	}
+	@python3 test-scripts/verify_markdownlint_fixtures.py
+
+# Python unit tests - same as .github/workflows/python-tests.yml
+# NOTE: Keep in sync with that workflow. Requires: Python 3.
+test-python:
+	@command -v python3 >/dev/null 2>&1 || { \
+		echo "Error: python3 not found. Install Python 3 to run tests."; \
+		exit 1; \
+	}
+	@python3 -m unittest discover -s test-scripts -p "test_*.py" -v
+
+# Python venv for lint tooling - creates .venv and installs test-scripts/requirements-lint.txt
+# Run once (or after adding/updating test-scripts/requirements-lint.txt) so make lint-python uses the venv.
+# Usage: make venv
+venv:
+	@command -v python3 >/dev/null 2>&1 || { \
+		echo "Error: python3 not found. Install Python 3 to create the venv."; \
+		exit 1; \
+	}
+	@python3 -m venv .venv
+	@.venv/bin/pip install -q --upgrade pip
+	@.venv/bin/pip install -q -r test-scripts/requirements-lint.txt
+	@echo "Created .venv with lint tooling. Use 'make lint-python' (it will use .venv when present)."

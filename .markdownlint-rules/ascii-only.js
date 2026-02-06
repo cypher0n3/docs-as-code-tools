@@ -24,11 +24,20 @@ const DEFAULT_UNICODE_REPLACEMENTS = {
   "\u2018": "'",
 };
 
+/**
+ * Return true if the string contains any non-ASCII character (code point > 0x7F).
+ * @param {string} str - Input string
+ * @returns {boolean}
+ */
 function hasNonAscii(str) {
   return /[\u0080-\u{10FFFF}]/u.test(str);
 }
 
-/** Return non-ASCII code points (iterating by code point, not code unit, so surrogates stay as one). */
+/**
+ * Return non-ASCII code points as array (iterating by code point so surrogates stay as one).
+ * @param {string} str - Input string
+ * @returns {string[]} Array of non-ASCII characters
+ */
 function getNonAsciiCodePoints(str) {
   const result = [];
   for (const ch of str) {
@@ -42,6 +51,12 @@ function getNonAsciiCodePoints(str) {
 const VARIATION_SELECTOR_MIN = "\uFE00";
 const VARIATION_SELECTOR_MAX = "\uFE0F";
 
+/**
+ * Return true if all non-ASCII in str are in allowedSet or are variation selectors (U+FE00–U+FE0F).
+ * @param {string} str - Input string
+ * @param {Set<string>} allowedSet - Allowed emoji (NFC-normalized)
+ * @returns {boolean}
+ */
 function onlyAllowedEmoji(str, allowedSet) {
   const nonAscii = getNonAsciiCodePoints(str);
   if (nonAscii.length === 0) {
@@ -63,6 +78,11 @@ function onlyAllowedEmoji(str, allowedSet) {
   return true;
 }
 
+/**
+ * Add replacement entries from an array of [char, replacement] pairs.
+ * @param {Map<string, string>} map - Map to mutate
+ * @param {Array<[string, string]>} arr - Array of [singleChar, replacement]
+ */
 function addArrayReplacements(map, arr) {
   for (const entry of arr) {
     if (Array.isArray(entry) && entry.length >= 2 && typeof entry[0] === "string" && entry[0].length === 1) {
@@ -71,6 +91,11 @@ function addArrayReplacements(map, arr) {
   }
 }
 
+/**
+ * Add replacement entries from an object (char -> replacement).
+ * @param {Map<string, string>} map - Map to mutate
+ * @param {object} obj - Object with single-char keys and string values
+ */
 function addObjectReplacements(map, obj) {
   for (const [ch, replacement] of Object.entries(obj)) {
     if (typeof ch === "string" && ch.length === 1 && replacement != null) {
@@ -79,6 +104,11 @@ function addObjectReplacements(map, obj) {
   }
 }
 
+/**
+ * Build a Map of non-ASCII char -> suggested replacement from config (array or object).
+ * @param {Array<[string, string]>|object} [unicodeReplacements] - Config array or object
+ * @returns {Map<string, string>}
+ */
 function buildReplacementsMap(unicodeReplacements) {
   const map = new Map();
   if (!unicodeReplacements || typeof unicodeReplacements !== "object") {
@@ -92,6 +122,11 @@ function buildReplacementsMap(unicodeReplacements) {
   return map;
 }
 
+/**
+ * Convert array of strings to a Set of NFC-normalized characters (one code point per string item).
+ * @param {string[]} [arr] - Array of strings (each treated as one or more chars)
+ * @returns {Set<string>}
+ */
 function toCharSet(arr) {
   const set = new Set();
   if (!Array.isArray(arr)) {
@@ -108,6 +143,11 @@ function toCharSet(arr) {
   return set;
 }
 
+/**
+ * Build rule config: path patterns, allowed emoji/unicode, and unicodeReplacements map.
+ * @param {{ config?: object }} params - markdownlint params
+ * @returns {object} Config object
+ */
 function getConfig(params) {
   const c = params.config || {};
   return {
@@ -125,7 +165,15 @@ function getConfig(params) {
   };
 }
 
-/** Iterate over disallowed non-ASCII occurrences in scan; yields { startIndex, char } (char may be 1 or 2 code units). */
+/**
+ * Iterate over disallowed non-ASCII occurrences in scan.
+ * Yields { startIndex, char, length } (char may be 1 or 2 code units for astral chars).
+ * @param {string} scan - Line with inline code stripped
+ * @param {boolean} allowEmojiOnly - Whether only emoji are allowed (path-based)
+ * @param {Set<string>} allowedUnicodeSet - Allowed non-ASCII chars (NFC)
+ * @param {Set<string>} allowedEmojiSet - Allowed emoji (NFC)
+ * @yields {{ startIndex: number, char: string, length: number }}
+ */
 function* getDisallowedOccurrences(scan, allowEmojiOnly, allowedUnicodeSet, allowedEmojiSet) {
   for (let i = 0; i < scan.length; i++) {
     const cp = scan.codePointAt(i);
@@ -141,11 +189,24 @@ function* getDisallowedOccurrences(scan, allowEmojiOnly, allowedUnicodeSet, allo
   }
 }
 
+/**
+ * Format a single character as Unicode code point (e.g. "U+2192").
+ * @param {string} ch - Single character (may be surrogate pair)
+ * @returns {string}
+ */
 function formatCodePoint(ch) {
   const cp = ch.codePointAt(0);
   return "U+" + cp.toString(16).toUpperCase().padStart(cp <= 0xffff ? 4 : 6, "0");
 }
 
+/**
+ * Build human-readable error detail for a disallowed character (code point + suggestion or reason).
+ * @param {string} ch - The disallowed character
+ * @param {string|undefined} replacement - Suggested replacement if any
+ * @param {boolean} allowEmojiOnly - Whether rule is in emoji-only mode for this path
+ * @param {object} config - Full config (e.g. allowedEmoji for message)
+ * @returns {string}
+ */
 function buildOccurrenceDetail(ch, replacement, allowEmojiOnly, config) {
   const cpStr = formatCodePoint(ch);
   if (replacement !== undefined) {
@@ -157,12 +218,15 @@ function buildOccurrenceDetail(ch, replacement, allowEmojiOnly, config) {
   return `Character '${ch}' (${cpStr}) not allowed; use ASCII only`;
 }
 
-module.exports = {
-  names: ["ascii-only"],
-  description:
-    "Disallow non-ASCII except in configured paths; optional replacement suggestions via unicodeReplacements.",
-  tags: ["content"],
-  function: function (params, onError) {
+/**
+ * markdownlint rule: disallow non-ASCII except in configured paths; optional
+ * replacement suggestions via unicodeReplacements. Paths can allow full Unicode
+ * or emoji-only.
+ *
+ * @param {object} params - markdownlint params (lines, name, config)
+ * @param {function(object): void} onError - Callback to report an error
+ */
+function ruleFunction(params, onError) {
     const filePath = params.name || "";
     const config = getConfig(params);
     const allowUnicode = pathMatchesAny(filePath, config.allowedPathPatternsUnicode);
@@ -189,5 +253,12 @@ module.exports = {
         });
       }
     }
-  },
+  }
+
+module.exports = {
+  names: ["ascii-only"],
+  description:
+    "Disallow non-ASCII except in configured paths; optional replacement suggestions via unicodeReplacements.",
+  tags: ["content"],
+  function: ruleFunction,
 };

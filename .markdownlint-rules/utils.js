@@ -155,6 +155,8 @@ function normalizedTitleForDuplicate(rawText) {
 
 /**
  * Convert glob pattern to RegExp. Supports ** (any path) and * (segment).
+ * @param {string} pattern - Glob pattern (e.g. ** for path, * for segment)
+ * @returns {RegExp}
  */
 function globToRegExp(pattern) {
   const parts = [];
@@ -177,6 +179,9 @@ function globToRegExp(pattern) {
 /**
  * Match path against a single glob pattern. Path normalized to forward slashes.
  * Relative patterns match when path starts with pattern or pattern appears mid-path.
+ * @param {string} path - File path to test
+ * @param {string} pattern - Glob pattern
+ * @returns {boolean}
  */
 function matchGlob(path, pattern) {
   if (!path || !pattern) {
@@ -195,7 +200,12 @@ function matchGlob(path, pattern) {
   return false;
 }
 
-/** Return true if path matches any of the glob patterns. */
+/**
+ * Return true if path matches any of the glob patterns.
+ * @param {string} path - File path to test
+ * @param {string[]} patterns - Glob patterns
+ * @returns {boolean}
+ */
 function pathMatchesAny(path, patterns) {
   if (!Array.isArray(patterns) || patterns.length === 0) {
     return false;

@@ -5,12 +5,15 @@ const {
   normalizedTitleForDuplicate,
 } = require("./utils.js");
 
-module.exports = {
-  names: ["no-duplicate-headings-normalized"],
-  description:
-    "Disallow duplicate heading titles after stripping numbering and normalizing.",
-  tags: ["headings"],
-  function: function (params, onError) {
+/**
+ * markdownlint rule: disallow duplicate heading titles after stripping numbering
+ * and normalizing (trim, collapse whitespace, lowercase). Reports each duplicate
+ * with a reference to the first occurrence.
+ *
+ * @param {object} params - markdownlint params (lines, name, config)
+ * @param {function(object): void} onError - Callback to report an error
+ */
+function ruleFunction(params, onError) {
     const headings = extractHeadings(params.lines);
     const byNormalized = new Map();
 
@@ -40,5 +43,12 @@ module.exports = {
         });
       }
     }
-  },
+  }
+
+module.exports = {
+  names: ["no-duplicate-headings-normalized"],
+  description:
+    "Disallow duplicate heading titles after stripping numbering and normalizing.",
+  tags: ["headings"],
+  function: ruleFunction,
 };

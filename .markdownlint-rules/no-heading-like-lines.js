@@ -1,11 +1,16 @@
-module.exports = {
-  names: ["no-heading-like-lines"],
-  description: "Disallow heading-like lines that should be proper headings",
-  tags: ["headings"],
-  function: function (params, onError) {
-    const lines = params.lines;
+"use strict";
 
-    // Patterns to match heading-like lines:
+/**
+ * markdownlint rule: flag lines that look like headings but use bold/italic
+ * (e.g. **Section:** or 1. **Item**) so they can be converted to proper ATX headings.
+ *
+ * @param {object} params - markdownlint params (lines, name, config)
+ * @param {function(object): void} onError - Callback to report an error
+ */
+function ruleFunction(params, onError) {
+  const lines = params.lines;
+
+  // Patterns to match heading-like lines:
     // 1. **Text:** - bold with colon inside (^\*\*.*:\*\*$)
     // 2. **Text**: - bold with colon outside (^\*\*.*\*\*:$)
     // 3. 1. **Text** - numbered list with bold (^[0-9]+\. \*\*.*\*\*$)
@@ -40,5 +45,11 @@ module.exports = {
         }
       }
     });
-  },
+}
+
+module.exports = {
+  names: ["no-heading-like-lines"],
+  description: "Disallow heading-like lines that should be proper headings",
+  tags: ["headings"],
+  function: ruleFunction,
 };

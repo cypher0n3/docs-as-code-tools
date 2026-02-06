@@ -2,6 +2,11 @@
 
 const { stripInlineCode } = require("./utils.js");
 
+/**
+ * Safely create a RegExp from a string. Returns null for invalid or empty input.
+ * @param {string} str - Pattern string
+ * @returns {RegExp|null}
+ */
 function safeRegExp(str) {
   if (typeof str !== "string" || !str) return null;
   try {
@@ -11,6 +16,12 @@ function safeRegExp(str) {
   }
 }
 
+/**
+ * Parse placement options for an allowed anchor pattern (headingMatch, lineMatch, requireAfter, etc.).
+ * @param {object} [placement] - Raw placement config
+ * @param {number} patternIndex - Index of the pattern in allowedIdPatterns
+ * @returns {object|null} Normalized placement rule or null
+ */
 function parsePlacement(placement, patternIndex) {
   if (!placement || typeof placement !== "object") return null;
   const requireAfter = Array.isArray(placement.requireAfter)
@@ -31,6 +42,12 @@ function parsePlacement(placement, patternIndex) {
   };
 }
 
+/**
+ * Parse one allowedIdPatterns entry (string or { pattern, placement }).
+ * @param {string|object} item - Config entry
+ * @param {number} i - Entry index
+ * @returns {{ pattern: RegExp, placement: object|null }|null}
+ */
 function parseOneEntry(item, i) {
   let patternStr = null;
   let placementRaw = null;
@@ -46,6 +63,11 @@ function parseOneEntry(item, i) {
   return { pattern, placement: parsePlacement(placementRaw, i) };
 }
 
+/**
+ * Build rule config from params: allowedEntries (pattern + placement) and strictPlacement flag.
+ * @param {{ config?: object }} params - markdownlint params
+ * @returns {{ allowedEntries: object[], strictPlacement: boolean }}
+ */
 function getConfig(params) {
   const c = params.config || {};
   const raw = Array.isArray(c.allowedIdPatterns) ? c.allowedIdPatterns : [];
@@ -60,6 +82,11 @@ function getConfig(params) {
   };
 }
 
+/**
+ * Check whether the line before the anchor matches the rule's lineMatch pattern.
+ * @param {object} opts - { line, rule, lineNumber, context }
+ * @returns {object|null} Error object or null
+ */
 function checkPlacementLineMatch(opts) {
   const { line, rule, lineNumber, context } = opts;
   if (!rule.lineMatch) return null;
@@ -69,12 +96,22 @@ function checkPlacementLineMatch(opts) {
   return { lineNumber, detail: "[lineMatch] Anchor line must match the configured lineMatch pattern for this id.", context };
 }
 
+/**
+ * Check that the anchor is on a standalone line (no other content) when standaloneLine is required.
+ * @param {object} opts - { trimmed, id, rule, lineNumber, context }
+ * @returns {object|null} Error object or null
+ */
 function checkPlacementStandalone(opts) {
   const { trimmed, id, rule, lineNumber, context } = opts;
   if (!rule.standaloneLine || trimmed === `<a id="${id}"></a>`) return null;
   return { lineNumber, detail: "[standaloneLine] This anchor must be on its own line (no other content).", context };
 }
 
+/**
+ * Check that the anchor is inside a section whose heading matches headingMatch, and within maxPerSection.
+ * @param {object} opts - { matchIndex, rule, sectionStack, sectionAnchorCount, lineNumber, context }
+ * @returns {object|null} Error object or null
+ */
 function checkPlacementHeadingSection(opts) {
   const { matchIndex, rule, sectionStack, sectionAnchorCount, lineNumber, context } = opts;
   if (!rule.headingMatch) return null;
@@ -89,6 +126,11 @@ function checkPlacementHeadingSection(opts) {
   return null;
 }
 
+/**
+ * Check that the anchor appears immediately after the section heading (blank lines allowed).
+ * @param {object} opts - { index, rule, lines, lineNumber, context }
+ * @returns {object|null} Error object or null
+ */
 function checkPlacementImmediatelyAfter(opts) {
   const { index, rule, lines, lineNumber, context } = opts;
   if (!rule.anchorImmediatelyAfterHeading) return null;
@@ -100,6 +142,13 @@ function checkPlacementImmediatelyAfter(opts) {
   return { lineNumber, detail: "[anchorImmediatelyAfterHeading] This anchor must appear immediately after the section heading (blank lines allowed).", context };
 }
 
+/**
+ * Require a blank line immediately after the anchor line.
+ * @param {string|null} next - Next line content
+ * @param {number} lineNumber - Current line number
+ * @param {string} context - Full line for context
+ * @returns {object|null} Error object or null
+ */
 function checkRequireAfterBlank(next, lineNumber, context) {
   if (next == null || next.trim() !== "") {
     return { lineNumber, detail: "[requireAfter] Anchor line must be followed by a blank line.", context };
@@ -107,6 +156,13 @@ function checkRequireAfterBlank(next, lineNumber, context) {
   return null;
 }
 
+/**
+ * Require anchor to be followed by blank line then a fenced code block (``` or ~~~).
+ * @param {string|null} checkLine - Line to check (after blank)
+ * @param {number} lineNumber - Anchor line number
+ * @param {string} context - Full line for context
+ * @returns {object|null} Error object or null
+ */
 function checkRequireAfterFenced(checkLine, lineNumber, context) {
   if (checkLine == null || !checkLine.trim().match(/^(```+|~~~+)/)) {
     return { lineNumber, context, detail: "[requireAfter] Anchor line must be followed by a blank line and then a fenced code block." };
@@ -114,6 +170,13 @@ function checkRequireAfterFenced(checkLine, lineNumber, context) {
   return null;
 }
 
+/**
+ * Require anchor to be followed by blank line then a list (ordered or unordered).
+ * @param {string|null} checkLine - Line to check (after blank)
+ * @param {number} lineNumber - Anchor line number
+ * @param {string} context - Full line for context
+ * @returns {object|null} Error object or null
+ */
 function checkRequireAfterList(checkLine, lineNumber, context) {
   if (checkLine == null || !/^\s*(?:[-*+]\s+|\d+[.)]\s+)/.test(checkLine.trim())) {
     return { lineNumber, context, detail: "[requireAfter] Anchor line must be followed by a blank line and then a list (ordered or unordered)." };
@@ -121,6 +184,11 @@ function checkRequireAfterList(checkLine, lineNumber, context) {
   return null;
 }
 
+/**
+ * Enforce requireAfter rules: blank line and optionally fenced block or list.
+ * @param {object} opts - { index, rule, lines, lineNumber, context }
+ * @returns {object|null} Error object or null
+ */
 function checkPlacementRequireAfter(opts) {
   const { index, rule, lines, lineNumber, context } = opts;
   if (rule.requireAfter.length === 0) return null;
@@ -141,6 +209,11 @@ function checkPlacementRequireAfter(opts) {
   return null;
 }
 
+/**
+ * Run all placement checks for this anchor line; returns first error or null.
+ * @param {object} opts - Full placement context (rule, lineNumber, line, etc.)
+ * @returns {object|null} Error object or null
+ */
 function getPlacementError(opts) {
   const { rule, lineNumber, line } = opts;
   if (!rule) return null;
@@ -155,7 +228,15 @@ function getPlacementError(opts) {
 const ANCHOR_TAG_RE = /<a id="([^"]+)"><\/a>/;
 const ANCHOR_END_RE = /<a id="([^"]+)"><\/a>\s*$/;
 
-/** Returns first format/allowance error for this line, or null. */
+/**
+ * Returns first format/allowance error for this line, or null.
+ * Validates one-per-line, anchor format, allowedIdPatterns, and end-of-line placement.
+ * @param {string} scanLine - Line with inline code stripped
+ * @param {string} line - Original line (for context)
+ * @param {number} lineNumber - 1-based line number
+ * @param {RegExp[]} allowedPatterns - Allowed id patterns
+ * @returns {object|null} Error object or null
+ */
 function getBasicAnchorError(scanLine, line, lineNumber, allowedPatterns) {
   if (scanLine.indexOf("<a", scanLine.indexOf("<a") + 1) !== -1) {
     return { lineNumber, detail: "[one-per-line] Only one <a id=\"...\"></a> anchor is allowed per line.", context: line };
@@ -171,6 +252,13 @@ function getBasicAnchorError(scanLine, line, lineNumber, allowedPatterns) {
   return null;
 }
 
+/**
+ * Update fenced code block state when scanning a line (``` or ~~~).
+ * @param {string} trimmed - Trimmed line
+ * @param {boolean} inFence - Currently inside a fence
+ * @param {string|null} fenceMarker - Current fence marker ("```" or "~~~")
+ * @returns {{ inFence: boolean, fenceMarker: string|null, isFenceLine: boolean }}
+ */
 function updateFenceState(trimmed, inFence, fenceMarker) {
   const fenceMatch = trimmed.match(/^(```+|~~~+)/);
   if (!fenceMatch) return { inFence, fenceMarker, isFenceLine: false };
@@ -180,6 +268,12 @@ function updateFenceState(trimmed, inFence, fenceMarker) {
   return { inFence: nextInFence, fenceMarker: nextMarker, isFenceLine: true };
 }
 
+/**
+ * If line is an ATX heading, update section stack and section anchor counts; return true.
+ * @param {object} state - Mutable state (sectionStack, sectionAnchorCount, allowedEntries)
+ * @param {string} trimmed - Trimmed line
+ * @returns {boolean} True if line was a heading
+ */
 function applyHeadingLine(state, trimmed) {
   const headingMatch = trimmed.match(/^(#{1,6})\s+/);
   if (!headingMatch) return false;
@@ -195,6 +289,10 @@ function applyHeadingLine(state, trimmed) {
   return true;
 }
 
+/**
+ * Process a line that contains an anchor: validate format/placement and report errors via onError.
+ * @param {object} state - Full state (index, lines, allowedEntries, allowedPatterns, strictPlacement, onError, sectionStack, sectionAnchorCount)
+ */
 function applyAnchorLine(state) {
   const { index, lines, allowedEntries, allowedPatterns, strictPlacement, onError } = state;
   const lineNumber = index + 1;
@@ -211,6 +309,10 @@ function applyAnchorLine(state) {
   if (placementErr) onError(placementErr);
 }
 
+/**
+ * Process one line: update fence state, skip inside fences, apply heading or anchor logic.
+ * @param {object} state - Mutable state (index, lines, inFence, fenceMarker, sectionStack, etc.)
+ */
 function processLine(state) {
   const { index, lines } = state;
   const line = lines[index];
@@ -231,12 +333,14 @@ function processLine(state) {
   applyAnchorLine(state);
 }
 
-module.exports = {
-  names: ["allow-custom-anchors"],
-  description:
-    "Allow only configured <a id=\"...\"></a> anchor id patterns; optional placement rules.",
-  tags: ["html", "anchors"],
-  function: function (params, onError) {
+/**
+ * markdownlint rule: allow only configured <a id="..."></a> anchor id patterns;
+ * optional placement rules (headingMatch, lineMatch, requireAfter, etc.).
+ *
+ * @param {object} params - markdownlint params (lines, config)
+ * @param {function(object): void} onError - Callback to report an error
+ */
+function ruleFunction(params, onError) {
     const { allowedEntries, strictPlacement } = getConfig(params);
     const allowedPatterns = allowedEntries.map((e) => e.pattern);
     const lines = params.lines;
@@ -256,5 +360,12 @@ module.exports = {
       state.lines = lines;
       processLine(state);
     }
-  },
+  }
+
+module.exports = {
+  names: ["allow-custom-anchors"],
+  description:
+    "Allow only configured <a id=\"...\"></a> anchor id patterns; optional placement rules.",
+  tags: ["html", "anchors"],
+  function: ruleFunction,
 };

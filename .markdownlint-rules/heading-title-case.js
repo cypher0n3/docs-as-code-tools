@@ -98,11 +98,14 @@ function checkTitleCase(titleText, lowercaseWords) {
   return { valid: true };
 }
 
-module.exports = {
-  names: ["heading-title-case"],
-  description: "Enforce title case (capital case) for headings, with exceptions for words in backticks and configurable lowercase words.",
-  tags: ["headings"],
-  function: function (params, onError) {
+/**
+ * markdownlint rule: enforce title case on headings (first/last/major words capitalized;
+ * configurable lowercase words for middle). Words in backticks are skipped.
+ *
+ * @param {object} params - markdownlint params (lines, config)
+ * @param {function(object): void} onError - Callback to report an error
+ */
+function ruleFunction(params, onError) {
     const options = params.config?.["heading-title-case"] ?? {};
     const customLower = options.lowercaseWords;
     const lowercaseWords = Array.isArray(customLower) && customLower.length > 0
@@ -121,5 +124,11 @@ module.exports = {
         });
       }
     }
-  },
+  }
+
+module.exports = {
+  names: ["heading-title-case"],
+  description: "Enforce title case (capital case) for headings, with exceptions for words in backticks and configurable lowercase words.",
+  tags: ["headings"],
+  function: ruleFunction,
 };

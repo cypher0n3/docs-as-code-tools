@@ -3,14 +3,16 @@
 [![CI](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/js-lint.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/js-lint.yml)
 [![Lint READMEs](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/lint-readmes.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/lint-readmes.yml)
 [![Markdownlint tests](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/markdownlint-tests.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/markdownlint-tests.yml)
+[![Rule unit tests](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/rule-unit-tests.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/rule-unit-tests.yml)
 [![Python lint](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-lint.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-lint.yml)
+[![Python tests](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAnson/markdownlint) rules (JavaScript).
 
 ## Features
 
-- **Custom markdownlint rules** in [`.markdownlint-rules/`](./.markdownlint-rules/) (intended to be **copied directly** into whatever repo wishes to use them; no need to depend on this repo):
+- **Custom markdownlint rules** in [.markdownlint-rules/](.markdownlint-rules/README.md) (intended to be **copied directly** into whatever repo wishes to use them; no need to depend on this repo):
   - [allow-custom-anchors.js](.markdownlint-rules/allow-custom-anchors.js) - Custom anchor validation.
     - Only allow `<a id="..."></a>` whose ids match configured regex patterns; optional placement (heading match, line match, require-after, max per section).
     - Use when: enforcing stable fragment links (e.g. spec/algo docs) and consistent anchor placement.
@@ -35,7 +37,9 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Use when: copying the rule files; required by several of the rules above.
 
 - **JS linting** for the rule code: ESLint (recommended + complexity/max-lines), aligned with the GitHub Actions workflow.
-- **Markdownlint fixture tests**: `md_test_files/` includes positive/negative fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
+- **Markdownlint fixture tests**: [md_test_files/](md_test_files/README.md) includes positive/negative fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
+- **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/`; run with `make test-rules` or `npm run test:rules`.
+- **Python unit tests**: `unittest` tests for [test-scripts/](test-scripts/README.md) in `test-scripts/test_*.py`; run with `make test-python`.
 - **Python linting** for repo tooling scripts: `make lint-python` (flake8, pylint, xenon/radon, vulture, bandit).
 
 See **[.markdownlint-rules/README.md](.markdownlint-rules/README.md)** for rule docs and configuration.
@@ -68,6 +72,26 @@ npm install
   make test-markdownlint
   ```
 
+- **Run rule unit tests**:
+
+  ```bash
+  make test-rules
+  ```
+
+- **Run Python unit tests**:
+
+  ```bash
+  make test-python
+  ```
+
+- **Run all CI checks** (same as GitHub Actions):
+
+  ```bash
+  make ci
+  ```
+
+  Requires `npm install` and, for Python lint, `make venv`.
+
 - **Lint repo Python scripts**:
 
   ```bash
@@ -84,7 +108,9 @@ npm install
   - [js-lint.yml](.github/workflows/js-lint.yml)
   - [lint-readmes.yml](.github/workflows/lint-readmes.yml)
   - [markdownlint-tests.yml](.github/workflows/markdownlint-tests.yml)
+  - [rule-unit-tests.yml](.github/workflows/rule-unit-tests.yml)
   - [python-lint.yml](.github/workflows/python-lint.yml)
+  - [python-tests.yml](.github/workflows/python-tests.yml)
 - **`.markdownlint-cli2.jsonc`** - markdownlint-cli2 config: custom rule paths, extends `.markdownlint.yml`, ignores.
 - **`.markdownlint-rules/`** - Custom rule modules (`*.js`) and [README](.markdownlint-rules/README.md). Copy into other repos; do not register `utils.js`.
 - **`.markdownlint.yml`** - markdownlint and custom-rule options (e.g. ascii-only, allow-custom-anchors).
@@ -94,12 +120,13 @@ npm install
 - **`md_test_files/`** - Test fixtures: `positive.md` (must pass), `negative_*.md` (must fail).
   See [md_test_files/README.md](md_test_files/README.md).
 - **`package.json`** - npm dependencies (ESLint, markdownlint-cli2, etc.).
+- **`test/markdownlint-rules/`** - Node `node:test` unit tests for each custom rule (`*.test.js`); run with `make test-rules`.
 - **`test-scripts/`** - Python scripts used by repo tests and tooling.
   See [test-scripts/README.md](test-scripts/README.md).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute, run tests (`make test-markdownlint`), and run linting (`make lint-js`, `make lint-readmes`).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute, run tests (`make test-markdownlint`, `make test-rules`, `make test-python`), and run linting (`make lint-js`, `make lint-readmes`). Use `make ci` to run all CI checks locally.
 
 ## License
 

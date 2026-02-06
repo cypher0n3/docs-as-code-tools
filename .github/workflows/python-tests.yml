@@ -1,0 +1,26 @@
+name: Python tests
+
+# Unit tests for test-scripts/*.py (unittest). NOTE: Keep in sync with 'test-python' Makefile target.
+
+on:
+  push:
+    paths:
+      - 'test-scripts/**/*.py'
+      - 'Makefile'
+  pull_request:
+
+jobs:
+  test:
+    name: Python unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Run Python unit tests
+        run: make test-python

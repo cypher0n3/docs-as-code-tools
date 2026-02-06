@@ -117,6 +117,11 @@ function getSectionPeriodStyle(sorted, parentIndex, i) {
   return parseHeadingNumberPrefix(firstNumbered.rawText).hasH2Dot;
 }
 
+/**
+ * Check period style consistency with numbered siblings in the same section.
+ * @param {object} ctx - { h, sorted, parentIndex, i, contextLine }
+ * @returns {object|null} Error object or null
+ */
 function getPeriodStyleError(ctx) {
   const { h, sorted, parentIndex, i, contextLine } = ctx;
   const { hasH2Dot } = parseHeadingNumberPrefix(h.rawText);
@@ -129,6 +134,11 @@ function getPeriodStyleError(ctx) {
   };
 }
 
+/**
+ * Check that numbered heading has correct segment count (level - numbering root level).
+ * @param {object} ctx - { h, sorted, parentIndex, i, contextLine }
+ * @returns {object|null} Error object or null
+ */
 function checkSegmentCount(ctx) {
   const { h, sorted, parentIndex, i, contextLine } = ctx;
   const { numbering } = parseHeadingNumberPrefix(h.rawText);
@@ -142,7 +152,13 @@ function checkSegmentCount(ctx) {
   return null;
 }
 
-/** Return zero or more errors for heading at index i. */
+/**
+ * Return zero or more errors for heading at index i (numbering, segment count, sequence, period style).
+ * @param {object} h - Heading object { lineNumber, level, rawText }
+ * @param {number} i - Index in sorted headings
+ * @param {object} ctx - { sorted, parentIndex, contextLine }
+ * @returns {object[]} Array of error objects
+ */
 function getHeadingErrors(h, i, ctx) {
   const errors = [];
   const { numbering } = parseHeadingNumberPrefix(h.rawText);
@@ -171,12 +187,13 @@ function getHeadingErrors(h, i, ctx) {
   return errors;
 }
 
-module.exports = {
-  names: ["heading-numbering"],
-  description:
-    "Numbered headings: segment count by numbering root; numbering consistent within each section; period style consistent within section.",
-  tags: ["headings"],
-  function: function (params, onError) {
+/**
+ * markdownlint rule: validate numbered headings (segment count, sequence per section, period style).
+ *
+ * @param {object} params - markdownlint params (lines, config)
+ * @param {function(object): void} onError - Callback to report an error
+ */
+function ruleFunction(params, onError) {
     const headings = extractHeadings(params.lines);
     const withNumbering = headings
       .map((h) => ({
@@ -198,5 +215,12 @@ module.exports = {
         onError(err);
       }
     }
-  },
+  }
+
+module.exports = {
+  names: ["heading-numbering"],
+  description:
+    "Numbered headings: segment count by numbering root; numbering consistent within each section; period style consistent within section.",
+  tags: ["headings"],
+  function: ruleFunction,
 };

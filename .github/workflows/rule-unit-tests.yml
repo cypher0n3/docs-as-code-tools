@@ -1,0 +1,33 @@
+name: Rule unit tests
+
+# Unit tests for .markdownlint-rules/*.js (Node test runner).
+# NOTE: Keep in sync with the 'test-rules' target in the root Makefile.
+
+on:
+  push:
+    paths:
+      - '.markdownlint-rules/**/*.js'
+      - 'test/markdownlint-rules/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Makefile'
+  pull_request:
+
+jobs:
+  test:
+    name: Unit tests (markdownlint rules)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run rule unit tests
+        run: make test-rules

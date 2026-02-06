@@ -45,6 +45,24 @@ These targets mirror the GitHub Actions workflows. Run them locally before pushi
 
   When adding or changing a custom rule, add or update a `negative_*.md` fixture so the intended violation is covered. See [md_test_files/README.md](md_test_files/README.md) for which file exercises which rule.
 
+### Rule Unit Tests (`make test-rules`)
+
+- Unit tests for each custom rule in `test/markdownlint-rules/*.test.js` (Node built-in test runner).
+- Same as the [Rule unit tests](.github/workflows/rule-unit-tests.yml) workflow.
+
+  ```bash
+  make test-rules
+  ```
+
+### Python Unit Tests (`make test-python`)
+
+- Unit tests for `test-scripts/` in `test-scripts/test_*.py` (unittest).
+- Same as the [Python tests](.github/workflows/python-tests.yml) workflow.
+
+  ```bash
+  make test-python
+  ```
+
 ### Lint READMEs (`make lint-readmes`)
 
 - Lints all `**/README.md` files with markdownlint (including custom rules).
@@ -58,11 +76,13 @@ These targets mirror the GitHub Actions workflows. Run them locally before pushi
 
 ## Recommended Pre-Push
 
-Run all checks:
+Run all CI checks (same as GitHub Actions):
 
 ```bash
-make lint-js && make test-markdownlint && make lint-readmes
+make ci
 ```
+
+Or run individual targets: `make lint-js && make test-rules && make test-markdownlint && make lint-python && make test-python && make lint-readmes`
 
 ## Custom Rules
 
@@ -71,4 +91,5 @@ make lint-js && make test-markdownlint && make lint-readmes
 
 ## Sync Notes
 
-The Makefile comments state that `lint-js`, `test-markdownlint`, and `lint-readmes` must be kept in sync with their respective workflows. If you change what gets run in CI, update the corresponding Makefile target so local `make` matches.
+The Makefile comments state that `lint-js`, `test-markdownlint`, `test-rules`, `test-python`, and `lint-readmes` must be kept in sync with their respective workflows.
+If you change what gets run in CI, update the corresponding Makefile target and the `ci` target so local `make ci` matches.
