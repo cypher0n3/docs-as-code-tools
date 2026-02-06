@@ -54,6 +54,15 @@ These targets mirror the GitHub Actions workflows. Run them locally before pushi
   make test-rules
   ```
 
+#### Rule Security Tests
+
+- **Security tests** (`test/markdownlint-rules/security.test.js`): assert that invalid or malformed regex in rule config does not throw (defensive parsing).
+  A skipped test documents ReDoS risk when rules use user-controlled regex; enable it after adding mitigation (e.g. safe-regex or timeout).
+- **Security lint**: `eslint-plugin-security` is enabled for `.markdownlint-rules` (via `make lint-js`) and forbids `eval`, `new Function`, `child_process`, non-literal `require`/`fs`/`Buffer`, and similar.
+
+These execute as part of `make test-rules` and `make lint-js` respectively.
+`make ci` includes these in all the checks it executes.
+
 ### Python Unit Tests (`make test-python`)
 
 - Unit tests for `test-scripts/` in `test-scripts/test_*.py` (unittest).

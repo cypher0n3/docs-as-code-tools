@@ -36,9 +36,9 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
       Do not register as a rule in markdownlint.
     - Use when: copying the rule files; required by several of the rules above.
 
-- **JS linting** for the rule code: ESLint (recommended + complexity/max-lines), aligned with the GitHub Actions workflow.
+- **JS linting** for the rule code: ESLint (recommended + complexity/max-lines + eslint-plugin-security), aligned with the GitHub Actions workflow.
 - **Markdownlint fixture tests**: [md_test_files/](md_test_files/README.md) includes positive/negative fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
-- **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/`; run with `make test-rules` or `npm run test:rules`.
+- **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/` (including security tests for defensive regex handling and ReDoS awareness); run with `make test-rules` or `npm run test:rules`.
 - **Python unit tests**: `unittest` tests for [test-scripts/](test-scripts/README.md) in `test-scripts/test_*.py`; run with `make test-python`.
 - **Python linting** for repo tooling scripts: `make lint-python` (flake8, pylint, xenon/radon, vulture, bandit).
 

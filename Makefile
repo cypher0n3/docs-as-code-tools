@@ -27,7 +27,7 @@ lint-readmes:
 #       When adding or modifying JS linting, update both this Makefile and
 #       the workflow file to ensure local 'make lint-js' matches CI behavior.
 #       Requires: Node.js and npm; run 'npm install' (or npm ci) once for node_modules.
-#       Lints .markdownlint-rules/*.js with ESLint (recommended + complexity/max-lines).
+#       Lints .markdownlint-rules/*.js with ESLint (recommended + complexity/max-lines + eslint-plugin-security).
 # Usage: make lint-js [PATHS="path1,path2"]
 #        - PATHS: Comma-separated list of files/directories (default: .markdownlint-rules)
 lint-js:
