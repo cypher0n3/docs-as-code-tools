@@ -1,0 +1,20 @@
+{
+  "config": {
+    "default": true,
+    "extends": ".markdownlint.yml"
+  },
+  "ignores": [
+    ".github/**",
+    "**/node_modules/**",
+    "tmp/**",
+    "**/*.plan.md"
+  ],
+  "customRules": [
+    ".markdownlint-rules/no-heading-like-lines.js",
+    ".markdownlint-rules/allow-custom-anchors.js",
+    ".markdownlint-rules/no-duplicate-headings-normalized.js",
+    ".markdownlint-rules/heading-numbering.js",
+    ".markdownlint-rules/heading-title-case.js",
+    ".markdownlint-rules/ascii-only.js"
+  ]
+}

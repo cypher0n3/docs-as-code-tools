@@ -1,0 +1,35 @@
+name: JS Lint
+
+# NOTE: This workflow must be kept in sync with the 'lint-js' target in the root Makefile.
+#       The Makefile target performs the same checks locally. When adding or modifying
+#       JS linting configuration, update both this workflow and the Makefile to ensure consistency.
+#       The workflow runs: make lint-js
+
+on:
+  push:
+    paths:
+      - '.markdownlint-rules/**/*.js'
+      - 'eslint.config.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Makefile'
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint JS (markdownlint rules)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install JS lint tooling
+        run: npm install
+
+      - name: Run JS linting
+        run: make lint-js

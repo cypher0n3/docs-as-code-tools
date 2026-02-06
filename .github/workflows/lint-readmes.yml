@@ -1,0 +1,41 @@
+name: Lint READMEs
+
+# NOTE: This workflow must be kept in sync with the 'lint-readmes' target in the root Makefile.
+#       The Makefile target performs the same checks locally. When adding or modifying
+#       README linting, update both this workflow and the Makefile to ensure consistency.
+#       The workflow runs: make lint-readmes
+
+on:
+  push:
+    paths:
+      - '**/README.md'
+      - '.markdownlint-cli2.jsonc'
+      - '.markdownlint.yml'
+      - '.markdownlint-rules/**'
+      - 'Makefile'
+  pull_request:
+    paths:
+      - '**/README.md'
+      - '.markdownlint-cli2.jsonc'
+      - '.markdownlint.yml'
+      - '.markdownlint-rules/**'
+      - 'Makefile'
+
+jobs:
+  lint:
+    name: Lint READMEs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run README linting
+        run: make lint-readmes

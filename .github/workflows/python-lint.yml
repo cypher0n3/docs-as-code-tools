@@ -1,0 +1,34 @@
+name: Python Lint
+
+# NOTE: This workflow must be kept in sync with the 'lint-python' target in the root Makefile.
+#       The Makefile target performs the same checks locally. When adding or modifying
+#       Python linting configuration, update both this workflow and the Makefile to ensure consistency.
+#       The workflow runs: make lint-python
+
+on:
+  push:
+    paths:
+      - 'test-scripts/**/*.py'
+      - '.flake8'
+      - '.pylintrc'
+      - 'Makefile'
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint Python Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Python lint tooling
+        run: pip install -r test-scripts/requirements-lint.txt
+
+      - name: Run python linting
+        run: make lint-python

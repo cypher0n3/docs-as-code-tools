@@ -1,0 +1,31 @@
+# Test Scripts
+
+This directory contains Python scripts used to support this repository's test suite and development workflow.
+
+## Scripts
+
+- `verify_markdownlint_fixtures.py`
+  - Verifies markdownlint test fixtures in `md_test_files/` against their embedded `markdownlint-expect` blocks.
+  - Used by `make test-markdownlint` and the `markdownlint-tests` GitHub Actions workflow.
+
+## Requirements
+
+- Python 3
+- Node.js and npm (the verifier runs `markdownlint-cli2` via the repo's `node_modules` or `npx`)
+
+## Usage
+
+- Run the markdownlint fixture suite:
+
+  `make test-markdownlint`
+
+- Run Python linting for these scripts:
+
+  `make lint-python`
+
+## Lint Tooling
+
+Python lint tooling is listed in `test-scripts/requirements-lint.txt`.
+You can install it into a local venv with:
+
+`make venv`
