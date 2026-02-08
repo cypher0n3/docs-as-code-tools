@@ -36,7 +36,9 @@ tmp/
 *.tar.gz
 
 # Ignore coverage files
+coverage/
 coverage.*
+.coverage
 
 # Ignore Python cache files
 **/__pycache__/
