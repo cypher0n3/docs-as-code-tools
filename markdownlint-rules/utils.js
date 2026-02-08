@@ -220,9 +220,62 @@ function pathMatchesAny(path, patterns) {
   return false;
 }
 
+/**
+ * Parse fence line (e.g. "```text" or "~~~") to get info string (first word, lowercased).
+ * @param {string} line - Fence delimiter line
+ * @returns {string} Block type or ""
+ */
+function parseFenceInfo(line) {
+  const trimmed = line.trim();
+  const match = trimmed.match(/^(```+|~~~+)\s*(\S*)/);
+  if (!match) {
+    return "";
+  }
+  const rest = match[2].trim();
+  const first = rest.split(/\s+/)[0] || "";
+  return first.toLowerCase();
+}
+
+/**
+ * Iterate all lines with fence state; yields { lineNumber, line, inFencedBlock, blockType } for each line.
+ * Fence delimiter lines are not yielded; blockType is the info string (first word) of the opening fence.
+ * @param {string[]} lines - All lines
+ * @yields {{ lineNumber: number, line: string, inFencedBlock: boolean, blockType: string }}
+ */
+function* iterateLinesWithFenceInfo(lines) {
+  let inFence = false;
+  let fenceMarker = null;
+  let blockType = "";
+
+  for (let index = 0; index < lines.length; index++) {
+    const lineNumber = index + 1;
+    const line = lines[index];
+    const trimmed = line.trim();
+    const fenceMatch = trimmed.match(/^(```+|~~~+)/);
+
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0] === "`" ? "```" : "~~~";
+      if (!inFence) {
+        inFence = true;
+        fenceMarker = marker;
+        blockType = parseFenceInfo(line);
+      } else if (fenceMarker === marker) {
+        inFence = false;
+        fenceMarker = null;
+        blockType = "";
+      }
+      continue;
+    }
+
+    yield { lineNumber, line, inFencedBlock: inFence, blockType };
+  }
+}
+
 module.exports = {
   stripInlineCode,
   iterateNonFencedLines,
+  iterateLinesWithFenceInfo,
+  parseFenceInfo,
   extractHeadings,
   parseHeadingNumberPrefix,
   normalizeHeadingTitleForDup,

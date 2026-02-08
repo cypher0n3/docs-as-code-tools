@@ -1,12 +1,12 @@
 name: Rule unit tests
 
-# Unit tests for .markdownlint-rules/*.js (Node test runner) with coverage (fails if any file < 90%).
+# Unit tests for markdownlint-rules/*.js (Node test runner) with coverage (fails if any file < 90%).
 # NOTE: Keep in sync with the 'test-rules' and 'test-rules-coverage' targets in the root Makefile.
 
 on:
   push:
     paths:
-      - '.markdownlint-rules/**/*.js'
+      - 'markdownlint-rules/**/*.js'
       - 'test/markdownlint-rules/**'
       - 'package.json'
       - 'package-lock.json'

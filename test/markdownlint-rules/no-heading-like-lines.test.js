@@ -8,7 +8,7 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
-const rule = require("../../.markdownlint-rules/no-heading-like-lines.js");
+const rule = require("../../markdownlint-rules/no-heading-like-lines.js");
 const { runRule } = require("./run-rule.js");
 
 describe("no-heading-like-lines", () => {

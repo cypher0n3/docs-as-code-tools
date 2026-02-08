@@ -20,7 +20,7 @@ These targets mirror the GitHub Actions workflows. Run them locally before pushi
 
 ### Lint Rule JavaScript (`make lint-js`)
 
-- Lints `.markdownlint-rules/*.js` with ESLint (recommended + complexity/max-lines).
+- Lints `markdownlint-rules/*.js` with ESLint (recommended + complexity/max-lines).
 - Same as the [JS Lint](.github/workflows/js-lint.yml) workflow.
 
   ```bash
@@ -30,7 +30,7 @@ These targets mirror the GitHub Actions workflows. Run them locally before pushi
   Optional: limit to specific paths:
 
   ```bash
-  make lint-js PATHS=".markdownlint-rules/heading-title-case.js,.markdownlint-rules/utils.js"
+  make lint-js PATHS="markdownlint-rules/heading-title-case.js,markdownlint-rules/utils.js"
   ```
 
 ### Markdownlint Tests (`make test-markdownlint`)
@@ -58,7 +58,7 @@ These targets mirror the GitHub Actions workflows. Run them locally before pushi
 
 - **Security tests** (`test/markdownlint-rules/security.test.js`): assert that invalid or malformed regex in rule config does not throw (defensive parsing).
   A skipped test documents ReDoS risk when rules use user-controlled regex; enable it after adding mitigation (e.g. safe-regex or timeout).
-- **Security lint**: `eslint-plugin-security` is enabled for `.markdownlint-rules` (via `make lint-js`) and forbids `eval`, `new Function`, `child_process`, non-literal `require`/`fs`/`Buffer`, and similar.
+- **Security lint**: `eslint-plugin-security` is enabled for `markdownlint-rules` (via `make lint-js`) and forbids `eval`, `new Function`, `child_process`, non-literal `require`/`fs`/`Buffer`, and similar.
 
 These execute as part of `make test-rules` and `make lint-js` respectively.
 `make ci` includes these in all the checks it executes.
@@ -95,8 +95,8 @@ Or run individual targets: `make lint-js && make test-rules && make test-markdow
 
 ## Custom Rules
 
-- Rule code lives in [.markdownlint-rules/](.markdownlint-rules/). Do not register `utils.js` as a rule; it is a shared helper.
-- Config for custom rules is in [.markdownlint.yml](.markdownlint.yml). Rule docs and reuse instructions are in [.markdownlint-rules/README.md](.markdownlint-rules/README.md).
+- Rule code lives in [markdownlint-rules/](markdownlint-rules/). Do not register `utils.js` as a rule; it is a shared helper.
+- Config for custom rules is in [.markdownlint.yml](.markdownlint.yml). Rule docs and reuse instructions are in [markdownlint-rules/README.md](markdownlint-rules/README.md).
 
 ## Sync Notes
 

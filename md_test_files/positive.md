@@ -39,6 +39,20 @@ If you need inline code that contains backticks, use a longer delimiter like:
 func Example() {}
 ```
 
+## Unicode/Emoji in Code (No Ascii-Only Errors)
+
+Unicode and emoji inside inline code or fenced blocks are ignored by ascii-only.
+Default-allowed letters (e.g. é, ï, ñ) are allowed in prose; config `allowedUnicode` can add more (e.g. `ń`).
+
+- Default-allowed in prose: Café and naïve are allowed by default.
+- Config-allowed in prose: `ń` is allowed when listed in `allowedUnicode` in config.
+- Inline code only: use `→` or `ł` or `😀` here (no violation; rule ignores content inside backticks).
+- Fenced block below is skipped by rule; unicode/emoji inside are ignored:
+
+```text
+Arrow → and ł and 😀 inside fenced block — no ascii-only error.
+```
+
 ## Allowed Inline HTML Anchors
 
 These anchor examples are permitted by the custom markdownlint rule `allow-custom-anchors`.

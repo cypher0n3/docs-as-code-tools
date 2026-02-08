@@ -8,15 +8,15 @@
     "test:rules:coverage": "c8 --per-file node --test test/markdownlint-rules/*.test.js"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "c8": "^10.1.2",
-    "eslint": "^9.15.0",
+    "@eslint/js": "^9.17.0",
+    "c8": "^10.1.3",
+    "eslint": "^9.17.0",
     "eslint-plugin-security": "^3.0.1",
-    "globals": "^15.0.0",
-    "markdownlint-cli2": "^0.14.0"
+    "globals": "^17.3.0",
+    "markdownlint-cli2": "^0.20.0"
   },
   "c8": {
-    "include": [".markdownlint-rules/**/*.js"],
+    "include": ["markdownlint-rules/**/*.js"],
     "exclude": ["test/**"],
     "reporter": ["text", "lcov"],
     "all": true,

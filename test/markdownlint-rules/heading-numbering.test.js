@@ -9,7 +9,7 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
-const rule = require("../../.markdownlint-rules/heading-numbering.js");
+const rule = require("../../markdownlint-rules/heading-numbering.js");
 const { runRule } = require("./run-rule.js");
 
 describe("heading-numbering", () => {

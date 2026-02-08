@@ -9,7 +9,7 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
-const rule = require("../../.markdownlint-rules/no-duplicate-headings-normalized.js");
+const rule = require("../../markdownlint-rules/no-duplicate-headings-normalized.js");
 const { runRule } = require("./run-rule.js");
 
 describe("no-duplicate-headings-normalized", () => {
