@@ -1,49 +1,46 @@
 #!/usr/bin/env python3
 """
-Verify markdownlint fixture expectations embedded in md_test_files/*.md.
+Verify markdownlint fixture expectations from md_test_files/expected_errors.yml.
 
-Each fixture must contain a trailing fenced code block:
-
-```markdownlint-expect
-{
-  "total": 2,
-  "errors": [
-    { "line": 10, "rule": "MD032/blanks-around-lists" }
-  ]
-}
-```
-
+Expected errors are keyed by fixture filename (e.g. positive.md, negative_*.md).
 The verifier runs markdownlint-cli2 on each fixture and asserts:
 - exit code matches (0 for total=0, non-zero otherwise)
 - total error count matches
 - the multiset of (line, rule) or (line, rule, column) matches exactly (duplicates allowed).
   When "column" is present in an error object, the rule is assumed to report at character level
   and the verifier will match actual column numbers from markdownlint output.
+- optionally, each error may specify message_contains: the actual error message (text after
+  the rule name in markdownlint output) must contain that string, so the specific error on
+  each line can be validated.
 """
 
 from __future__ import annotations
 
-import json
+import argparse
 import os
 import re
 import subprocess  # nosec B404 (tooling script runs local commands)
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-
-EXPECT_FENCE = "```markdownlint-expect"
-FENCE_END = "```"
+import yaml
 
 
 @dataclass(frozen=True)
 class ExpectedError:
-    """A single expected markdownlint error: line, rule, and optional column (1-based)."""
+    """
+    A single expected markdownlint error: line, rule, optional column (1-based),
+    and optional message_contains (substring that must appear in the actual error message).
+    When parsed from markdownlint output, message is set to the full message text.
+    """
 
     line: int
     rule: str
     column: Optional[int] = None
+    message_contains: Optional[str] = None
+    message: Optional[str] = None  # Set when parsing actual output; not from YAML
 
 
 def repo_root() -> Path:
@@ -71,25 +68,6 @@ def list_fixture_files() -> List[Path]:
     return [positive, *negatives]
 
 
-def _find_expect_block(lines: List[str], file_path: Path) -> Tuple[int, int]:
-    """Return (start, end) line indices of the markdownlint-expect block. Raises if missing."""
-    start = None
-    for i in range(len(lines) - 1, -1, -1):
-        if lines[i].strip() == EXPECT_FENCE:
-            start = i
-            break
-    if start is None:
-        raise ValueError(f"Missing `{EXPECT_FENCE}` block in {file_path.as_posix()}")
-    end = None
-    for i in range(start + 1, len(lines)):
-        if lines[i].strip() == FENCE_END:
-            end = i
-            break
-    if end is None:
-        raise ValueError(f"Unterminated `{EXPECT_FENCE}` block in {file_path.as_posix()}")
-    return start, end
-
-
 def _parse_one_error(item: object, idx: int, file_path: Path) -> ExpectedError:
     """Parse and validate a single error object from the expectations JSON."""
     if not isinstance(item, dict):
@@ -109,59 +87,64 @@ def _parse_one_error(item: object, idx: int, file_path: Path) -> ExpectedError:
             f"Invalid errors[{idx}] in {file_path.as_posix()} expectations "
             '(optional "column" must be int >= 1).'
         )
-    col = column if isinstance(column, int) else None
-    return ExpectedError(line=line, rule=rule.strip(), column=col)
-
-
-def parse_expectations(markdown: str, file_path: Path) -> Tuple[int, List[ExpectedError]]:
-    """
-    Parse the trailing ```markdownlint-expect JSON block from markdown.
-
-    Returns (total, list of ExpectedError). Validates total and errors array shape.
-    Raises ValueError if block missing, JSON invalid, or structure invalid.
-    """
-    lines = markdown.splitlines()
-    start, end = _find_expect_block(lines, file_path)
-    json_text = "\n".join(lines[start + 1:end]).strip()
-    try:
-        data = json.loads(json_text)
-    except json.JSONDecodeError as e:
+    msg_contains = item.get("message_contains")
+    if msg_contains is not None and not isinstance(msg_contains, str):
         raise ValueError(
-            f"Invalid JSON in {file_path.as_posix()} expectations: {e.msg}"
-        ) from e
-
-    total = data.get("total")
-    errors = data.get("errors")
-    if not isinstance(total, int) or total < 0:
-        raise ValueError(
-            f'Invalid "total" in {file_path.as_posix()} expectations (must be non-negative int).'
+            f"Invalid errors[{idx}] in {file_path.as_posix()} expectations "
+            '(optional "message_contains" must be a string).'
         )
+    col = column if isinstance(column, int) else None
+    msg_c = msg_contains if isinstance(msg_contains, str) else None
+    return ExpectedError(line=line, rule=rule.strip(), column=col, message_contains=msg_c)
+
+
+def load_expected_errors(expect_path: Path) -> Dict[str, Any]:
+    """Load expected_errors.yml; return dict keyed by fixture filename."""
+    if not expect_path.exists():
+        raise FileNotFoundError(f"Expected errors file not found: {expect_path}")
+    text = expect_path.read_text(encoding="utf-8")
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML in {expect_path}: {e}") from e
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected errors file must be a YAML object: {expect_path}")
+    return data
+
+
+def parse_expectations_from_data(
+    data: Any, file_path: Path
+) -> Tuple[int, List[ExpectedError]]:
+    """
+    Parse expectations from a dict with an "errors" list. Total is derived from len(errors).
+
+    Returns (total, list of ExpectedError). Raises ValueError if structure invalid.
+    """
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Expectations for {file_path.as_posix()} must be an object."
+        )
+    errors = data.get("errors")
     if not isinstance(errors, list):
         raise ValueError(
             f'Invalid "errors" in {file_path.as_posix()} expectations (must be an array).'
         )
 
     parsed = [_parse_one_error(item, idx, file_path) for idx, item in enumerate(errors)]
-
-    if len(parsed) != total:
-        raise ValueError(
-            f"Expectation mismatch in {file_path.as_posix()}: total={total} "
-            f"but errors.length={len(parsed)}"
-        )
-    return total, parsed
+    return len(parsed), parsed
 
 
 _RE_ERROR_LINE = re.compile(
-    r"^[^:]+:(\d+)(?::(\d+))?\s+(?:error\s+)?(\S+)\s+"
+    r"^[^:]+:(\d+)(?::(\d+))?\s+(?:error\s+)?(\S+)\s+(.*)$"
 )
 
 
 def parse_markdownlint_output(output: str, file_label: str) -> List[ExpectedError]:
     """
-    Parse markdownlint-cli2 stderr/stdout into a list of errors (line, rule, optional column).
+    Parse markdownlint-cli2 stderr/stdout into a list of errors (line, rule, column, message).
 
     Only lines starting with file_label (e.g. "md_test_files/foo.md:") are considered.
-    When output is file:line:column rule, column is captured; otherwise column is None.
+    Captures optional column and the rest of the line as the error message.
     """
     errors: List[ExpectedError] = []
     prefix = file_label + ":"
@@ -172,14 +155,20 @@ def parse_markdownlint_output(output: str, file_label: str) -> List[ExpectedErro
         if not m:
             continue
         column = int(m.group(2)) if m.group(2) else None
+        message = (m.group(4) or "").strip()
         errors.append(
-            ExpectedError(line=int(m.group(1)), rule=m.group(3), column=column)
+            ExpectedError(
+                line=int(m.group(1)),
+                rule=m.group(3),
+                column=column,
+                message=message,
+            )
         )
     return errors
 
 
 def _count_map_key(e: ExpectedError) -> Tuple[int, str, Optional[int]]:
-    """Key for count maps: (line, rule, column)."""
+    """Key for count maps: (line, rule, column). Message fields are ignored."""
     return (e.line, e.rule, e.column)
 
 
@@ -192,14 +181,50 @@ def to_count_map(errors: List[ExpectedError]) -> Dict[Tuple[int, str, Optional[i
     return m
 
 
-def verify_file(cmd: List[str], file_path: Path) -> None:
+def _assert_message_contains(
+    exp_errors: List[ExpectedError],
+    act_errors: List[ExpectedError],
+    file_label: str,
+    combined: str,
+) -> None:
+    """Raise AssertionError if any expected message_contains is not found in actual messages."""
+    for exp in exp_errors:
+        if exp.message_contains is None:
+            continue
+        candidates = [
+            a for a in act_errors
+            if a.line == exp.line and a.rule == exp.rule
+            and (exp.column is None or a.column == exp.column)
+        ]
+        if not candidates:
+            raise AssertionError(
+                f"Unexpected errors for {file_label}: no actual error at line {exp.line} "
+                f"rule {exp.rule} to check message_contains.\n\nOutput:\n{combined}\n"
+            )
+        if not any(
+            (a.message or "").find(exp.message_contains) >= 0 for a in candidates
+        ):
+            raise AssertionError(
+                f"Unexpected error message for {file_label} at line {exp.line} rule {exp.rule}: "
+                f'message_contains "{exp.message_contains}" not found in actual message. '
+                f"Got: {candidates[0].message!r}\n\nOutput:\n{combined}\n"
+            )
+
+
+def verify_file(
+    cmd: List[str], file_path: Path, expectations_by_file: Dict[str, Any]
+) -> None:
     """
     Run markdownlint on one fixture file and assert exit code, count, and (line, rule) multiset.
 
     Raises AssertionError or ValueError on mismatch; OSError/SubprocessError on run failure.
     """
-    markdown = file_path.read_text(encoding="utf-8")
-    exp_total, exp_errors = parse_expectations(markdown, file_path)
+    key = file_path.name
+    if key not in expectations_by_file:
+        raise ValueError(f"No expectations in expected_errors.yml for {key}")
+    exp_total, exp_errors = parse_expectations_from_data(
+        expectations_by_file[key], file_path
+    )
 
     file_label = file_path.relative_to(repo_root()).as_posix()
     proc = subprocess.run(
@@ -260,6 +285,8 @@ def verify_file(cmd: List[str], file_path: Path) -> None:
                 f"Unexpected errors for {file_label}:\n{diff_text}\n\nOutput:\n{combined}\n"
             )
 
+    _assert_message_contains(exp_errors, act_errors, file_label, combined)
+
 
 def main() -> int:
     """
@@ -267,14 +294,40 @@ def main() -> int:
 
     Returns 0 if all pass, 1 if any fail.
     """
+    parser = argparse.ArgumentParser(description="Verify markdownlint fixture expectations.")
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Print each fixture as it is verified.",
+    )
+    args = parser.parse_args()
+    verbose = args.verbose
+
     cmd = find_markdownlint_cmd()
     files = list_fixture_files()
+    expect_path = repo_root() / "md_test_files" / "expected_errors.yml"
+    expectations_by_file = load_expected_errors(expect_path)
     failures: List[str] = []
 
     for f in files:
+        if verbose:
+            exp_total = 0
+            if f.name in expectations_by_file:
+                err_list = expectations_by_file[f.name].get("errors") or []
+                exp_total = len(err_list)
+            file_label = f.relative_to(repo_root()).as_posix()
+            plural = "" if exp_total == 1 else "s"
+            sys.stderr.write(
+                f"Verifying {file_label} ({exp_total} expected error{plural}) ... "
+            )
         try:
-            verify_file(cmd, f)
+            verify_file(cmd, f, expectations_by_file)
+            if verbose:
+                sys.stderr.write("ok\n")
         except (AssertionError, ValueError, OSError, subprocess.SubprocessError) as e:
+            if verbose:
+                sys.stderr.write("FAIL\n")
             failures.append(str(e))
 
     if failures:
