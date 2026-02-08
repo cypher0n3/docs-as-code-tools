@@ -1,0 +1,10 @@
+{
+  "markdownlint.customRules": [
+    "./.markdownlint-rules/allow-custom-anchors.js",
+    "./.markdownlint-rules/ascii-only.js",
+    "./.markdownlint-rules/heading-numbering.js",
+    "./.markdownlint-rules/heading-title-case.js",
+    "./.markdownlint-rules/no-duplicate-headings-normalized.js",
+    "./.markdownlint-rules/no-heading-like-lines.js"
+  ]
+}

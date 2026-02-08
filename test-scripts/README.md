@@ -5,7 +5,7 @@ This directory contains Python scripts used to support this repository's test su
 ## Scripts
 
 - `verify_markdownlint_fixtures.py`
-  - Verifies markdownlint test fixtures in `md_test_files/` against their embedded `markdownlint-expect` blocks.
+  - Verifies markdownlint test fixtures in `md_test_files/` against expectations in `md_test_files/expected_errors.yml`.
   - Used by `make test-markdownlint` and the `markdownlint-tests` GitHub Actions workflow.
 - `test_verify_markdownlint_fixtures.py`
   - Unit tests for the fixture verifier (run via `make test-python`).

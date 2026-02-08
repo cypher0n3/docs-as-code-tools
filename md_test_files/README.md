@@ -5,32 +5,32 @@
 
 ## Negative Fixtures (Custom Rules Only)
 
-| File                                     | Expected custom rule(s)                                   |
-| ---------------------------------------- | --------------------------------------------------------- |
-| negative_heading_like.md                 | no-heading-like-lines                                     |
-| negative_heading_like_variants.md        | no-heading-like-lines (italic, numbered-list variants)    |
-| negative_heading_title_case.md           | heading-title-case                                        |
-| negative_heading_numbering.md            | heading-numbering (segment, sequence, period, unnumbered) |
-| negative_duplicate_headings_normalized.md| no-duplicate-headings-normalized                          |
-| negative_ascii_only.md                   | ascii-only                                                |
-| negative_anchor_invalid_id.md            | allow-custom-anchors (id not in allowedIdPatterns)        |
-| negative_anchor_spec_placement.md        | allow-custom-anchors (spec placement)                     |
-| negative_anchor_ref_placement.md         | allow-custom-anchors (ref placement)                      |
-| negative_anchor_algo_placement.md        | allow-custom-anchors (algo placement)                     |
-| negative_anchor_multiple.md              | allow-custom-anchors (multiple per line)                  |
-| negative_inline_html.md                  | allow-custom-anchors (attribute, id pattern, end-of-line) |
+| File                                      | Expected custom rule(s)                                   |
+| ----------------------------------------- | --------------------------------------------------------- |
+| negative_anchor_algo_placement.md         | allow-custom-anchors (algo placement)                     |
+| negative_anchor_invalid_id.md             | allow-custom-anchors (id not in allowedIdPatterns)        |
+| negative_anchor_multiple.md               | allow-custom-anchors (multiple per line)                  |
+| negative_anchor_ref_placement.md          | allow-custom-anchors (ref placement)                      |
+| negative_anchor_spec_placement.md         | allow-custom-anchors (spec placement)                     |
+| negative_ascii_only.md                    | ascii-only                                                |
+| negative_duplicate_headings_normalized.md | no-duplicate-headings-normalized                          |
+| negative_heading_like.md                  | no-heading-like-lines                                     |
+| negative_heading_numbering.md             | heading-numbering (segment, sequence, period, unnumbered) |
+| negative_heading_title_case.md            | heading-title-case                                        |
+| negative_inline_html.md                   | allow-custom-anchors (attribute, id pattern, end-of-line) |
 
 Note: some negative fixtures intentionally trigger built-in markdownlint rules in addition to custom rules (e.g. MD031/MD032/MD033), so the test suite can assert multiple errors on specific lines.
 
 ## Expectations
 
-Each fixture includes a `markdownlint-expect` fenced code block containing JSON:
+Expected errors are defined in **expected_errors.yml** (one entry per fixture, keyed by filename). Each entry has:
 
-- `total`: expected number of markdownlint errors for this file
-- `errors`: list of expected errors (each has `line` and `rule`
-  - optional `column` for rules that report at character level, e.g. `ascii-only`, `heading-title-case`)
+- **errors**: list of expected errors. Each error has:
+  - **line** (required), **rule** (required)
+  - **column** (optional) - for rules that report at character level (e.g. ascii-only, heading-title-case)
+  - **message_contains** (optional) - substring that must appear in the rule's message
 
-The `make test-markdownlint` target runs `test-scripts/verify_markdownlint_fixtures.py`, which lints each fixture and validates the exact expected errors.
+Total expected count is the length of the errors list. The `make test-markdownlint` target runs `test-scripts/verify_markdownlint_fixtures.py`, which lints each fixture and validates output against this file.
 
 ## Linting
 
@@ -42,4 +42,4 @@ The `make test-markdownlint` target runs `test-scripts/verify_markdownlint_fixtu
 
   `make test-markdownlint`
 
-See `md_test_files/positive.md` and `md_test_files/negative_*.md` for the current expected errors.
+See **expected_errors.yml** for the expected errors per fixture.
