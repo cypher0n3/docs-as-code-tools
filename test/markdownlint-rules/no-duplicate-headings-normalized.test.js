@@ -27,6 +27,7 @@ describe("no-duplicate-headings-normalized", () => {
     assert.strictEqual(errors[0].lineNumber, 3);
     assert.ok(errors[0].detail.includes("Duplicate"));
     assert.ok(errors[0].detail.includes("line 1"));
+    assert.ok(errors[0].detail.includes("introduction"), "detail should include the normalized duplicate title");
   });
 
   it("reports error when numbering differs but title same", () => {
@@ -35,5 +36,21 @@ describe("no-duplicate-headings-normalized", () => {
     const errors = runRule(rule, lines);
     assert.strictEqual(errors.length, 1);
     assert.strictEqual(errors[0].lineNumber, 3);
+    assert.ok(errors[0].detail.includes("overview"), "detail should include the normalized duplicate title");
+    assert.ok(errors[0].detail.includes("line 1"), "detail should reference first occurrence line");
+  });
+
+  it("normalizes empty heading title (utils normalizeHeadingTitleForDup)", () => {
+    const lines = ["# ", "## Section", "content"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports multiple duplicates when same normalized title appears three times", () => {
+    const lines = ["# Overview", "## 1. Overview", "## 2. Overview"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 2);
+    assert.ok(errors.every((e) => e.detail.includes("Overview") || e.detail.includes("overview")));
+    assert.ok(errors.some((e) => e.detail.includes("line 1")));
   });
 });

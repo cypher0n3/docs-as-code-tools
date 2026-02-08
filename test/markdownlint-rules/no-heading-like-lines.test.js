@@ -24,7 +24,8 @@ describe("no-heading-like-lines", () => {
     const errors = runRule(rule, lines);
     assert.strictEqual(errors.length, 1);
     assert.strictEqual(errors[0].lineNumber, 1);
-    assert.ok(errors[0].detail.includes("proper Markdown headings"));
+    assert.ok(errors[0].detail.includes("ATX heading") && errors[0].detail.includes("heading-like"));
+    assert.ok(errors[0].detail.includes("bold") && errors[0].detail.includes("colon"), "detail should describe the matched pattern");
   });
 
   it("reports error for 1. **Text** style", () => {
@@ -33,6 +34,7 @@ describe("no-heading-like-lines", () => {
     const errors = runRule(rule, lines);
     assert.strictEqual(errors.length, 1);
     assert.strictEqual(errors[0].lineNumber, 1);
+    assert.ok(errors[0].detail.includes("numbered") || errors[0].detail.includes("bold"), "detail should describe the matched pattern");
   });
 
   it("ignores empty lines", () => {
