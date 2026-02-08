@@ -4,13 +4,6 @@ This file contains examples that should pass the Markdown standards enforced by 
 
 It is intended to be linted explicitly via `npx markdownlint-cli2 md_test_files/positive.md`.
 
-```markdownlint-expect
-{
-  "total": 0,
-  "errors": []
-}
-```
-
 ## Formatting
 
 This paragraph has one sentence.
@@ -91,3 +84,11 @@ This heading demonstrates that leading/trailing punctuation like parentheses doe
 ### 3. Using Tools (In Practice)
 
 This heading demonstrates that the first word inside parentheses is treated as a new sentence start for title case.
+
+### 4. How to Do a Follow-Up
+
+AP style: hyphenated compounds (each segment capitalized); "to" and "a" lowercase in the middle.
+
+### 5. Summary: The Results
+
+AP style: first word after a colon is capitalized (subphrase start).
