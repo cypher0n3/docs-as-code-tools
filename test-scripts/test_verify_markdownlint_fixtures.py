@@ -437,7 +437,7 @@ class TestVerifyFile(unittest.TestCase):
             self.assertIn("column", str(ctx.exception))
 
     def test_verify_file_raises_when_expected_line_rule_not_in_actual(self):
-        """Expected error at line 99 rule X but actual has only line 1 (line/rule multiset mismatch)."""
+        """Expected at line 99 rule X but actual has only line 1 (line/rule multiset mismatch)."""
         path = _REPO_ROOT / "md_test_files" / "positive.md"
         if not path.exists():
             self.skipTest("positive.md fixture not found")
@@ -502,7 +502,9 @@ class TestMain(unittest.TestCase):
                             expect_path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
                             if not expect_path.exists():
                                 self.skipTest("expected_errors.yml not found")
-                            load.return_value = {p.name: {"errors": []} for p in v.list_fixture_files()}
+                            load.return_value = {
+                                p.name: {"errors": []} for p in v.list_fixture_files()
+                            }
                             files.return_value = [
                                 _REPO_ROOT / "md_test_files" / "positive.md",
                             ]
@@ -521,7 +523,7 @@ class TestMain(unittest.TestCase):
                             files.return_value = [_REPO_ROOT / "md_test_files" / "positive.md"]
                             load.return_value = {"positive.md": {"errors": []}}
                             with patch("sys.stdout") as mock_stdout:
-                                result = v.main()
+                                self.assertEqual(v.main(), 0)
                             mock_stdout.write.assert_called()
                             out = "".join(c[0][0] for c in mock_stdout.write.call_args_list)
                             self.assertIn("All markdownlint", out)
