@@ -10,6 +10,8 @@ const { stripInlineCode } = require("./utils.js");
 function safeRegExp(str) {
   if (typeof str !== "string" || !str) return null;
   try {
+    // Config-provided pattern; invalid patterns caught below. Required for allowedIdPatterns.
+    // eslint-disable-next-line security/detect-non-literal-regexp
     return new RegExp(str);
   } catch {
     return null;
