@@ -173,6 +173,8 @@ function globToRegExp(pattern) {
       i += 1;
     }
   }
+  // Built from escaped glob segments only (.*, [^/]*, or escaped chars) — safe.
+  // eslint-disable-next-line security/detect-non-literal-regexp
   return new RegExp("^" + parts.join("") + "$");
 }
 

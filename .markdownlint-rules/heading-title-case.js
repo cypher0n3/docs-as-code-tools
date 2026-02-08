@@ -76,6 +76,53 @@ function checkWord(opts) {
 }
 
 /**
+ * Compute 0-based offset and length of segment j within a hyphenated word.
+ * @param {string[]} rawSegments - Parts of the word split on '-'
+ * @param {number} j - Segment index
+ * @returns {{ segmentOffset: number, segmentLength: number }|undefined}
+ */
+function getSegmentPosition(rawSegments, j) {
+  if (rawSegments.length <= 1) return undefined;
+  let segmentOffset = 0;
+  for (let k = 0; k < j; k++) segmentOffset += rawSegments[k].length + 1;
+  return { segmentOffset, segmentLength: rawSegments[j].length };
+}
+
+/**
+ * Check one segment of a word for title-case; returns error result or null.
+ * @param {{ words: string[], rawSegments: string[], i: number, j: number, wordIsSubphraseStart: boolean, lowercaseWords: Set<string> }} opts
+ * @returns {{ valid: false, detail: string, wordIndex: number, segmentOffset?: number, segmentLength?: number }|null}
+ */
+function checkOneSegment(opts) {
+  const { words, rawSegments, i, j, wordIsSubphraseStart, lowercaseWords } = opts;
+  const rawSeg = rawSegments[j];
+  const core = stripWordPunctuation(rawSeg);
+  if (!core || !/[a-zA-Z]/.test(core)) return null;
+
+  const isFirst = i === 0 && j === 0;
+  const isLast = i === words.length - 1 && j === rawSegments.length - 1;
+  const isSubphraseStart = j === 0 && wordIsSubphraseStart;
+
+  const detail = checkWord({
+    raw: rawSeg,
+    core,
+    isFirst,
+    isLast,
+    lowercaseWords,
+    isSubphraseStart,
+  });
+  if (!detail) return null;
+
+  const seg = getSegmentPosition(rawSegments, j);
+  return {
+    valid: false,
+    detail,
+    wordIndex: i,
+    ...(seg && { segmentOffset: seg.segmentOffset, segmentLength: seg.segmentLength }),
+  };
+}
+
+/**
  * Validate title case on a heading's title part (numbering stripped).
  * AP rules: first/last/subphrase-start capitalized; hyphenated segments checked separately;
  * first word after colon treated as subphrase start. Words in backticks are excluded.
@@ -98,37 +145,15 @@ function checkTitleCase(titleText, lowercaseWords) {
 
     const rawSegments = raw.split(/-/);
     for (let j = 0; j < rawSegments.length; j++) {
-      const rawSeg = rawSegments[j];
-      const core = stripWordPunctuation(rawSeg);
-      if (!core || !/[a-zA-Z]/.test(core)) continue;
-
-      const isFirst = i === 0 && j === 0;
-      const isLast = i === words.length - 1 && j === rawSegments.length - 1;
-      const isSubphraseStart = j === 0 && wordIsSubphraseStart;
-
-      const detail = checkWord({
-        raw: rawSeg,
-        core,
-        isFirst,
-        isLast,
+      const result = checkOneSegment({
+        words,
+        rawSegments,
+        i,
+        j,
+        wordIsSubphraseStart,
         lowercaseWords,
-        isSubphraseStart,
       });
-      if (detail) {
-        let segmentOffset;
-        let segmentLength;
-        if (rawSegments.length > 1) {
-          segmentOffset = 0;
-          for (let k = 0; k < j; k++) segmentOffset += rawSegments[k].length + 1;
-          segmentLength = rawSegments[j].length;
-        }
-        return {
-          valid: false,
-          detail,
-          wordIndex: i,
-          ...(segmentOffset !== undefined && { segmentOffset, segmentLength }),
-        };
-      }
+      if (result) return result;
     }
   }
   return { valid: true };
@@ -139,12 +164,11 @@ function checkTitleCase(titleText, lowercaseWords) {
  * @param {string} line - Full source line (e.g. "## 1.2 The quick Brown")
  * @param {string} rawText - Content after ATX prefix (e.g. "1.2 The quick Brown")
  * @param {string} titleText - Content after numbering (e.g. "The quick Brown")
- * @param {number} wordIndex - 0-based index of the word in the title
- * @param {number} [segmentOffset] - Offset of segment within word (for hyphenated words)
- * @param {number} [segmentLength] - Length of segment (for hyphenated words)
+ * @param {{ wordIndex: number, segmentOffset?: number, segmentLength?: number }} opts
  * @returns {{ column: number, length: number }|null}
  */
-function getWordRangeInLine(line, rawText, titleText, wordIndex, segmentOffset, segmentLength) {
+function getWordRangeInLine(line, rawText, titleText, opts) {
+  const { wordIndex, segmentOffset, segmentLength } = opts;
   const wordMatches = [...titleText.matchAll(/\S+/g)];
   if (wordIndex < 0 || wordIndex >= wordMatches.length) return null;
   const rawTextStart = line.indexOf(rawText);
@@ -184,14 +208,11 @@ function ruleFunction(params, onError) {
       const result = checkTitleCase(titleText, lowercaseWords);
       if (!result.valid) {
         const line = params.lines[h.lineNumber - 1];
-        const rangeInfo = getWordRangeInLine(
-          line,
-          h.rawText,
-          titleText,
-          result.wordIndex,
-          result.segmentOffset,
-          result.segmentLength
-        );
+        const rangeInfo = getWordRangeInLine(line, h.rawText, titleText, {
+          wordIndex: result.wordIndex,
+          segmentOffset: result.segmentOffset,
+          segmentLength: result.segmentLength,
+        });
         onError({
           lineNumber: h.lineNumber,
           detail: result.detail,
