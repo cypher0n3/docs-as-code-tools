@@ -27,6 +27,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+LONG_FIXTURE_LINES = 1501
+
 
 @dataclass(frozen=True)
 class ExpectedError:
@@ -60,11 +62,21 @@ def find_markdownlint_cmd() -> List[str]:
     return ["npx", "markdownlint-cli2"]
 
 
+def ensure_long_document_fixture(path: Path) -> None:
+    """Write a markdown file with LONG_FIXTURE_LINES lines so document-length rule fails."""
+    # Blank after heading to satisfy MD022; trailing newline to satisfy MD047
+    lines = ["# Title", ""] + [f"line {i}" for i in range(3, LONG_FIXTURE_LINES + 1)]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def list_fixture_files() -> List[Path]:
     """Return fixture paths: positive.md plus sorted negative_*.md in md_test_files."""
     md_dir = repo_root() / "md_test_files"
     positive = md_dir / "positive.md"
     negatives = sorted(md_dir.glob("negative_*.md"))
+    long_fixture = md_dir / "negative_document_length.md"
+    if long_fixture not in negatives:
+        negatives = sorted(negatives + [long_fixture])
     return [positive, *negatives]
 
 
@@ -311,6 +323,8 @@ def main() -> int:
     failures: List[str] = []
 
     for f in files:
+        if f.name == "negative_document_length.md" and not f.exists():
+            ensure_long_document_fixture(f)
         if verbose:
             exp_total = 0
             if f.name in expectations_by_file:
