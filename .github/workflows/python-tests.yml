@@ -23,6 +23,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install test dependencies
+        run: pip install PyYAML
+
       - name: Run Python unit tests
         run: make test-python
 
@@ -38,8 +41,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install coverage
-        run: pip install coverage
+      - name: Install test dependencies
+        run: pip install PyYAML coverage
 
       - name: Run Python coverage (fail if < 90%)
         run: make test-python-coverage
