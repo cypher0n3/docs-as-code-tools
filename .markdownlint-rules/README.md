@@ -49,6 +49,30 @@ heading-title-case:
 
 The same structure works in `.markdownlint.json` (use JSON object keys and arrays instead of YAML).
 
+### Using in `VS Code` and its Forks
+
+This repo includes [.vscode/settings.json](../.vscode/settings.json) so the [markdownlint extension](https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint) uses the same custom rules as the CLI when you open the repo in VS Code or a fork (e.g. Cursor).
+
+- **In another repo:** If you copied these rules into that repo, add a `.vscode/settings.json` there with a `markdownlint.customRules` array listing the paths to each rule file (e.g. `"./.markdownlint-rules/ascii-only.js"`).
+  Use paths relative to the workspace root. Rule options still come from that repo's `.markdownlint.yml` or `.markdownlint.json`; the extension reads both the custom rule paths and the config file.
+
+Example for a repo that has copied rules into `.markdownlint-rules/`:
+
+```json
+{
+  "markdownlint.customRules": [
+    "./.markdownlint-rules/allow-custom-anchors.js",
+    "./.markdownlint-rules/ascii-only.js",
+    "./.markdownlint-rules/heading-numbering.js",
+    "./.markdownlint-rules/heading-title-case.js",
+    "./.markdownlint-rules/no-duplicate-headings-normalized.js",
+    "./.markdownlint-rules/no-heading-like-lines.js"
+  ]
+}
+```
+
+Do not list `utils.js` in `markdownlint.customRules`; it is a helper, not a rule.
+
 ## Rules
 
 ### `allow-custom-anchors`
@@ -152,7 +176,8 @@ Relative patterns (no leading `/` or `*`) match both path-prefix (e.g. `dev_docs
 
 **File:** `heading-title-case.js`
 
-**Description:** Enforce title case (capital case) for headings. Words inside backticks are not checked. A configurable set of words (e.g. "vs", "and", "the") stay lowercase except when they are the first or last word.
+**Description:** Enforce AP-style (Associated Press) headline capitalization for headings.
+  Words inside backticks are not checked. A configurable set of minor words (e.g. "vs", "and", "the", "is") stay lowercase except when they are the first word, last word, or the first word after a colon or after `(` / `[`.
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `heading-title-case`:
 
@@ -167,14 +192,25 @@ heading-title-case:
     - "or"
 ```
 
-- **`lowercaseWords`** (array of strings, optional): Words that must be lowercase in the middle of a heading. If omitted, a default list is used: a, an, the, and, or, but, nor, so, yet, as, at, by, for, in, of, on, to, vs, via, per, into, with, from, than, when, if, unless, because, although, while.
+- **`lowercaseWords`** (array of strings, optional): Words that must be lowercase in the middle of a heading.
+  If omitted, a default list aligned with AP headline style is used (articles, coordinating conjunctions, short prepositions, and short verb/pronoun):
 
-**Behavior:** For each ATX heading, the title part (after stripping any numeric prefix like `1.2.3`) is checked. Content inside inline code (backticks) is ignored.
+  ```text
+  a, an, the,
+  and, but, for, nor, or, so, yet,
+  as, at, by, in, of, off, on, out, per, to, up, via,
+  is, its,
+  v, vs
+  ```
 
-- First and last words must be capitalized; middle words that are in the lowercase list must be lowercase; all other words must be capitalized.
+**Behavior (AP headline rules):** For each ATX heading, the title part (after stripping any numeric prefix like `1.2.3`) is checked.
+Content inside inline code (backticks) is ignored.
+
+- **First and last words** of the heading must be capitalized (including the first and last segment of hyphenated compounds).
+- **First word after a colon** (e.g. `Summary: The Results`) and the **first word inside parentheses or brackets** (e.g. `(in Practice)`, `[optional]`) are treated as phrase starts and must be capitalized even if they are in the lowercase list.
+- **Hyphenated compounds** (e.g. `One-Stop`, `Follow-Up`) are split on hyphens; each segment is checked as above (first/last of title or minor word in the middle).
+- **Minor words** (in the default or configured list) must be lowercase when in the middle of the heading; all other words must be capitalized.
 - Leading and trailing punctuation is ignored when evaluating a word (e.g. `(Word)` is evaluated as `Word`).
-- Parenthesized and bracketed phrases behave like a sentence start for title-case purposes:
-  the first word inside `(...)` or `[...]` must be capitalized, even if it is in the lowercase list.
 
 ### `no-duplicate-headings-normalized`
 
