@@ -71,6 +71,7 @@ Example for a repo that has copied rules into `.markdownlint-rules/`:
     "./.markdownlint-rules/heading-numbering.js",
     "./.markdownlint-rules/heading-title-case.js",
     "./.markdownlint-rules/no-duplicate-headings-normalized.js",
+    "./.markdownlint-rules/no-empty-heading.js",
     "./.markdownlint-rules/no-heading-like-lines.js",
     "./.markdownlint-rules/no-h1-content.js"
   ]
@@ -155,6 +156,29 @@ no-h1-content:
 
 **Behavior:** The block of lines after the first `#` heading and before the next heading (any level) may only contain blank lines, list items that are anchor links (e.g. `- [Section](#section)` or `1. [Section](#section)`), badge lines (e.g. `[![alt](url)](url)`), and HTML comments.
 Any other line (prose, code blocks, etc.) is reported.
+
+### `no-empty-heading`
+
+**File:** `no-empty-heading.js`
+
+**Description:** Every H2+ heading must have at least one line of content before the next heading of the same or higher level. Blank lines and HTML-comment-only lines do not count as content. Other HTML comments are allowed in the section. Optionally exclude files by path (e.g. index-style pages) or allow a section via the exact suppress comment on its own line.
+
+**Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `no-empty-heading`:
+
+```yaml
+no-empty-heading:
+  excludePathPatterns:
+    - "**/*_index.md"   # optional; skip rule for these paths
+```
+
+- **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
+
+Behavior:
+
+- For each H2-H6 heading, the section (from the line after the heading until the next same-or-higher-level heading or end of file) must contain at least one line that counts as content. Content is any non-blank line that is not only an HTML comment.
+- Other HTML comments in the section are allowed; they do not count as content and do not suppress the error.
+- **Suppress per section:** A section with no other content is allowed only if it contains a line that is solely the comment `<!-- no-empty-heading allow -->` (optional whitespace around or inside the comment). The comment must be on its own line; if it appears on the same line as other text or another comment, it does not suppress. No other HTML comment format (e.g. `<!-- no-empty-heading: allow -->`) suppresses the rule.
+- When the file path matches any of `excludePathPatterns`, the rule is skipped for the whole file.
 
 ### `document-length`
 

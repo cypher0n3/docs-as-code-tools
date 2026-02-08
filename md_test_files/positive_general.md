@@ -1,5 +1,7 @@
 # Markdown Standards Fixtures - Positive Cases
 
+[![Python tests](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-tests.yml)
+
 - [Formatting](#formatting)
 - [Lists](#lists)
 - [Links](#links)
@@ -20,6 +22,8 @@
   - [0. Introduction (Zero-Indexed)](#0-introduction-zero-indexed)
   - [1. First Topic](#1-first-topic)
   - [2. Second Topic](#2-second-topic)
+- [Intentionally Empty (Suppressed)](#intentionally-empty-suppressed)
+- [Intentionally Empty With Other Comments (Suppressed)](#intentionally-empty-with-other-comments-suppressed)
 
 ## Formatting
 
@@ -92,6 +96,8 @@ func (p *Package) ReadFile(path string) ([]byte, error)
 
 ### Algorithm Anchor and Step Anchors
 
+Some content here.
+
 #### 1. `Package.ReadFile` Algorithm
 
 <a id="algo-np-core-package-readfile"></a>
@@ -137,7 +143,11 @@ Content under first 0-based H3.
 
 #### 0.1 Zero Indexed Section
 
+Some content here.
+
 ### 1. First Topic
+
+Some content here.
 
 ### 2. Second Topic
 
@@ -145,4 +155,17 @@ Subsections under a 0-based H3 also use 0-based numbering when the first subhead
 
 #### 2.1. First Subsection
 
+Some content here.
+
 #### 2.2. Second Subsection
+
+Some content here.
+
+## Intentionally Empty (Suppressed)
+
+<!-- no-empty-heading allow -->
+
+## Intentionally Empty With Other Comments (Suppressed)
+
+<!-- placeholder -->
+<!-- no-empty-heading allow -->
