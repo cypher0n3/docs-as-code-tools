@@ -1,3 +1,5 @@
+PyYAML
+coverage
 flake8
 pylint
 radon

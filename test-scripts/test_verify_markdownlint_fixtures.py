@@ -2,7 +2,7 @@
 """
 Unit tests for verify_markdownlint_fixtures.py.
 
-Tests parsing of markdownlint-expect blocks, markdownlint output parsing,
+Tests parsing of expectations from YAML/data, markdownlint output parsing,
 and multiset comparison. Does not require markdownlint-cli2 except for
 integration-style tests (skipped when unavailable).
 """
@@ -49,6 +49,12 @@ class TestFindMarkdownlintCmd(unittest.TestCase):
         cmd = v.find_markdownlint_cmd()
         self.assertTrue(cmd[0].endswith("markdownlint-cli2") or cmd[0] == "npx")
 
+    def test_returns_npx_when_local_missing(self):
+        """When node_modules binary does not exist, returns npx command."""
+        with patch.object(v, "repo_root", return_value=Path("/nonexistent_repo")):
+            cmd = v.find_markdownlint_cmd()
+        self.assertEqual(cmd, ["npx", "markdownlint-cli2"])
+
 
 class TestListFixtureFiles(unittest.TestCase):
     """Tests for list_fixture_files()."""
@@ -71,186 +77,133 @@ class TestListFixtureFiles(unittest.TestCase):
             self.assertTrue(f.name.endswith(".md"))
 
 
-class TestParseExpectations(unittest.TestCase):
-    """Tests for parse_expectations()."""
+class TestLoadExpectedErrors(unittest.TestCase):
+    """Tests for load_expected_errors()."""
 
-    def _parse(self, markdown: str, path: str = "test.md") -> tuple:
-        return v.parse_expectations(markdown, Path(path))
+    def test_missing_file_raises(self):
+        with self.assertRaises(FileNotFoundError):
+            v.load_expected_errors(Path("/nonexistent/expected_errors.yml"))
 
-    def test_valid_block_returns_total_and_errors(self):
-        md = """
-# Doc
-Content
+    def test_valid_yaml_returns_dict(self):
+        path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
+        if not path.exists():
+            self.skipTest("expected_errors.yml not found")
+        data = v.load_expected_errors(path)
+        self.assertIsInstance(data, dict)
+        self.assertIn("positive.md", data)
 
-```markdownlint-expect
-{"total": 1, "errors": [{"line": 2, "rule": "MD001"}]}
-```
-"""
-        total, errors = self._parse(md)
+    def test_invalid_yaml_raises(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+            f.write("not: valid: yaml: [")
+            f.flush()
+            try:
+                with self.assertRaises(ValueError) as ctx:
+                    v.load_expected_errors(Path(f.name))
+                self.assertIn("Invalid YAML", str(ctx.exception))
+            finally:
+                Path(f.name).unlink(missing_ok=True)
+
+    def test_yaml_not_dict_raises(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+            f.write("- list\n- not dict\n")
+            f.flush()
+            try:
+                with self.assertRaises(ValueError) as ctx:
+                    v.load_expected_errors(Path(f.name))
+                self.assertIn("must be a YAML object", str(ctx.exception))
+            finally:
+                Path(f.name).unlink(missing_ok=True)
+
+
+class TestParseExpectationsFromData(unittest.TestCase):
+    """Tests for parse_expectations_from_data()."""
+
+    def _parse(self, data: dict, path: str = "test.md") -> tuple:
+        return v.parse_expectations_from_data(data, Path(path))
+
+    def test_valid_data_returns_total_and_errors(self):
+        data = {"errors": [{"line": 2, "rule": "MD001"}]}
+        total, errors = self._parse(data)
         self.assertEqual(total, 1)
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].line, 2)
         self.assertEqual(errors[0].rule, "MD001")
 
     def test_zero_errors(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 0, "errors": []}
-```
-"""
-        total, errors = self._parse(md)
+        data = {"errors": []}
+        total, errors = self._parse(data)
         self.assertEqual(total, 0)
         self.assertEqual(errors, [])
 
     def test_multiple_errors_same_line(self):
-        md = """
-x
-```markdownlint-expect
-{"total": 2, "errors": [{"line": 1, "rule": "A"}, {"line": 1, "rule": "B"}]}
-```
-"""
-        total, errors = self._parse(md)
+        data = {
+            "errors": [{"line": 1, "rule": "A"}, {"line": 1, "rule": "B"}],
+        }
+        total, errors = self._parse(data)
         self.assertEqual(total, 2)
         self.assertEqual([e.rule for e in errors], ["A", "B"])
 
-    def test_missing_block_raises(self):
-        md = "# No expect block"
+    def test_data_not_dict_raises(self):
         with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
-        self.assertIn("Missing", str(ctx.exception))
-
-    def test_unterminated_block_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 0, "errors": []}
-"""
-        with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
-        self.assertIn("Unterminated", str(ctx.exception))
-
-    def test_invalid_json_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{ total: 0 }
-```
-"""
-        with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
-        self.assertIn("Invalid JSON", str(ctx.exception))
-
-    def test_total_not_int_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": "0", "errors": []}
-```
-"""
-        with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
-        self.assertIn("total", str(ctx.exception))
-
-    def test_total_negative_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": -1, "errors": []}
-```
-"""
-        with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
-        self.assertIn("total", str(ctx.exception))
+            self._parse([])
+        self.assertIn("must be an object", str(ctx.exception))
 
     def test_errors_not_list_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 0, "errors": {}}
-```
-"""
         with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
+            self._parse({"errors": {}})
         self.assertIn("errors", str(ctx.exception))
 
     def test_error_item_not_dict_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 1, "errors": ["not an object"]}
-```
-"""
         with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
+            self._parse({"errors": ["not an object"]})
         self.assertIn("errors[0]", str(ctx.exception))
 
     def test_error_missing_line_or_rule_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 1, "errors": [{"line": 1}]}
-```
-"""
         with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
+            self._parse({"errors": [{"line": 1}]})
         self.assertIn("errors[0]", str(ctx.exception))
 
     def test_error_line_below_one_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 1, "errors": [{"line": 0, "rule": "X"}]}
-```
-"""
         with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
+            self._parse({"errors": [{"line": 0, "rule": "X"}]})
         self.assertIn("errors[0]", str(ctx.exception))
 
-    def test_total_mismatch_len_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 2, "errors": [{"line": 1, "rule": "X"}]}
-```
-"""
-        with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
-        self.assertIn("total", str(ctx.exception))
-        self.assertIn("errors.length", str(ctx.exception))
-
     def test_rule_stripped_of_whitespace(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 1, "errors": [{"line": 1, "rule": "  MD001  "}]}
-```
-"""
-        _, errors = self._parse(md)
+        data = {"errors": [{"line": 1, "rule": "  MD001  "}]}
+        _, errors = self._parse(data)
         self.assertEqual(errors[0].rule, "MD001")
 
     def test_optional_column_parsed(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 1, "errors": [{"line": 2, "rule": "ascii-only", "column": 32}]}
-```
-"""
-        _, errors = self._parse(md)
+        data = {
+            "errors": [{"line": 2, "rule": "ascii-only", "column": 32}],
+        }
+        _, errors = self._parse(data)
         self.assertEqual(errors[0].line, 2)
         self.assertEqual(errors[0].rule, "ascii-only")
         self.assertEqual(errors[0].column, 32)
 
     def test_error_column_below_one_raises(self):
-        md = """
-# Doc
-```markdownlint-expect
-{"total": 1, "errors": [{"line": 1, "rule": "X", "column": 0}]}
-```
-"""
         with self.assertRaises(ValueError) as ctx:
-            self._parse(md)
+            self._parse({"errors": [{"line": 1, "rule": "X", "column": 0}]})
         self.assertIn("column", str(ctx.exception))
+
+    def test_message_contains_parsed(self):
+        data = {
+            "errors": [
+                {"line": 1, "rule": "X", "message_contains": "expected substring"},
+            ],
+        }
+        _, errors = self._parse(data)
+        self.assertEqual(errors[0].message_contains, "expected substring")
+
+    def test_message_contains_not_string_raises(self):
+        with self.assertRaises(ValueError) as ctx:
+            self._parse({
+                "errors": [{"line": 1, "rule": "X", "message_contains": 123}],
+            })
+        self.assertIn("message_contains", str(ctx.exception))
 
 
 class TestParseMarkdownlintOutput(unittest.TestCase):
@@ -278,8 +231,24 @@ class TestParseMarkdownlintOutput(unittest.TestCase):
         self.assertEqual(errors[0].line, 5)
         self.assertEqual(errors[0].column, 3)
 
+    def test_parses_message(self):
+        output = (
+            'md_test_files/foo.md:7:4 heading-title-case '
+            '[Word "getting" should be capitalized.]'
+        )
+        errors = v.parse_markdownlint_output(output, "md_test_files/foo.md")
+        self.assertEqual(len(errors), 1)
+        self.assertIn("getting", errors[0].message)
+        self.assertIn("capitalized", errors[0].message)
+
     def test_empty_output_returns_empty_list(self):
         errors = v.parse_markdownlint_output("", "any.md")
+        self.assertEqual(errors, [])
+
+    def test_skips_line_with_prefix_but_no_regex_match(self):
+        """Lines starting with file_label but not matching error regex are skipped."""
+        output = "md_test_files/foo.md: not an error line format\n"
+        errors = v.parse_markdownlint_output(output, "md_test_files/foo.md")
         self.assertEqual(errors, [])
 
 
@@ -299,6 +268,15 @@ class TestToCountMap(unittest.TestCase):
     def test_empty_list_returns_empty_map(self):
         self.assertEqual(v.to_count_map([]), {})
 
+    def test_includes_column_in_key(self):
+        errors = [
+            v.ExpectedError(line=1, rule="R", column=5),
+            v.ExpectedError(line=1, rule="R", column=10),
+        ]
+        m = v.to_count_map(errors)
+        self.assertEqual(m[(1, "R", 5)], 1)
+        self.assertEqual(m[(1, "R", 10)], 1)
+
 
 class TestVerifyFile(unittest.TestCase):
     """Tests for verify_file(): integration (real markdownlint) and exit-code mismatch (mocked)."""
@@ -306,11 +284,13 @@ class TestVerifyFile(unittest.TestCase):
     def test_verify_file_positive_integration(self):
         """Run verify_file on positive.md for real; skip if markdownlint unavailable."""
         path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
+        expect_path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
+        if not path.exists() or not expect_path.exists():
+            self.skipTest("fixtures or expected_errors.yml not found")
         cmd = v.find_markdownlint_cmd()
+        expectations = v.load_expected_errors(expect_path)
         try:
-            v.verify_file(cmd, path)
+            v.verify_file(cmd, path, expectations)
         except (OSError, FileNotFoundError) as e:
             self.skipTest(f"markdownlint not runnable: {e}")
 
@@ -319,6 +299,7 @@ class TestVerifyFile(unittest.TestCase):
         path = _REPO_ROOT / "md_test_files" / "positive.md"
         if not path.exists():
             self.skipTest("positive.md fixture not found")
+        expectations = {"positive.md": {"errors": []}}
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
                 "Result",
@@ -326,8 +307,249 @@ class TestVerifyFile(unittest.TestCase):
                 {"returncode": 1, "stdout": "", "stderr": "error"},
             )()
             with self.assertRaises(AssertionError) as ctx:
-                v.verify_file(["markdownlint-cli2"], path)
+                v.verify_file(["markdownlint-cli2"], path, expectations)
             self.assertIn("exit code", str(ctx.exception))
+
+    def test_verify_file_raises_when_message_contains_mismatch(self):
+        """When message_contains is specified but actual message does not contain it."""
+        path = _REPO_ROOT / "md_test_files" / "positive.md"
+        if not path.exists():
+            self.skipTest("positive.md fixture not found")
+        expectations = {
+            "positive.md": {
+                "errors": [
+                    {
+                        "line": 1,
+                        "rule": "MD001",
+                        "message_contains": "this string is not in the output",
+                    },
+                ],
+            },
+        }
+        output = "md_test_files/positive.md:1 MD001 Some other message\n"
+        with patch("verify_markdownlint_fixtures.subprocess.run") as run:
+            run.return_value = type(
+                "Result",
+                (),
+                {"returncode": 1, "stdout": output, "stderr": ""},
+            )()
+            with self.assertRaises(AssertionError) as ctx:
+                v.verify_file(["markdownlint-cli2"], path, expectations)
+            self.assertIn("message", str(ctx.exception).lower())
+            self.assertIn("message_contains", str(ctx.exception))
+
+    def test_verify_file_raises_when_no_expectations_for_file(self):
+        path = _REPO_ROOT / "md_test_files" / "positive.md"
+        if not path.exists():
+            self.skipTest("positive.md fixture not found")
+        with self.assertRaises(ValueError) as ctx:
+            v.verify_file(["mdl"], path, {})
+        self.assertIn("No expectations", str(ctx.exception))
+
+    def test_verify_file_raises_when_expect_errors_got_zero_exit(self):
+        """Expect non-zero errors but subprocess returns 0."""
+        path = _REPO_ROOT / "md_test_files" / "positive.md"
+        if not path.exists():
+            self.skipTest("positive.md fixture not found")
+        expectations = {"positive.md": {"errors": [{"line": 1, "rule": "X"}]}}
+        with patch("verify_markdownlint_fixtures.subprocess.run") as run:
+            run.return_value = type(
+                "Result",
+                (),
+                {"returncode": 0, "stdout": "", "stderr": ""},
+            )()
+            with self.assertRaises(AssertionError) as ctx:
+                v.verify_file(["markdownlint-cli2"], path, expectations)
+            self.assertIn("exit code", str(ctx.exception))
+
+    def test_verify_file_raises_when_error_count_mismatch(self):
+        """Expected 1 error but got 2 in output."""
+        path = _REPO_ROOT / "md_test_files" / "positive.md"
+        if not path.exists():
+            self.skipTest("positive.md fixture not found")
+        expectations = {"positive.md": {"errors": [{"line": 1, "rule": "X"}]}}
+        output = (
+            "md_test_files/positive.md:1 X msg1\n"
+            "md_test_files/positive.md:2 X msg2\n"
+        )
+        with patch("verify_markdownlint_fixtures.subprocess.run") as run:
+            run.return_value = type(
+                "Result",
+                (),
+                {"returncode": 1, "stdout": output, "stderr": ""},
+            )()
+            with self.assertRaises(AssertionError) as ctx:
+                v.verify_file(["markdownlint-cli2"], path, expectations)
+            self.assertIn("error count", str(ctx.exception))
+
+    def test_verify_file_raises_when_line_rule_count_mismatch(self):
+        """Expected 2 errors on same line/rule but got 1 at line 1 and 1 at line 2."""
+        path = _REPO_ROOT / "md_test_files" / "positive.md"
+        if not path.exists():
+            self.skipTest("positive.md fixture not found")
+        expectations = {
+            "positive.md": {
+                "errors": [
+                    {"line": 1, "rule": "X"},
+                    {"line": 1, "rule": "X"},
+                ],
+            },
+        }
+        output = (
+            "md_test_files/positive.md:1 X msg1\n"
+            "md_test_files/positive.md:2 X msg2\n"
+        )
+        with patch("verify_markdownlint_fixtures.subprocess.run") as run:
+            run.return_value = type(
+                "Result",
+                (),
+                {"returncode": 1, "stdout": output, "stderr": ""},
+            )()
+            with self.assertRaises(AssertionError) as ctx:
+                v.verify_file(["markdownlint-cli2"], path, expectations)
+            self.assertIn("expected 2, got 1", str(ctx.exception))
+
+    def test_verify_file_raises_when_column_count_mismatch(self):
+        """Expected 2 errors at column 5 but actual has one at 5 and one at 10."""
+        path = _REPO_ROOT / "md_test_files" / "positive.md"
+        if not path.exists():
+            self.skipTest("positive.md fixture not found")
+        expectations = {
+            "positive.md": {
+                "errors": [
+                    {"line": 1, "rule": "X", "column": 5},
+                    {"line": 1, "rule": "X", "column": 5},
+                ],
+            },
+        }
+        output = (
+            "md_test_files/positive.md:1:5 X msg1\n"
+            "md_test_files/positive.md:1:10 X msg2\n"
+        )
+        with patch("verify_markdownlint_fixtures.subprocess.run") as run:
+            run.return_value = type(
+                "Result",
+                (),
+                {"returncode": 1, "stdout": output, "stderr": ""},
+            )()
+            with self.assertRaises(AssertionError) as ctx:
+                v.verify_file(["markdownlint-cli2"], path, expectations)
+            self.assertIn("column", str(ctx.exception))
+
+    def test_verify_file_raises_when_expected_line_rule_not_in_actual(self):
+        """Expected error at line 99 rule X but actual has only line 1 (line/rule multiset mismatch)."""
+        path = _REPO_ROOT / "md_test_files" / "positive.md"
+        if not path.exists():
+            self.skipTest("positive.md fixture not found")
+        expectations = {
+            "positive.md": {
+                "errors": [
+                    {"line": 99, "rule": "X", "message_contains": "needle"},
+                ],
+            },
+        }
+        output = "md_test_files/positive.md:1 X msg\n"
+        with patch("verify_markdownlint_fixtures.subprocess.run") as run:
+            run.return_value = type(
+                "Result",
+                (),
+                {"returncode": 1, "stdout": output, "stderr": ""},
+            )()
+            with self.assertRaises(AssertionError) as ctx:
+                v.verify_file(["markdownlint-cli2"], path, expectations)
+            self.assertIn("expected 0, got 1", str(ctx.exception))
+
+    def test_verify_file_combines_stdout_and_stderr(self):
+        """verify_file uses combined stdout+stderr for parsing."""
+        path = _REPO_ROOT / "md_test_files" / "positive.md"
+        if not path.exists():
+            self.skipTest("positive.md fixture not found")
+        expectations = {"positive.md": {"errors": [{"line": 1, "rule": "X"}]}}
+        with patch("verify_markdownlint_fixtures.subprocess.run") as run:
+            run.return_value = type(
+                "Result",
+                (),
+                {
+                    "returncode": 1,
+                    "stdout": "md_test_files/positive.md:1 X msg\n",
+                    "stderr": "",
+                },
+            )()
+            v.verify_file(["markdownlint-cli2"], path, expectations)
+        with patch("verify_markdownlint_fixtures.subprocess.run") as run:
+            run.return_value = type(
+                "Result",
+                (),
+                {
+                    "returncode": 1,
+                    "stdout": "",
+                    "stderr": "md_test_files/positive.md:1 X msg\n",
+                },
+            )()
+            v.verify_file(["markdownlint-cli2"], path, expectations)
+
+
+class TestMain(unittest.TestCase):
+    """Tests for main()."""
+
+    def test_main_returns_zero_when_all_pass(self):
+        with patch("sys.argv", ["prog"]):
+            with patch.object(v, "find_markdownlint_cmd") as cmd:
+                with patch.object(v, "list_fixture_files") as files:
+                    with patch.object(v, "load_expected_errors") as load:
+                        with patch.object(v, "verify_file"):
+                            cmd.return_value = ["markdownlint-cli2"]
+                            expect_path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
+                            if not expect_path.exists():
+                                self.skipTest("expected_errors.yml not found")
+                            load.return_value = {p.name: {"errors": []} for p in v.list_fixture_files()}
+                            files.return_value = [
+                                _REPO_ROOT / "md_test_files" / "positive.md",
+                            ]
+                            result = v.main()
+        self.assertEqual(result, 0)
+
+    def test_main_prints_success_message(self):
+        with patch("sys.argv", ["prog"]):
+            with patch.object(v, "find_markdownlint_cmd", return_value=["markdownlint-cli2"]):
+                with patch.object(v, "list_fixture_files") as files:
+                    with patch.object(v, "load_expected_errors") as load:
+                        with patch.object(v, "verify_file"):
+                            expect_path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
+                            if not expect_path.exists():
+                                self.skipTest("expected_errors.yml not found")
+                            files.return_value = [_REPO_ROOT / "md_test_files" / "positive.md"]
+                            load.return_value = {"positive.md": {"errors": []}}
+                            with patch("sys.stdout") as mock_stdout:
+                                result = v.main()
+                            mock_stdout.write.assert_called()
+                            out = "".join(c[0][0] for c in mock_stdout.write.call_args_list)
+                            self.assertIn("All markdownlint", out)
+
+    def test_main_returns_one_on_failure(self):
+        with patch("sys.argv", ["prog"]):
+            with patch.object(v, "find_markdownlint_cmd", return_value=["markdownlint-cli2"]):
+                with patch.object(v, "list_fixture_files") as files:
+                    with patch.object(v, "load_expected_errors") as load:
+                        with patch.object(v, "verify_file", side_effect=AssertionError("fail")):
+                            files.return_value = [_REPO_ROOT / "md_test_files" / "positive.md"]
+                            load.return_value = {"positive.md": {"errors": []}}
+                            result = v.main()
+        self.assertEqual(result, 1)
+
+    def test_main_verbose_writes_per_fixture(self):
+        with patch.object(v, "find_markdownlint_cmd", return_value=["markdownlint-cli2"]):
+            with patch.object(v, "list_fixture_files") as files:
+                with patch.object(v, "load_expected_errors") as load:
+                    with patch.object(v, "verify_file"):
+                        files.return_value = [_REPO_ROOT / "md_test_files" / "positive.md"]
+                        load.return_value = {"positive.md": {"errors": []}}
+                        with patch("sys.argv", ["prog", "--verbose"]):
+                            with patch("sys.stderr") as mock_stderr:
+                                v.main()
+                        self.assertGreater(mock_stderr.write.call_count, 0)
+                        calls = "".join(c[0][0] for c in mock_stderr.write.call_args_list)
+                        self.assertIn("Verifying", calls)
 
 
 if __name__ == "__main__":
