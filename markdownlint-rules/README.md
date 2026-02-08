@@ -327,7 +327,8 @@ The first occurrence is the reference; duplicates are reported with the line num
    The numbering root is the nearest ancestor heading that has no numbering (or document root, level 1).
    Example: H2 under doc root -> 1 segment; H3 under unnumbered `## Section` -> 1 segment; H4 under `### 1. First` -> 1 segment.
    Headings without a numeric prefix are ignored.
-2. **Section-scoped consistency:** For each section (siblings under the same parent), if any sibling has numbering then all siblings at that level must be numbered sequentially (e.g. 1., 2., 3.) and use consistent period style (all `## 1. Title` or all `## 1 Title`).
+2. **Section-scoped consistency:** For each section (siblings under the same parent), if any sibling has numbering then all siblings at that level must be numbered sequentially and use consistent period style (all `## 1. Title` or all `## 1 Title`).
+   **Index base:** Default is 1-based (e.g. 1., 2., 3.). If the first numbered sibling in a section has last segment `0` (e.g. `0.`, `0.0.`, `1.0.`), that section is treated as 0-based (0., 1., 2. or 0.0., 0.1., etc.) and no sequence error is reported.
    Unnumbered siblings in a numbered section are reported.
 
 ## Shared Helper

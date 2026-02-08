@@ -2,7 +2,10 @@
 # Used by test-scripts/verify_markdownlint_fixtures.py.
 # Total expected count is derived from the length of the errors list.
 
-positive.md:
+positive_general.md:
+  errors: []
+
+positive_heading_numbering_zero.md:
   errors: []
 
 negative_anchor_algo_placement.md:
@@ -140,6 +143,15 @@ negative_heading_numbering.md:
     - line: 25
       rule: heading-numbering
       message_contains: Too Many Segments for H4
+    - line: 33
+      rule: heading-numbering
+      message_contains: expected "1" to match sibling
+    - line: 37
+      rule: heading-numbering
+      message_contains: expected "2" to match sibling
+    - line: 41
+      rule: heading-numbering
+      message_contains: expected "0.1" to match sibling
 
 negative_heading_title_case.md:
   errors:

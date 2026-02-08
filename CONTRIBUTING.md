@@ -35,7 +35,7 @@ These targets mirror the GitHub Actions workflows. Run them locally before pushi
 
 ### Markdownlint Tests (`make test-markdownlint`)
 
-- **Positive test**: `md_test_files/positive.md` must pass markdownlint (0 errors).
+- **Positive test**: `md_test_files/positive_general.md` (and other `positive_*.md`) must pass markdownlint (0 errors).
 - **Negative tests**: each `md_test_files/negative_*.md` file must **fail** markdownlint; the test suite fails if any negative file passes.
 - Same behavior as the [Markdownlint tests](.github/workflows/markdownlint-tests.yml) workflow.
 

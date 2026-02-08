@@ -67,7 +67,7 @@ function getSiblings(sorted, parentIndex, i) {
 /**
  * Expected number for heading at index i within its section (parent prefix + sibling sequence).
  * Section-scoped: only used when at least one sibling has numbering.
- * 0-based when the first numbered sibling has numbering "0".
+ * 0-based when the first numbered sibling's last segment is "0" (e.g. "0", "0.0", "1.0").
  */
 function getExpectedNumberInSection(sorted, parentIndex, i) {
   const h = sorted[i];
@@ -93,7 +93,8 @@ function getExpectedNumberInSection(sorted, parentIndex, i) {
       ? parseHeadingNumberPrefix(firstNumbered.rawText).numbering
       : null;
   /* c8 ignore stop */
-  const startAtZero = firstNumbering === "0";
+  const lastSegment = firstNumbering.split(".").pop();
+  const startAtZero = lastSegment === "0";
   const nextNum = startAtZero ? myIdx : myIdx + 1;
   const prefix = parentNum ? parentNum + "." : "";
   return prefix + String(nextNum);

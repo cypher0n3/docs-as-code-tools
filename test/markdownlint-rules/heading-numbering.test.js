@@ -65,6 +65,12 @@ describe("heading-numbering", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("accepts 0-based subsections under 0-based section (0.0., 0.1. under 0.)", () => {
+    const lines = ["# Doc", "## 0. Zero", "### 0.0. First", "### 0.1. Second"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("reports no errors for unnumbered subsections under numbered section", () => {
     const lines = ["# Doc", "## 1. First", "### Sub A", "### Sub B"];
     const errors = runRule(rule, lines);

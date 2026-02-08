@@ -22,6 +22,27 @@ if str(_TEST_SCRIPTS) not in sys.path:
 
 import verify_markdownlint_fixtures as v  # noqa: E402
 
+_MD_DIR = _REPO_ROOT / "md_test_files"
+_EXPECT_PATH = _MD_DIR / "expected_errors.yml"
+
+
+def _fixture_files():
+    """Fixture list from verifier; tests rely on expected_errors.yml + list_fixture_files()."""
+    return v.list_fixture_files()
+
+
+def _first_fixture_path():
+    """First fixture path for tests that need one; None if no fixtures."""
+    files = _fixture_files()
+    return files[0] if files else None
+
+
+def _expectations_from_yml():
+    """Load expected_errors.yml; return dict or None if missing."""
+    if not _EXPECT_PATH.exists():
+        return None
+    return v.load_expected_errors(_EXPECT_PATH)
+
 
 class TestRepoRoot(unittest.TestCase):
     """Tests for repo_root()."""
@@ -68,13 +89,27 @@ class TestListFixtureFiles(unittest.TestCase):
     def test_first_is_positive_md(self):
         files = v.list_fixture_files()
         self.assertGreater(len(files), 0)
-        self.assertEqual(files[0].name, "positive.md")
+        self.assertTrue(
+            files[0].name.startswith("positive_"),
+            f"first fixture should be positive_*.md, got {files[0].name}",
+        )
 
     def test_rest_are_negative_md(self):
         files = v.list_fixture_files()
-        for f in files[1:]:
-            self.assertTrue(f.name.startswith("negative_"), f"{f.name} should be negative_*.md")
-            self.assertTrue(f.name.endswith(".md"))
+        seen_negative = False
+        for f in files:
+            if f.name.startswith("negative_"):
+                seen_negative = True
+                self.assertTrue(f.name.endswith(".md"))
+            else:
+                self.assertTrue(
+                    f.name.startswith("positive_"),
+                    f"fixture should be positive_*.md or negative_*.md, got {f.name}",
+                )
+                self.assertFalse(
+                    seen_negative,
+                    f"positive fixture {f.name} must not appear after a negative",
+                )
 
 
 class TestLoadExpectedErrors(unittest.TestCase):
@@ -85,12 +120,16 @@ class TestLoadExpectedErrors(unittest.TestCase):
             v.load_expected_errors(Path("/nonexistent/expected_errors.yml"))
 
     def test_valid_yaml_returns_dict(self):
-        path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
-        if not path.exists():
+        if not _EXPECT_PATH.exists():
             self.skipTest("expected_errors.yml not found")
-        data = v.load_expected_errors(path)
+        data = v.load_expected_errors(_EXPECT_PATH)
         self.assertIsInstance(data, dict)
-        self.assertIn("positive.md", data)
+        fixture_names = {p.name for p in _fixture_files()}
+        self.assertEqual(
+            set(data.keys()),
+            fixture_names,
+            "expected_errors.yml keys must match list_fixture_files()",
+        )
 
     def test_invalid_yaml_raises(self):
         import tempfile
@@ -282,13 +321,12 @@ class TestVerifyFile(unittest.TestCase):
     """Tests for verify_file(): integration (real markdownlint) and exit-code mismatch (mocked)."""
 
     def test_verify_file_positive_integration(self):
-        """Run verify_file on positive.md for real; skip if markdownlint unavailable."""
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        expect_path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
-        if not path.exists() or not expect_path.exists():
+        """Run verify_file on first fixture for real; skip if markdownlint unavailable."""
+        path = _first_fixture_path()
+        if path is None or not _EXPECT_PATH.exists():
             self.skipTest("fixtures or expected_errors.yml not found")
         cmd = v.find_markdownlint_cmd()
-        expectations = v.load_expected_errors(expect_path)
+        expectations = _expectations_from_yml()
         try:
             v.verify_file(cmd, path, expectations)
         except (OSError, FileNotFoundError) as e:
@@ -296,15 +334,15 @@ class TestVerifyFile(unittest.TestCase):
 
     def test_verify_document_length_generated_fixture(self):
         """Generate a 1501-line fixture, verify document-length error, then remove file."""
-        path = _REPO_ROOT / "md_test_files" / "negative_document_length.md"
-        expect_path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
-        if not expect_path.exists():
+        path = _MD_DIR / "negative_document_length.md"
+        if not _EXPECT_PATH.exists():
             self.skipTest("expected_errors.yml not found")
+        expectations = _expectations_from_yml()
+        if path.name not in expectations:
+            self.skipTest("negative_document_length.md not in expected_errors.yml")
         v.ensure_long_document_fixture(path)
         try:
-            self.assertIn("negative_document_length.md", v.load_expected_errors(expect_path))
             cmd = v.find_markdownlint_cmd()
-            expectations = v.load_expected_errors(expect_path)
             try:
                 v.verify_file(cmd, path, expectations)
             except (OSError, FileNotFoundError) as e:
@@ -314,10 +352,10 @@ class TestVerifyFile(unittest.TestCase):
 
     def test_verify_file_raises_when_exit_code_mismatch(self):
         """Exit code mismatch (expect 0 errors, got non-zero) raises AssertionError."""
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
-        expectations = {"positive.md": {"errors": []}}
+        path = _first_fixture_path()
+        if path is None:
+            self.skipTest("no fixtures found")
+        expectations = {path.name: {"errors": []}}
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
                 "Result",
@@ -330,11 +368,11 @@ class TestVerifyFile(unittest.TestCase):
 
     def test_verify_file_raises_when_message_contains_mismatch(self):
         """When message_contains is specified but actual message does not contain it."""
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
+        path = _first_fixture_path()
+        if path is None:
+            self.skipTest("no fixtures found")
         expectations = {
-            "positive.md": {
+            path.name: {
                 "errors": [
                     {
                         "line": 1,
@@ -344,7 +382,7 @@ class TestVerifyFile(unittest.TestCase):
                 ],
             },
         }
-        output = "md_test_files/positive.md:1 MD001 Some other message\n"
+        output = f"md_test_files/{path.name}:1 MD001 Some other message\n"
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
                 "Result",
@@ -357,19 +395,19 @@ class TestVerifyFile(unittest.TestCase):
             self.assertIn("message_contains", str(ctx.exception))
 
     def test_verify_file_raises_when_no_expectations_for_file(self):
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
+        path = _first_fixture_path()
+        if path is None:
+            self.skipTest("no fixtures found")
         with self.assertRaises(ValueError) as ctx:
             v.verify_file(["mdl"], path, {})
         self.assertIn("No expectations", str(ctx.exception))
 
     def test_verify_file_raises_when_expect_errors_got_zero_exit(self):
         """Expect non-zero errors but subprocess returns 0."""
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
-        expectations = {"positive.md": {"errors": [{"line": 1, "rule": "X"}]}}
+        path = _first_fixture_path()
+        if path is None:
+            self.skipTest("no fixtures found")
+        expectations = {path.name: {"errors": [{"line": 1, "rule": "X"}]}}
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
                 "Result",
@@ -382,13 +420,13 @@ class TestVerifyFile(unittest.TestCase):
 
     def test_verify_file_raises_when_error_count_mismatch(self):
         """Expected 1 error but got 2 in output."""
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
-        expectations = {"positive.md": {"errors": [{"line": 1, "rule": "X"}]}}
+        path = _first_fixture_path()
+        if path is None:
+            self.skipTest("no fixtures found")
+        expectations = {path.name: {"errors": [{"line": 1, "rule": "X"}]}}
         output = (
-            "md_test_files/positive.md:1 X msg1\n"
-            "md_test_files/positive.md:2 X msg2\n"
+            f"md_test_files/{path.name}:1 X msg1\n"
+            f"md_test_files/{path.name}:2 X msg2\n"
         )
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
@@ -402,11 +440,11 @@ class TestVerifyFile(unittest.TestCase):
 
     def test_verify_file_raises_when_line_rule_count_mismatch(self):
         """Expected 2 errors on same line/rule but got 1 at line 1 and 1 at line 2."""
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
+        path = _first_fixture_path()
+        if path is None:
+            self.skipTest("no fixtures found")
         expectations = {
-            "positive.md": {
+            path.name: {
                 "errors": [
                     {"line": 1, "rule": "X"},
                     {"line": 1, "rule": "X"},
@@ -414,8 +452,8 @@ class TestVerifyFile(unittest.TestCase):
             },
         }
         output = (
-            "md_test_files/positive.md:1 X msg1\n"
-            "md_test_files/positive.md:2 X msg2\n"
+            f"md_test_files/{path.name}:1 X msg1\n"
+            f"md_test_files/{path.name}:2 X msg2\n"
         )
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
@@ -429,11 +467,11 @@ class TestVerifyFile(unittest.TestCase):
 
     def test_verify_file_raises_when_column_count_mismatch(self):
         """Expected 2 errors at column 5 but actual has one at 5 and one at 10."""
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
+        path = _first_fixture_path()
+        if path is None:
+            self.skipTest("no fixtures found")
         expectations = {
-            "positive.md": {
+            path.name: {
                 "errors": [
                     {"line": 1, "rule": "X", "column": 5},
                     {"line": 1, "rule": "X", "column": 5},
@@ -441,8 +479,8 @@ class TestVerifyFile(unittest.TestCase):
             },
         }
         output = (
-            "md_test_files/positive.md:1:5 X msg1\n"
-            "md_test_files/positive.md:1:10 X msg2\n"
+            f"md_test_files/{path.name}:1:5 X msg1\n"
+            f"md_test_files/{path.name}:1:10 X msg2\n"
         )
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
@@ -456,17 +494,17 @@ class TestVerifyFile(unittest.TestCase):
 
     def test_verify_file_raises_when_expected_line_rule_not_in_actual(self):
         """Expected at line 99 rule X but actual has only line 1 (line/rule multiset mismatch)."""
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
+        path = _first_fixture_path()
+        if path is None:
+            self.skipTest("no fixtures found")
         expectations = {
-            "positive.md": {
+            path.name: {
                 "errors": [
                     {"line": 99, "rule": "X", "message_contains": "needle"},
                 ],
             },
         }
-        output = "md_test_files/positive.md:1 X msg\n"
+        output = f"md_test_files/{path.name}:1 X msg\n"
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
                 "Result",
@@ -479,30 +517,23 @@ class TestVerifyFile(unittest.TestCase):
 
     def test_verify_file_combines_stdout_and_stderr(self):
         """verify_file uses combined stdout+stderr for parsing."""
-        path = _REPO_ROOT / "md_test_files" / "positive.md"
-        if not path.exists():
-            self.skipTest("positive.md fixture not found")
-        expectations = {"positive.md": {"errors": [{"line": 1, "rule": "X"}]}}
+        path = _first_fixture_path()
+        if path is None:
+            self.skipTest("no fixtures found")
+        expectations = {path.name: {"errors": [{"line": 1, "rule": "X"}]}}
+        line_out = f"md_test_files/{path.name}:1 X msg\n"
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
                 "Result",
                 (),
-                {
-                    "returncode": 1,
-                    "stdout": "md_test_files/positive.md:1 X msg\n",
-                    "stderr": "",
-                },
+                {"returncode": 1, "stdout": line_out, "stderr": ""},
             )()
             v.verify_file(["markdownlint-cli2"], path, expectations)
         with patch("verify_markdownlint_fixtures.subprocess.run") as run:
             run.return_value = type(
                 "Result",
                 (),
-                {
-                    "returncode": 1,
-                    "stdout": "",
-                    "stderr": "md_test_files/positive.md:1 X msg\n",
-                },
+                {"returncode": 1, "stdout": "", "stderr": line_out},
             )()
             v.verify_file(["markdownlint-cli2"], path, expectations)
 
@@ -511,35 +542,28 @@ class TestMain(unittest.TestCase):
     """Tests for main()."""
 
     def test_main_returns_zero_when_all_pass(self):
+        fixture_list = _fixture_files()
+        expectations = _expectations_from_yml()
+        if not fixture_list or expectations is None:
+            self.skipTest("fixtures or expected_errors.yml not found")
         with patch("sys.argv", ["prog"]):
-            with patch.object(v, "find_markdownlint_cmd") as cmd:
-                with patch.object(v, "list_fixture_files") as files:
-                    with patch.object(v, "load_expected_errors") as load:
+            with patch.object(v, "find_markdownlint_cmd", return_value=["markdownlint-cli2"]):
+                with patch.object(v, "list_fixture_files", return_value=fixture_list):
+                    with patch.object(v, "load_expected_errors", return_value=expectations):
                         with patch.object(v, "verify_file"):
-                            cmd.return_value = ["markdownlint-cli2"]
-                            expect_path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
-                            if not expect_path.exists():
-                                self.skipTest("expected_errors.yml not found")
-                            load.return_value = {
-                                p.name: {"errors": []} for p in v.list_fixture_files()
-                            }
-                            files.return_value = [
-                                _REPO_ROOT / "md_test_files" / "positive.md",
-                            ]
                             result = v.main()
         self.assertEqual(result, 0)
 
     def test_main_prints_success_message(self):
+        fixture_list = _fixture_files()
+        expectations = _expectations_from_yml()
+        if not fixture_list or expectations is None:
+            self.skipTest("fixtures or expected_errors.yml not found")
         with patch("sys.argv", ["prog"]):
             with patch.object(v, "find_markdownlint_cmd", return_value=["markdownlint-cli2"]):
-                with patch.object(v, "list_fixture_files") as files:
-                    with patch.object(v, "load_expected_errors") as load:
+                with patch.object(v, "list_fixture_files", return_value=fixture_list[:1]):
+                    with patch.object(v, "load_expected_errors", return_value=expectations):
                         with patch.object(v, "verify_file"):
-                            expect_path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
-                            if not expect_path.exists():
-                                self.skipTest("expected_errors.yml not found")
-                            files.return_value = [_REPO_ROOT / "md_test_files" / "positive.md"]
-                            load.return_value = {"positive.md": {"errors": []}}
                             with patch("sys.stdout") as mock_stdout:
                                 self.assertEqual(v.main(), 0)
                             mock_stdout.write.assert_called()
@@ -547,23 +571,27 @@ class TestMain(unittest.TestCase):
                             self.assertIn("All markdownlint", out)
 
     def test_main_returns_one_on_failure(self):
+        fixture_list = _fixture_files()
+        expectations = _expectations_from_yml()
+        if not fixture_list or expectations is None:
+            self.skipTest("fixtures or expected_errors.yml not found")
         with patch("sys.argv", ["prog"]):
             with patch.object(v, "find_markdownlint_cmd", return_value=["markdownlint-cli2"]):
-                with patch.object(v, "list_fixture_files") as files:
-                    with patch.object(v, "load_expected_errors") as load:
+                with patch.object(v, "list_fixture_files", return_value=fixture_list[:1]):
+                    with patch.object(v, "load_expected_errors", return_value=expectations):
                         with patch.object(v, "verify_file", side_effect=AssertionError("fail")):
-                            files.return_value = [_REPO_ROOT / "md_test_files" / "positive.md"]
-                            load.return_value = {"positive.md": {"errors": []}}
                             result = v.main()
         self.assertEqual(result, 1)
 
     def test_main_verbose_writes_per_fixture(self):
+        fixture_list = _fixture_files()
+        expectations = _expectations_from_yml()
+        if not fixture_list or expectations is None:
+            self.skipTest("fixtures or expected_errors.yml not found")
         with patch.object(v, "find_markdownlint_cmd", return_value=["markdownlint-cli2"]):
-            with patch.object(v, "list_fixture_files") as files:
-                with patch.object(v, "load_expected_errors") as load:
+            with patch.object(v, "list_fixture_files", return_value=fixture_list[:1]):
+                with patch.object(v, "load_expected_errors", return_value=expectations):
                     with patch.object(v, "verify_file"):
-                        files.return_value = [_REPO_ROOT / "md_test_files" / "positive.md"]
-                        load.return_value = {"positive.md": {"errors": []}}
                         with patch("sys.argv", ["prog", "--verbose"]):
                             with patch("sys.stderr") as mock_stderr:
                                 v.main()

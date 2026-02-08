@@ -2,7 +2,7 @@
 
 This file contains examples that should pass the Markdown standards enforced by markdownlint and the Python validators.
 
-It is intended to be linted explicitly via `npx markdownlint-cli2 md_test_files/positive.md`.
+It is intended to be linted explicitly via `npx markdownlint-cli2 md_test_files/positive_general.md`.
 
 ## Formatting
 
@@ -106,3 +106,23 @@ AP style: hyphenated compounds (each segment capitalized); "to" and "a" lowercas
 ### 5. Summary: The Results
 
 AP style: first word after a colon is capitalized (subphrase start).
+
+## Zero-Indexed Heading Numbering
+
+When the first numbered heading in a section starts at 0, the rule treats that section as 0-based and does not report errors.
+
+### 0. Introduction (Zero-Indexed)
+
+Content under first 0-based H3.
+
+#### 0.1 Zero Indexed Section
+
+### 1. First Topic
+
+### 2. Second Topic
+
+Subsections under a 0-based H3 also use 0-based numbering when the first subheading is 0.
+
+#### 2.1. First Subsection
+
+#### 2.2. Second Subsection

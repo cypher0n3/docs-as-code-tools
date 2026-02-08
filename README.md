@@ -21,7 +21,8 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Use when: keeping most docs ASCII while allowing Unicode/emoji only in chosen files (e.g. i18n or release notes).
   - [heading-numbering.js](markdownlint-rules/heading-numbering.js) - heading numbering.
     - Enforce segment count by numbering root, sequential numbering per section, and consistent period style (e.g. `1. Title` vs `1 Title`).
-    - Use when: docs use numbered headings (e.g. `### 1.2.3 Title`) and you want structure and style consistent.
+      Default is 1-based (1., 2., 3.); if the first numbered heading in a section starts at 0 (e.g. `0.`, `0.0.`), that section is treated as 0-based and no error is reported.
+    - Use when: docs use numbered headings (e.g. `### 1.2.3 Title` or 0-based `### 0. Introduction`) and you want structure and style consistent.
   - [heading-title-case.js](markdownlint-rules/heading-title-case.js) - heading title case.
     - Enforce title case for headings; words in backticks ignored; configurable lowercase words (e.g. vs, and, the).
     - Use when: you want consistent capitalization of headings (first/last and major words capped; small words lowercase in the middle).
@@ -40,7 +41,7 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Use when: copying the rule files; required by several of the rules above.
 
 - **JS linting** for the rule code: ESLint (recommended + complexity/max-lines + eslint-plugin-security), aligned with the GitHub Actions workflow.
-- **Markdownlint fixture tests**: [md_test_files/](md_test_files/README.md) includes positive/negative fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
+- **Markdownlint fixture tests**: [md_test_files/](md_test_files/README.md) includes positive_*.md and negative_*.md fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
 - **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/` (including security tests for defensive regex handling and ReDoS awareness); run with `make test-rules` or `npm run test:rules`.
   CI runs `make test-rules-coverage` (fails if any rule file is below 90% line/statement coverage).
 - **Python unit tests**: `unittest` tests for [test-scripts/](test-scripts/README.md) in `test-scripts/test_*.py`; run with `make test-python`.
@@ -128,7 +129,7 @@ npm install
 - **`Makefile`** - Local targets (kept in sync with the workflows in `.github/workflows/`).
 - **`markdownlint-rules/`** - Custom rule modules (`*.js`) and [README](markdownlint-rules/README.md).
   Copy into other repos as `.markdownlint-rules`; do not register `utils.js`.
-- **`md_test_files/`** - Test fixtures: `positive.md` (must pass), `negative_*.md` (must fail).
+- **`md_test_files/`** - Test fixtures: `positive_*.md` (must pass), `negative_*.md` (must fail).
   See [md_test_files/README.md](md_test_files/README.md).
 - **`package.json`** - npm dependencies (ESLint, markdownlint-cli2, etc.).
 - **`test/markdownlint-rules/`** - Node `node:test` unit tests for each custom rule (`*.test.js`); run with `make test-rules`.

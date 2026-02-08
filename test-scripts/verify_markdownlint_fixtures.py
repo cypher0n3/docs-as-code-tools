@@ -2,7 +2,7 @@
 """
 Verify markdownlint fixture expectations from md_test_files/expected_errors.yml.
 
-Expected errors are keyed by fixture filename (e.g. positive.md, negative_*.md).
+Expected errors are keyed by fixture filename (e.g. positive_*.md, negative_*.md).
 The verifier runs markdownlint-cli2 on each fixture and asserts:
 - exit code matches (0 for total=0, non-zero otherwise)
 - total error count matches
@@ -70,14 +70,14 @@ def ensure_long_document_fixture(path: Path) -> None:
 
 
 def list_fixture_files() -> List[Path]:
-    """Return fixture paths: positive.md plus sorted negative_*.md in md_test_files."""
+    """Return fixture paths: sorted positive_*.md plus sorted negative_*.md in md_test_files."""
     md_dir = repo_root() / "md_test_files"
-    positive = md_dir / "positive.md"
+    positives = sorted(md_dir.glob("positive_*.md"))
     negatives = sorted(md_dir.glob("negative_*.md"))
     long_fixture = md_dir / "negative_document_length.md"
     if long_fixture not in negatives:
         negatives = sorted(negatives + [long_fixture])
-    return [positive, *negatives]
+    return [*positives, *negatives]
 
 
 def _parse_one_error(item: object, idx: int, file_path: Path) -> ExpectedError:

@@ -6,6 +6,7 @@ This directory contains Python scripts used to support this repository's test su
 
 - `verify_markdownlint_fixtures.py`
   - Verifies markdownlint test fixtures in `md_test_files/` against expectations in `md_test_files/expected_errors.yml`.
+  - Positive fixtures (`positive_*.md`) must pass with zero errors; negative fixtures (`negative_*.md`) must fail with the errors listed in `expected_errors.yml`.
   - Used by `make test-markdownlint` and the `markdownlint-tests` GitHub Actions workflow.
 - `test_verify_markdownlint_fixtures.py`
   - Unit tests for the fixture verifier (run via `make test-python`).

@@ -1,23 +1,24 @@
 # Markdown Test Fixtures
 
-- **positive.md** - Examples that pass all markdown standards. Lint should report 0 errors.
+- **positive_general.md** - Examples that pass all markdown standards. Lint should report 0 errors.
+- **positive_heading_numbering_zero.md** - 0-indexed H2 numbering (## 0., 1., 2. and subsections); passes with 0 errors.
 - **negative_*.md** - One file per failing scenario; lint each to verify the expected custom rule(s) fail.
 
 ## Negative Fixtures (Custom Rules Only)
 
-| File                                      | Expected custom rule(s)                                   |
-| ----------------------------------------- | --------------------------------------------------------- |
-| negative_anchor_algo_placement.md         | allow-custom-anchors (algo placement)                     |
-| negative_anchor_invalid_id.md             | allow-custom-anchors (id not in allowedIdPatterns)        |
-| negative_anchor_multiple.md               | allow-custom-anchors (multiple per line)                  |
-| negative_anchor_ref_placement.md          | allow-custom-anchors (ref placement)                      |
-| negative_anchor_spec_placement.md         | allow-custom-anchors (spec placement)                     |
-| negative_ascii_only.md                    | ascii-only                                                |
-| negative_duplicate_headings_normalized.md | no-duplicate-headings-normalized                          |
-| negative_heading_like.md                  | no-heading-like-lines                                     |
-| negative_heading_numbering.md             | heading-numbering (segment, sequence, period, unnumbered) |
-| negative_heading_title_case.md            | heading-title-case                                        |
-| negative_inline_html.md                   | allow-custom-anchors (attribute, id pattern, end-of-line) |
+| File                                      | Expected custom rule(s)                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| negative_anchor_algo_placement.md         | allow-custom-anchors (algo placement)                                   |
+| negative_anchor_invalid_id.md             | allow-custom-anchors (id not in allowedIdPatterns)                      |
+| negative_anchor_multiple.md               | allow-custom-anchors (multiple per line)                                |
+| negative_anchor_ref_placement.md          | allow-custom-anchors (ref placement)                                    |
+| negative_anchor_spec_placement.md         | allow-custom-anchors (spec placement)                                   |
+| negative_ascii_only.md                    | ascii-only                                                              |
+| negative_duplicate_headings_normalized.md | no-duplicate-headings-normalized                                        |
+| negative_heading_like.md                  | no-heading-like-lines                                                   |
+| negative_heading_numbering.md             | heading-numbering (segment, sequence, period, unnumbered, zero-indexed) |
+| negative_heading_title_case.md            | heading-title-case                                                      |
+| negative_inline_html.md                   | allow-custom-anchors (attribute, id pattern, end-of-line)               |
 
 Note: some negative fixtures intentionally trigger built-in markdownlint rules in addition to custom rules (e.g. MD031/MD032/MD033), so the test suite can assert multiple errors on specific lines.
 
