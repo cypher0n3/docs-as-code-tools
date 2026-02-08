@@ -1,8 +1,7 @@
 # Negative Fixture: Heading Numbering
 
-Lint: `npx markdownlint-cli2 md_test_files/negative_heading_numbering.md`
-
-Expect: heading-numbering (segment count, sequence, period style, unnumbered sibling, zero-indexed violations). First block is H3/H4 under one H2; second block covers zero-indexed numbering errors.
+<!-- Lint: `npx markdownlint-cli2 md_test_files/negative_heading_numbering.md` -->
+<!-- Expect: heading-numbering (segment count, sequence, period style, unnumbered sibling, zero-indexed violations). First block is H3/H4 under one H2; second block covers zero-indexed numbering errors. -->
 
 ## Bad Heading Numbering
 

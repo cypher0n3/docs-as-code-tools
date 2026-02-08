@@ -1,8 +1,7 @@
 # Negative Fixture: Heading Title Case
 
-Lint: `npx markdownlint-cli2 md_test_files/negative_heading_title_case.md`
-
-Expect: `heading-title-case` (first word lowercase; middle "and" capitalized; last word lowercase).
+<!-- Lint: `npx markdownlint-cli2 md_test_files/negative_heading_title_case.md` -->
+<!-- Expect: `heading-title-case` (first word lowercase; middle "and" capitalized; last word lowercase). -->
 
 ## getting started
 

@@ -64,8 +64,10 @@ def find_markdownlint_cmd() -> List[str]:
 
 def ensure_long_document_fixture(path: Path) -> None:
     """Write a markdown file with LONG_FIXTURE_LINES lines so document-length rule fails."""
-    # Blank after heading to satisfy MD022; trailing newline to satisfy MD047
-    lines = ["# Title", ""] + [f"line {i}" for i in range(3, LONG_FIXTURE_LINES + 1)]
+    # H2 before generated lines so content under h1 is only blank (no-h1-content passes).
+    header = ["# Title", "", "## Section", ""]
+    body_start = len(header) + 1
+    lines = header + [f"line {i}" for i in range(body_start, LONG_FIXTURE_LINES + 1)]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -323,7 +325,7 @@ def main() -> int:
     failures: List[str] = []
 
     for f in files:
-        if f.name == "negative_document_length.md" and not f.exists():
+        if f.name == "negative_document_length.md":
             ensure_long_document_fixture(f)
         if verbose:
             exp_total = 0

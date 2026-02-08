@@ -1,8 +1,12 @@
 # Test Scripts
 
-This directory contains Python scripts used to support this repository's test suite and development workflow.
+- [Scripts](#scripts)
+- [Requirements](#requirements)
+- [Usage](#usage)
 
 ## Scripts
+
+This directory contains Python scripts used to support this repository's test suite and development workflow.
 
 - `verify_markdownlint_fixtures.py`
   - Verifies markdownlint test fixtures in `md_test_files/` against expectations in `md_test_files/expected_errors.yml`.

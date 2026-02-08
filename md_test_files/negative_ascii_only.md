@@ -1,6 +1,6 @@
 # Negative Fixture: ASCII-Only
 
-This file intentionally contains non-ASCII characters to trigger the ascii-only rule.
+<!-- This file intentionally contains non-ASCII characters to trigger the ascii-only rule. -->
 
 ## ASCII-Only Tests
 

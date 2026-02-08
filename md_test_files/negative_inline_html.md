@@ -1,8 +1,7 @@
 # Negative Fixture: Inline HTML and Anchor Basics
 
-Lint: `npx markdownlint-cli2 md_test_files/negative_inline_html.md`
-
-Expect: MD033, allow-custom-anchors (wrong attribute, bad id, not end-of-line).
+<!-- Lint: `npx markdownlint-cli2 md_test_files/negative_inline_html.md` -->
+<!-- Expect: MD033, allow-custom-anchors (wrong attribute, bad id, not end-of-line). -->
 
 ## Bad Inline HTML and Anchors
 

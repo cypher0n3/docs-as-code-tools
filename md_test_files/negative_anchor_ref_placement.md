@@ -1,8 +1,7 @@
 # Negative Fixture: Reference Anchor Placement
 
-Lint: `npx markdownlint-cli2 md_test_files/negative_anchor_ref_placement.md`
-
-Expect: allow-custom-anchors (ref anchor placement), MD031 (blanks around fences).
+<!-- Lint: `npx markdownlint-cli2 md_test_files/negative_anchor_ref_placement.md` -->
+<!-- Expect: allow-custom-anchors (ref anchor placement), MD031 (blanks around fences). -->
 
 ## Bad Reference Anchor Placement
 

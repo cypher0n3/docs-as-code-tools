@@ -1,5 +1,12 @@
 # Markdown Test Fixtures
 
+[![Python tests](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-tests.yml)
+
+- [Fixtures Overview](#fixtures-overview)
+- [Negative Fixtures (Custom Rules Only)](#negative-fixtures-custom-rules-only)
+
+## Fixtures Overview
+
 - **positive_general.md** - Examples that pass all markdown standards. Lint should report 0 errors.
 - **positive_heading_numbering_zero.md** - 0-indexed H2 numbering (## 0., 1., 2. and subsections); passes with 0 errors.
 - **negative_*.md** - One file per failing scenario; lint each to verify the expected custom rule(s) fail.

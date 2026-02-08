@@ -10,7 +10,7 @@ positive_heading_numbering_zero.md:
 
 negative_anchor_algo_placement.md:
   errors:
-    - line: 11
+    - line: 10
       rule: allow-custom-anchors
       message_contains: headingMatch
 
@@ -22,25 +22,25 @@ negative_anchor_invalid_id.md:
 
 negative_anchor_multiple.md:
   errors:
-    - line: 10
+    - line: 9
       rule: allow-custom-anchors
       message_contains: one-per-line
-    - line: 10
+    - line: 9
       rule: MD032/blanks-around-lists
       message_contains: surrounded by blank lines
 
 negative_anchor_ref_placement.md:
   errors:
-    - line: 10
+    - line: 9
       rule: allow-custom-anchors
       message_contains: requireAfter
-    - line: 11
+    - line: 10
       rule: MD031/blanks-around-fences
       message_contains: Fenced code blocks should be surrounded
 
 negative_anchor_spec_placement.md:
   errors:
-    - line: 10
+    - line: 9
       rule: allow-custom-anchors
       message_contains: lineMatch
 
@@ -107,90 +107,96 @@ negative_document_length.md:
 
 negative_heading_like.md:
   errors:
-    - line: 9
+    - line: 8
       rule: no-heading-like-lines
       message_contains: bold with colon inside
-    - line: 11
+    - line: 10
       rule: no-heading-like-lines
       message_contains: italic with colon inside
-    - line: 13
+    - line: 12
       rule: no-heading-like-lines
       message_contains: italic with colon outside
-    - line: 15
+    - line: 14
       rule: no-heading-like-lines
       message_contains: numbered list with bold
 
 negative_heading_numbering.md:
   errors:
-    - line: 13
+    - line: 12
       rule: heading-numbering
       message_contains: expected "1.2" to match sibling
-    - line: 15
+    - line: 14
       rule: heading-numbering
       message_contains: period style inconsistent
-    - line: 17
+    - line: 16
       rule: heading-numbering
       message_contains: no number prefix
-    - line: 19
+    - line: 18
       rule: heading-numbering
       message_contains: period style inconsistent
-    - line: 19
+    - line: 18
       rule: heading-numbering
       message_contains: expected "3" to match sibling
-    - line: 23
+    - line: 22
       rule: heading-numbering
       message_contains: 2 segment(s) in number prefix "1.1"
-    - line: 25
+    - line: 24
       rule: heading-numbering
       message_contains: Too Many Segments for H4
-    - line: 33
+    - line: 32
       rule: heading-numbering
       message_contains: expected "1" to match sibling
-    - line: 37
+    - line: 36
       rule: heading-numbering
       message_contains: expected "2" to match sibling
-    - line: 41
+    - line: 40
       rule: heading-numbering
       message_contains: expected "0.1" to match sibling
 
 negative_heading_title_case.md:
   errors:
-    - line: 7
+    - line: 6
       rule: heading-title-case
       message_contains: 'Word "getting" should be capitalized'
-    - line: 11
+    - line: 10
       rule: heading-title-case
       message_contains: 'Word "And" should be lowercase'
-    - line: 15
+    - line: 14
       rule: heading-title-case
       message_contains: 'Word "practice" should be capitalized'
-    - line: 19
+    - line: 18
       rule: heading-title-case
       message_contains: 'Word "in" should be capitalized'
-    - line: 23
+    - line: 22
       rule: heading-title-case
       message_contains: 'Word "in" should be capitalized'
-    - line: 27
+    - line: 26
       rule: heading-title-case
       message_contains: 'Word "is" should be capitalized'
-    - line: 31
+    - line: 30
       rule: heading-title-case
       message_contains: 'Word "stop" should be capitalized'
-    - line: 35
+    - line: 34
       rule: heading-title-case
       message_contains: 'Word "the" should be capitalized'
 
+negative_no_h1_content.md:
+  errors:
+    - line: 3
+      rule: no-h1-content
+      message_contains: table of contents
+
 negative_inline_html.md:
   errors:
-    - line: 10
+    - line: 9
       rule: MD033/no-inline-html
       message_contains: Inline HTML
-    - line: 13
+    - line: 12
       rule: allow-custom-anchors
       message_contains: anchor-format
-    - line: 16
+    - line: 15
       rule: allow-custom-anchors
       message_contains: bad-np-core-package-readfile
-    - line: 18
+    - line: 17
       rule: allow-custom-anchors
       message_contains: end-of-line

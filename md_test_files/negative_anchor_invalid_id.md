@@ -1,6 +1,6 @@
 # Negative Fixture: Anchor Invalid ID
 
-Expect: `allow-custom-anchors` (id does not match any allowedIdPatterns).
+<!-- Expect: `allow-custom-anchors` (id does not match any allowedIdPatterns). -->
 
 ## Bad Anchor ID
 
