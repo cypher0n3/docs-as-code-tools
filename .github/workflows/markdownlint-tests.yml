@@ -8,13 +8,13 @@ on:
     paths:
       - '.markdownlint-cli2.jsonc'
       - '.markdownlint.yml'
-      - '.markdownlint-rules/**'
+      - 'markdownlint-rules/**'
       - 'md_test_files/**'
   pull_request:
     paths:
       - '.markdownlint-cli2.jsonc'
       - '.markdownlint.yml'
-      - '.markdownlint-rules/**'
+      - 'markdownlint-rules/**'
       - 'md_test_files/**'
 
 jobs:

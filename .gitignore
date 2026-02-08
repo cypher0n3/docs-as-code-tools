@@ -43,3 +43,6 @@ coverage.*
 # Ignore Python cache files
 **/__pycache__/
 .pytest_cache/
+
+# Ignore test files
+md_test_files/negative_document_length.md

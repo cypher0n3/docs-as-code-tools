@@ -9,7 +9,7 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
-const rule = require("../../.markdownlint-rules/heading-title-case.js");
+const rule = require("../../markdownlint-rules/heading-title-case.js");
 const { runRule } = require("./run-rule.js");
 
 describe("heading-title-case", () => {
@@ -31,12 +31,28 @@ describe("heading-title-case", () => {
     assert.ok(Array.isArray(errors[0].range) && errors[0].range.length === 2, "error should include range [column, length] for the violating word");
   });
 
-  it("allows lowercase and/or in the middle when configured", () => {
-    // Custom lowercaseWords permits "through" and "and"; first/last ("Use", "Other") stay capped.
-    // Without config, AP-style rules treat "through" as a major word (so "through" would be invalid).
+  it("allows lowercase in the middle when lowercaseWords extends default", () => {
+    // Config extends default: "through" added; "and" already in default. First/last ("Use", "Other") stay capped.
     const lines = ["# Use through and Other"];
     const errors = runRule(rule, lines, {
-      "heading-title-case": { lowercaseWords: ["through", "and"] },
+      "heading-title-case": { lowercaseWords: ["through"] },
+    });
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("lowercaseWordsReplaceDefault: true uses only config list", () => {
+    const lines = ["# This And That"];
+    const errors = runRule(rule, lines, {
+      "heading-title-case": { lowercaseWords: ["and"], lowercaseWordsReplaceDefault: true },
+    });
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].detail.includes("And") && errors[0].detail.includes("lowercase"));
+  });
+
+  it("lowercaseWordsReplaceDefault: false (default) merges config with default", () => {
+    const lines = ["# Use through and Other"];
+    const errors = runRule(rule, lines, {
+      "heading-title-case": { lowercaseWords: ["through"], lowercaseWordsReplaceDefault: false },
     });
     assert.strictEqual(errors.length, 0);
   });

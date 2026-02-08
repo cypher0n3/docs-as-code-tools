@@ -8,7 +8,7 @@ const eslintPluginSecurity = require("eslint-plugin-security");
 module.exports = defineConfig([
   {
     name: "docs-as-code-tools/markdownlint-rules",
-    files: [".markdownlint-rules/**/*.js"],
+    files: ["markdownlint-rules/**/*.js"],
     plugins: { js, security: eslintPluginSecurity },
     extends: ["js/recommended"],
     languageOptions: {

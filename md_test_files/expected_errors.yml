@@ -63,7 +63,10 @@ negative_ascii_only.md:
       rule: ascii-only
       column: 45
       message_contains: "U+2019"
-    - line: 10
+    - line: 9
+      rule: ascii-only
+      message_contains: "U+0142"
+    - line: 11
       rule: ascii-only
       column: 42
       message_contains: use ASCII only

@@ -9,7 +9,7 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
-const rule = require("../../.markdownlint-rules/allow-custom-anchors.js");
+const rule = require("../../markdownlint-rules/allow-custom-anchors.js");
 const { runRule } = require("./run-rule.js");
 
 describe("allow-custom-anchors", () => {

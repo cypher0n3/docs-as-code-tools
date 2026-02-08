@@ -20,16 +20,16 @@ lint-readmes:
 		MDL="npx markdownlint-cli2"; \
 	fi; \
 	echo "Linting READMEs..."; \
-	$$MDL README.md **/README.md .markdownlint-rules/README.md CONTRIBUTING.md
+	$$MDL README.md **/README.md markdownlint-rules/README.md CONTRIBUTING.md
 
 # JavaScript linting - performs same checks as GitHub Actions workflow
 # NOTE: This target must be kept in sync with .github/workflows/js-lint.yml.
 #       When adding or modifying JS linting, update both this Makefile and
 #       the workflow file to ensure local 'make lint-js' matches CI behavior.
 #       Requires: Node.js and npm; run 'npm install' (or npm ci) once for node_modules.
-#       Lints .markdownlint-rules/*.js with ESLint (recommended + complexity/max-lines + eslint-plugin-security).
+#       Lints markdownlint-rules/*.js with ESLint (recommended + complexity/max-lines + eslint-plugin-security).
 # Usage: make lint-js [PATHS="path1,path2"]
-#        - PATHS: Comma-separated list of files/directories (default: .markdownlint-rules)
+#        - PATHS: Comma-separated list of files/directories (default: markdownlint-rules)
 lint-js:
 	@command -v node >/dev/null 2>&1 || { \
 		echo "Error: node not found. Install Node.js to run JS linting."; \
@@ -46,7 +46,7 @@ lint-js:
 	if [ -n "$(PATHS)" ]; then \
 		LINT_PATHS=$$(echo "$(PATHS)" | tr ',' ' '); \
 	else \
-		LINT_PATHS=".markdownlint-rules"; \
+		LINT_PATHS="markdownlint-rules"; \
 	fi; \
 	echo "Running eslint on $$LINT_PATHS..."; \
 	$$ESLINT $$LINT_PATHS --ext .js; \
@@ -120,7 +120,7 @@ lint-python:
 	echo ""; echo "Lint exit codes: flake8=$$FLAKE8_RESULT pylint=$$PYLINT_RESULT xenon=$$XENON_RESULT radon_mi=$$MI_RESULT bandit=$$BANDIT_RESULT"; \
 	[ $$FLAKE8_RESULT -ne 0 ] || [ $$PYLINT_RESULT -ne 0 ] || [ $$XENON_RESULT -ne 0 ] || [ $$MI_RESULT -ne 0 ] || [ $$BANDIT_RESULT -ne 0 ] && exit 1; exit 0
 
-# Unit tests for .markdownlint-rules/*.js - same as .github/workflows/rule-unit-tests.yml
+# Unit tests for markdownlint-rules/*.js - same as .github/workflows/rule-unit-tests.yml
 # NOTE: Keep in sync with that workflow. Requires: Node.js, npm; run 'npm install' first.
 test-rules:
 	@command -v node >/dev/null 2>&1 || { \
@@ -129,7 +129,7 @@ test-rules:
 	}
 	@node --test test/markdownlint-rules/*.test.js
 
-# Unit test coverage for .markdownlint-rules/*.js (fails if any file < 90% lines/statements).
+# Unit test coverage for markdownlint-rules/*.js (fails if any file < 90% lines/statements).
 # Requires: Node.js, npm; run 'npm install' first.
 test-rules-coverage:
 	@command -v node >/dev/null 2>&1 || { \

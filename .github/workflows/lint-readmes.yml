@@ -11,14 +11,14 @@ on:
       - '**/README.md'
       - '.markdownlint-cli2.jsonc'
       - '.markdownlint.yml'
-      - '.markdownlint-rules/**'
+      - 'markdownlint-rules/**'
       - 'Makefile'
   pull_request:
     paths:
       - '**/README.md'
       - '.markdownlint-cli2.jsonc'
       - '.markdownlint.yml'
-      - '.markdownlint-rules/**'
+      - 'markdownlint-rules/**'
       - 'Makefile'
 
 jobs:

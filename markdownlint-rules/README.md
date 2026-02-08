@@ -139,23 +139,94 @@ Order of entries matters: the first pattern that matches the anchor id is used. 
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `ascii-only`:
 
+Example: minimal (default letters plus path/emoji)
+
+```yaml
+ascii-only:
+  allowedPathPatternsUnicode:
+    - "**/README.md"          # any non-ASCII allowed in READMEs
+  allowedPathPatternsEmoji:
+    - "docs/**"               # only allowedEmoji in docs/
+  allowedEmoji:
+    - "✅"
+    - "⚠️"
+```
+
+Example: extend default allowed characters (e.g. degree sign, or `ń` for Polish)
+
+```yaml
+ascii-only:
+  allowedUnicode:
+    - "°"
+    - "ń"                     # merged with default (é, ï, ñ, ç, etc.)
+  # allowedUnicodeReplaceDefault: false  # default; true = use only the list above
+```
+
+Example: override default (strict allowlist only)
+
+```yaml
+ascii-only:
+  allowedUnicode:
+    - "°"
+    - "→"                     # only these two allowed in prose
+  allowedUnicodeReplaceDefault: true
+```
+
+Example: check unicode inside code blocks (e.g. only in `text` and `bash` blocks)
+
+```yaml
+ascii-only:
+  allowUnicodeInCodeBlocks: false
+  disallowUnicodeInCodeBlockTypes:
+    - "text"
+    - "bash"                  # ```text and ```bash checked; ```go skipped
+```
+
+Example: custom replacement suggestions in error messages
+
+```yaml
+ascii-only:
+  unicodeReplacements:        # object form
+    "→": "->"
+    "←": "<-"
+    "°": " deg"
+  # or array form:
+  # unicodeReplacements: [["→", "->"], ["←", "<-"]]
+```
+
+Example: full configuration combining options
+
 ```yaml
 ascii-only:
   allowedPathPatternsUnicode:
     - "**/README.md"
+    - "**/CHANGELOG*.md"
   allowedPathPatternsEmoji:
     - "docs/**"
   allowedEmoji:
     - "✅"
+    - "❌"
     - "⚠️"
   allowedUnicode:
-    - "°"   # optional: allow in all files
+    - "°"
+    - "ń"
+  allowUnicodeInCodeBlocks: true    # default; set false to check fenced blocks
+  # disallowUnicodeInCodeBlockTypes: ["text", "bash"]  # when allowUnicodeInCodeBlocks false
+  unicodeReplacements:
+    "→": "->"
+    "—": "--"
 ```
 
 - **`allowedPathPatternsUnicode`** (list of strings, default none): Glob patterns for files where any non-ASCII is allowed.
 - **`allowedPathPatternsEmoji`** (list of strings, default none): Glob patterns for files where only `allowedEmoji` characters are allowed.
 - **`allowedEmoji`** (list of strings, default none): Emoji (or other chars) allowed in paths matching `allowedPathPatternsEmoji`; each entry may be multi-codepoint (e.g. ⚠️); all code points are allowed.
-- **`allowedUnicode`** (list of single-character strings, default none): Optional. Characters allowed in all files (global allowlist).
+- **`allowedUnicode`** (list of single-character strings, optional): Characters allowed in all files (global allowlist). By default these **extend** the built-in set of common non-English letters (e.g. é, ï, è, ñ, ç). Set **`allowedUnicodeReplaceDefault: true`** to **override** and use only your list (no default set).
+- **`allowedUnicodeReplaceDefault`** (boolean, default false): When true, only `allowedUnicode` is used (no built-in default set).
+- **`allowUnicodeInCodeBlocks`** (boolean, default true): When true, lines inside fenced code blocks are not checked.
+  When false, code blocks are checked (or only those in `disallowUnicodeInCodeBlockTypes` if that list is non-empty).
+- **`disallowUnicodeInCodeBlockTypes`** (list of strings, default empty):
+  When `allowUnicodeInCodeBlocks` is false, only fenced blocks whose info string (e.g. `text`, `bash`) is in this list are checked; block type is the first word after the opening fence.
+  When empty, all code blocks are checked.
 - **`unicodeReplacements`** (object or array of [char, replacement], default built-in): Map of single Unicode character to suggested ASCII replacement in error messages. When omitted, rule uses built-in defaults (arrows, quotes, <=, >=, \*).
 
 Glob matching supports `**` (any path) and `*` (within a segment).
@@ -167,10 +238,10 @@ Relative patterns (no leading `/` or `*`) match both path-prefix (e.g. `dev_docs
 - No built-in path or emoji defaults; configure `allowedPathPatternsUnicode`, `allowedPathPatternsEmoji`, and `allowedEmoji` as needed.
 - If the file path matches `allowedPathPatternsUnicode`, any non-ASCII is allowed in that file.
 - If the file path matches `allowedPathPatternsEmoji`, only characters in `allowedEmoji` (and Unicode variation selectors U+FE00-U+FE0F) are allowed; other non-ASCII is reported per occurrence.
-- Characters in `allowedUnicode` (when configured) are allowed in all files.
+- Characters allowed in all files: the default set (e.g. é, ï, ñ, ç) plus `allowedUnicode` when **extend** (default), or only `allowedUnicode` when `allowedUnicodeReplaceDefault: true`.
 - Non-ASCII is detected by code-point iteration (surrogate pairs treated as one character) and compared after NFC normalization.
 - **One error per disallowed character:** each violation highlights only that character (range) on the line. The detail names the character, its code point (e.g. U+2192), and the suggested replacement when present in `unicodeReplacements`.
-- Inline code (backticks) is stripped before scanning.
+- Inline code (backticks) is stripped before scanning. Fenced code blocks are skipped by default; set `allowUnicodeInCodeBlocks: false` to check them, and optionally `disallowUnicodeInCodeBlockTypes` to restrict which block types (e.g. `text`, `bash`) are checked.
 
 ### `heading-title-case`
 
@@ -183,17 +254,17 @@ Relative patterns (no leading `/` or `*`) match both path-prefix (e.g. `dev_docs
 
 ```yaml
 heading-title-case:
-  lowercaseWords:   # optional; default list if omitted
-    - "a"
-    - "an"
-    - "the"
-    - "vs"
-    - "and"
-    - "or"
+  lowercaseWords:   # optional; extends default list (add words)
+    - "through"
+  # lowercaseWordsReplaceDefault: true   # optional; true = use only lowercaseWords list, no default
 ```
 
 - **`lowercaseWords`** (array of strings, optional): Words that must be lowercase in the middle of a heading.
-  If omitted, a default list aligned with AP headline style is used (articles, coordinating conjunctions, short prepositions, and short verb/pronoun):
+  By default these **extend** the built-in list (articles, conjunctions, short prepositions, etc.).
+  Set **`lowercaseWordsReplaceDefault: true`** to **override** and use only your list.
+- **`lowercaseWordsReplaceDefault`** (boolean, default false): When true, only `lowercaseWords` is used (no built-in default list).
+
+Built-in default list (when not replaced):
 
   ```text
   a, an, the,

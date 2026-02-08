@@ -1,6 +1,7 @@
 "use strict";
 
 const {
+  iterateLinesWithFenceInfo,
   iterateNonFencedLines,
   pathMatchesAny,
   stripInlineCode,
@@ -23,6 +24,27 @@ const DEFAULT_UNICODE_REPLACEMENTS = {
   "\u2019": "'",
   "\u2018": "'",
 };
+
+/**
+ * Common non-English letters allowed by default (config allowedUnicode extends this).
+ * Escape → character:
+ * 00E9→é 00EF→ï 00E8→è 00EA→ê 00EB→ë 00E0→à 00E2→â 00E4→ä
+ * 00F9→ù 00FB→û 00FC→ü 00F4→ô 00F6→ö 00EE→î 00FF→ÿ 00F1→ñ
+ * 00E7→ç 00E1→á 00ED→í 00F3→ó 00FA→ú 00E3→ã 00F5→õ 00E6→æ
+ * 0153→œ 00F0→ð 00FE→þ 00F8→ø 00E5→å
+ * 00C9→É 00CF→Ï 00C8→È 00CA→Ê 00CB→Ë 00C0→À 00C2→Â 00C4→Ä
+ * 00D9→Ù 00DB→Û 00DC→Ü 00D4→Ô 00D6→Ö 00CE→Î 00D1→Ñ
+ * 00C7→Ç 00C1→Á 00CD→Í 00D3→Ó 00DA→Ú 00C3→Ã 00D5→Õ 00C6→Æ 0152→Œ
+ */
+const DEFAULT_ALLOWED_UNICODE = [
+  "\u00E9", "\u00EF", "\u00E8", "\u00EA", "\u00EB", "\u00E0", "\u00E2", "\u00E4",
+  "\u00F9", "\u00FB", "\u00FC", "\u00F4", "\u00F6", "\u00EE", "\u00FF", "\u00F1",
+  "\u00E7", "\u00E1", "\u00ED", "\u00F3", "\u00FA", "\u00E3", "\u00F5", "\u00E6",
+  "\u0153", "\u00F0", "\u00FE", "\u00F8", "\u00E5", "\u00C9", "\u00CF", "\u00C8",
+  "\u00CA", "\u00CB", "\u00C0", "\u00C2", "\u00C4", "\u00D9", "\u00DB", "\u00DC",
+  "\u00D4", "\u00D6", "\u00CE", "\u00D1", "\u00C7", "\u00C1", "\u00CD", "\u00D3",
+  "\u00DA", "\u00C3", "\u00D5", "\u00C6", "\u0152",
+];
 
 /**
  * Return true if the string contains any non-ASCII character (code point > 0x7F).
@@ -150,6 +172,18 @@ function toCharSet(arr) {
  */
 function getConfig(params) {
   const c = params.config || {};
+  const defaultSet = toCharSet(DEFAULT_ALLOWED_UNICODE);
+  const configSet = toCharSet(c.allowedUnicode);
+  const replaceDefault = c.allowedUnicodeReplaceDefault === true;
+  const allowedUnicodeSet = replaceDefault
+    ? configSet
+    : new Set([...defaultSet, ...configSet]);
+  const disallowTypesRaw = Array.isArray(c.disallowUnicodeInCodeBlockTypes)
+    ? c.disallowUnicodeInCodeBlockTypes
+    : [];
+  const disallowUnicodeInCodeBlockTypesSet = new Set(
+    disallowTypesRaw.filter((t) => typeof t === "string").map((t) => String(t).trim().toLowerCase()),
+  );
   return {
     allowedPathPatternsUnicode: Array.isArray(c.allowedPathPatternsUnicode)
       ? c.allowedPathPatternsUnicode
@@ -158,7 +192,9 @@ function getConfig(params) {
       ? c.allowedPathPatternsEmoji
       : [],
     allowedEmoji: Array.isArray(c.allowedEmoji) ? c.allowedEmoji : [],
-    allowedUnicode: toCharSet(c.allowedUnicode),
+    allowedUnicode: allowedUnicodeSet,
+    allowUnicodeInCodeBlocks: c.allowUnicodeInCodeBlocks !== false,
+    disallowUnicodeInCodeBlockTypes: disallowUnicodeInCodeBlockTypesSet,
     unicodeReplacements: buildReplacementsMap(
       c.unicodeReplacements ?? DEFAULT_UNICODE_REPLACEMENTS,
     ),
@@ -219,41 +255,68 @@ function buildOccurrenceDetail(ch, replacement, allowEmojiOnly, config) {
 }
 
 /**
+ * Whether to check this line when it is inside a fenced code block (call only when allowUnicodeInCodeBlocks is false).
+ * @param {boolean} inFencedBlock - Line is inside a fence
+ * @param {string} blockType - Info string of the block (e.g. "text", "bash")
+ * @param {Set<string>} disallowTypes - Block types to check (empty = check all)
+ * @returns {boolean}
+ */
+function shouldCheckFencedLine(inFencedBlock, blockType, disallowTypes) {
+  if (!inFencedBlock) return true;
+  if (disallowTypes.size === 0) return true;
+  return disallowTypes.has(blockType);
+}
+
+/**
  * markdownlint rule: disallow non-ASCII except in configured paths; optional
  * replacement suggestions via unicodeReplacements. Paths can allow full Unicode
- * or emoji-only.
+ * or emoji-only. Unicode and emoji inside fenced code blocks or between
+ * backticks (inline code) are ignored by default; use allowUnicodeInCodeBlocks
+ * and disallowUnicodeInCodeBlockTypes to check inside code blocks.
  *
  * @param {object} params - markdownlint params (lines, name, config)
  * @param {function(object): void} onError - Callback to report an error
  */
 function ruleFunction(params, onError) {
-    const filePath = params.name || "";
-    const config = getConfig(params);
-    const allowUnicode = pathMatchesAny(filePath, config.allowedPathPatternsUnicode);
-    const allowEmojiOnly = pathMatchesAny(filePath, config.allowedPathPatternsEmoji);
-    const allowedEmojiSet = toCharSet(config.allowedEmoji);
-    const allowedUnicodeSet = config.allowedUnicode;
+  const filePath = params.name || "";
+  const config = getConfig(params);
+  const allowUnicode = pathMatchesAny(filePath, config.allowedPathPatternsUnicode);
+  const allowEmojiOnly = pathMatchesAny(filePath, config.allowedPathPatternsEmoji);
+  const allowedEmojiSet = toCharSet(config.allowedEmoji);
+  const allowedUnicodeSet = config.allowedUnicode;
 
-    for (const { lineNumber, line } of iterateNonFencedLines(params.lines)) {
-      const scan = stripInlineCode(line);
-      if (!hasNonAscii(scan)) continue;
-      if (allowUnicode) continue;
-      if (allowEmojiOnly && onlyAllowedEmoji(scan, allowedEmojiSet)) continue;
+  const checkLine = (lineNumber, line) => {
+    const scan = stripInlineCode(line);
+    if (!hasNonAscii(scan)) return;
+    if (allowUnicode) return;
+    if (allowEmojiOnly && onlyAllowedEmoji(scan, allowedEmojiSet)) return;
 
-      for (const { startIndex, char, length } of getDisallowedOccurrences(
-        scan, allowEmojiOnly, allowedUnicodeSet, allowedEmojiSet,
-      )) {
-        const column = startIndex + 1;
-        const replacement = config.unicodeReplacements.get(char);
-        onError({
-          lineNumber,
-          detail: buildOccurrenceDetail(char, replacement, allowEmojiOnly, config),
-          context: line,
-          range: [column, length],
-        });
-      }
+    for (const { startIndex, char, length } of getDisallowedOccurrences(
+      scan, allowEmojiOnly, allowedUnicodeSet, allowedEmojiSet,
+    )) {
+      const column = startIndex + 1;
+      const replacement = config.unicodeReplacements.get(char);
+      onError({
+        lineNumber,
+        detail: buildOccurrenceDetail(char, replacement, allowEmojiOnly, config),
+        context: line,
+        range: [column, length],
+      });
     }
+  };
+
+  if (config.allowUnicodeInCodeBlocks) {
+    for (const { lineNumber, line } of iterateNonFencedLines(params.lines)) {
+      checkLine(lineNumber, line);
+    }
+    return;
   }
+
+  for (const { lineNumber, line, inFencedBlock, blockType } of iterateLinesWithFenceInfo(params.lines)) {
+    if (!shouldCheckFencedLine(inFencedBlock, blockType, config.disallowUnicodeInCodeBlockTypes)) continue;
+    checkLine(lineNumber, line);
+  }
+}
 
 module.exports = {
   names: ["ascii-only"],

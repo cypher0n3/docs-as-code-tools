@@ -9,7 +9,7 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
-const rule = require("../../.markdownlint-rules/ascii-only.js");
+const rule = require("../../markdownlint-rules/ascii-only.js");
 const { runRule } = require("./run-rule.js");
 
 describe("ascii-only", () => {
@@ -20,8 +20,8 @@ describe("ascii-only", () => {
   });
 
   it("reports error for non-ASCII when path not allowlisted", () => {
-    // Accented characters (é, ï) are reported when path is not in allowlist.
-    const lines = ["Café and naïve"];
+    // Arrow → is not in default allowed set; reported when path is not in allowlist.
+    const lines = ["Use arrow \u2192 here"];
     const errors = runRule(rule, lines, {}, "doc.md");
     assert.ok(errors.length >= 1);
     assert.ok(errors.some((e) => e.detail.includes("ASCII") || e.detail.includes("U+")));
@@ -40,7 +40,7 @@ describe("ascii-only", () => {
   });
 
   it("reports error with emoji-list message when path is emoji-only and char not in list", () => {
-    const lines = ["Café"];
+    const lines = ["Arrow \u2192 here"];
     const errors = runRule(rule, lines, {
       allowedPathPatternsEmoji: ["*.md"],
       allowedEmoji: ["\u263A"],
@@ -58,7 +58,7 @@ describe("ascii-only", () => {
   });
 
   it("reports error when path does not match any unicode pattern (utils pathMatchesAny)", () => {
-    const lines = ["Café"];
+    const lines = ["Arrow \u2192"];
     const errors = runRule(rule, lines, {
       allowedPathPatternsUnicode: ["other.md"],
     }, "doc.md");
@@ -69,6 +69,66 @@ describe("ascii-only", () => {
     const lines = ["~~~", "Café inside tildes", "~~~", "Plain"];
     const errors = runRule(rule, lines, {}, "doc.md");
     assert.strictEqual(errors.length, 0);
+  });
+
+  it("skips content inside ``` fenced code block (ignore unicode in code blocks)", () => {
+    const lines = ["```", "Café and 😀 inside backtick fence", "```", "Plain"];
+    const errors = runRule(rule, lines, {}, "doc.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("allowUnicodeInCodeBlocks: false reports unicode inside fenced block", () => {
+    const lines = ["```", "Arrow \u2192 inside fence", "```"];
+    const errors = runRule(rule, lines, { allowUnicodeInCodeBlocks: false }, "doc.md");
+    assert.ok(errors.length >= 1);
+    assert.ok(errors.some((e) => e.lineNumber === 2 && (e.detail.includes("U+2192") || e.detail.includes("→"))));
+  });
+
+  it("allowUnicodeInCodeBlocks: false with disallowUnicodeInCodeBlockTypes: [\"text\"] reports in ```text only", () => {
+    const lines = [
+      "```text",
+      "Unicode \u2192 here",
+      "```",
+      "```go",
+      "Unicode \u2192 here",
+      "```",
+    ];
+    const errors = runRule(rule, lines, {
+      allowUnicodeInCodeBlocks: false,
+      disallowUnicodeInCodeBlockTypes: ["text"],
+    }, "doc.md");
+    assert.ok(errors.length >= 1, "should report in ```text block");
+    assert.ok(errors.some((e) => e.lineNumber === 2), "error on line 2 (text block)");
+    const goBlockErrors = errors.filter((e) => e.lineNumber === 5);
+    assert.strictEqual(goBlockErrors.length, 0, "no errors in ```go block when only text is in disallow list");
+  });
+
+  it("disallowUnicodeInCodeBlockTypes: [] with allowUnicodeInCodeBlocks false checks all blocks", () => {
+    const lines = ["```go", "Arrow \u2192", "```"];
+    const errors = runRule(rule, lines, {
+      allowUnicodeInCodeBlocks: false,
+      disallowUnicodeInCodeBlockTypes: [],
+    }, "doc.md");
+    assert.ok(errors.length >= 1);
+  });
+
+  it("reports no errors when unicode is only inside single backticks", () => {
+    const lines = ["Use `café` or `naïve` in code."];
+    const errors = runRule(rule, lines, {}, "doc.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports no errors when emoji is only inside backticks", () => {
+    const lines = ["Run `echo 😀` for a smile."];
+    const errors = runRule(rule, lines, {}, "doc.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports error for unicode outside backticks but not for inside", () => {
+    const lines = ["Arrow \u2192 has `\u2192` in code."];
+    const errors = runRule(rule, lines, {}, "doc.md");
+    assert.ok(errors.length >= 1, "should report arrow outside backticks");
+    assert.ok(errors.some((e) => e.detail.includes("U+2192") || e.detail.includes("→")), "detail should mention the character");
   });
 
   it("reports no errors when path is emoji-only and content has only allowed emoji", () => {
@@ -89,27 +149,85 @@ describe("ascii-only", () => {
     assert.strictEqual(errors.length, 0);
   });
 
-  it("reports no errors when non-ASCII char is in allowedUnicode set", () => {
-    const lines = ["Café"];
+  it("reports no errors for default-allowed letters (é, ï) without config", () => {
+    const lines = ["Café and naïve"];
+    const errors = runRule(rule, lines, {}, "doc.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports no errors when non-ASCII char is in config allowedUnicode (extends default)", () => {
+    const lines = ["\u0144"]; // ń not in default set
     const errors = runRule(rule, lines, {
-      allowedUnicode: ["\u00E9"],
+      allowedUnicode: ["\u0144"],
+    }, "doc.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports no errors when multiple chars from config allowedUnicode (config file style)", () => {
+    const lines = ["Polish: \u0144 and \u0142"]; // ń, ł not in default
+    const errors = runRule(rule, lines, {
+      allowedUnicode: ["\u0144", "\u0142"],
+    }, "doc.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports no errors when line has both default-allowed and config allowedUnicode", () => {
+    const lines = ["Café and Zdu\u0144"]; // é default, ń from config
+    const errors = runRule(rule, lines, {
+      allowedUnicode: ["\u0144"],
+    }, "doc.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports error for char not in default and not in config allowedUnicode", () => {
+    const lines = ["\u0144"]; // ń
+    const errors = runRule(rule, lines, {}, "doc.md");
+    assert.ok(errors.length >= 1);
+    assert.ok(errors.some((e) => e.detail.includes("U+0144") || e.detail.includes("ń")));
+  });
+
+  it("reports error when config allowedUnicode omits a char used in line", () => {
+    const lines = ["\u0144 and \u0142"]; // ń allowed by config, ł not
+    const errors = runRule(rule, lines, {
+      allowedUnicode: ["\u0144"],
+    }, "doc.md");
+    assert.ok(errors.length >= 1);
+    assert.ok(errors.some((e) => e.detail.includes("U+0142") || e.detail.includes("ł")));
+  });
+
+  it("allowedUnicodeReplaceDefault: true uses only config list (no default set)", () => {
+    const lines = ["Café and \u2192"]; // é in default, → not; with replace, only → in list
+    const errors = runRule(rule, lines, {
+      allowedUnicode: ["\u2192"],
+      allowedUnicodeReplaceDefault: true,
+    }, "doc.md");
+    assert.ok(errors.length >= 1, "é should be reported when default is replaced");
+    assert.ok(errors.some((e) => e.detail.includes("U+00E9") || e.detail.includes("é")));
+    assert.ok(!errors.some((e) => e.detail.includes("U+2192")), "→ should be allowed by config list");
+  });
+
+  it("allowedUnicodeReplaceDefault: false (default) extends default set", () => {
+    const lines = ["Café and \u0144"];
+    const errors = runRule(rule, lines, {
+      allowedUnicode: ["\u0144"],
+      allowedUnicodeReplaceDefault: false,
     }, "doc.md");
     assert.strictEqual(errors.length, 0);
   });
 
   it("includes suggested replacement when unicodeReplacements is object", () => {
-    const lines = ["Café"];
+    const lines = ["Arrow \u2192"];
     const errors = runRule(rule, lines, {
-      unicodeReplacements: { "\u00E9": "e" },
+      unicodeReplacements: { "\u2192": "->" },
     }, "doc.md");
     assert.ok(errors.length >= 1);
-    assert.ok(errors.some((e) => e.detail.includes("suggested replacement") && e.detail.includes("e")));
+    assert.ok(errors.some((e) => e.detail.includes("suggested replacement") && e.detail.includes("->")));
   });
 
   it("includes suggested replacement when unicodeReplacements is array", () => {
-    const lines = ["Café"];
+    const lines = ["Arrow \u2192"];
     const errors = runRule(rule, lines, {
-      unicodeReplacements: [["\u00E9", "e"]],
+      unicodeReplacements: [["\u2192", "->"]],
     }, "doc.md");
     assert.ok(errors.length >= 1);
     assert.ok(errors.some((e) => e.detail.includes("suggested replacement")));
@@ -123,10 +241,10 @@ describe("ascii-only", () => {
   });
 
   it("strips inline code before checking (utils stripInlineCode fence match)", () => {
-    const lines = ["Café ``code``"];
+    const lines = ["Arrow \u2192 ``code``"];
     const errors = runRule(rule, lines, {}, "doc.md");
     assert.ok(errors.length >= 1);
-    assert.ok(errors.some((e) => e.detail.includes("Café") || e.detail.includes("U+")));
+    assert.ok(errors.some((e) => e.detail.includes("U+2192") || e.detail.includes("→")));
   });
 
   it("skips non-string entries in path patterns (utils pathMatchesAny)", () => {
@@ -146,7 +264,7 @@ describe("ascii-only", () => {
   });
 
   it("uses default replacements when unicodeReplacements is falsy (buildReplacementsMap early return)", () => {
-    const lines = ["Café"];
+    const lines = ["Arrow \u2192"];
     const errors = runRule(rule, lines, {
       unicodeReplacements: "",
     }, "doc.md");

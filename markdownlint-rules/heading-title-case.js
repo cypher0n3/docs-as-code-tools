@@ -196,11 +196,15 @@ function getWordRangeInLine(line, rawText, titleText, opts) {
  * @param {function(object): void} onError - Callback to report an error
  */
 function ruleFunction(params, onError) {
-    const options = params.config?.["heading-title-case"] ?? {};
-    const customLower = options.lowercaseWords;
-    const lowercaseWords = Array.isArray(customLower) && customLower.length > 0
-      ? new Set(customLower.map((w) => String(w).toLowerCase().trim()).filter(Boolean))
-      : DEFAULT_LOWERCASE_WORDS;
+  const options = params.config?.["heading-title-case"] ?? {};
+  const customLower = options.lowercaseWords;
+  const configSet = Array.isArray(customLower)
+    ? new Set(customLower.map((w) => String(w).toLowerCase().trim()).filter(Boolean))
+    : new Set();
+  const replaceDefault = options.lowercaseWordsReplaceDefault === true;
+  const lowercaseWords = replaceDefault
+    ? configSet
+    : new Set([...DEFAULT_LOWERCASE_WORDS, ...configSet]);
 
     const headings = extractHeadings(params.lines);
     for (const h of headings) {

@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Security-focused tests for .markdownlint-rules:
+ * Security-focused tests for markdownlint-rules:
  * - Invalid or malicious regex in config does not throw (safeRegExp / defensive parsing).
  * - Rules complete within a timeout when given ReDoS-prone patterns and long input
  *   (ensures we don't hang on malicious or accidental catastrophic backtracking).
@@ -9,7 +9,7 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
-const ruleAnchors = require("../../.markdownlint-rules/allow-custom-anchors.js");
+const ruleAnchors = require("../../markdownlint-rules/allow-custom-anchors.js");
 const { runRule } = require("./run-rule.js");
 
 describe("security", () => {
