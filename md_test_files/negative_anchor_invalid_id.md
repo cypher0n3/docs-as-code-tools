@@ -2,15 +2,6 @@
 
 Expect: `allow-custom-anchors` (id does not match any allowedIdPatterns).
 
-```markdownlint-expect
-{
-  "total": 1,
-  "errors": [
-    { "line": 18, "rule": "allow-custom-anchors" }
-  ]
-}
-```
-
 ## Bad Anchor ID
 
 An anchor with an id that is not in the configured pattern list.

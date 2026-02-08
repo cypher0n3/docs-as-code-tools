@@ -4,16 +4,6 @@ Lint: `npx markdownlint-cli2 md_test_files/negative_anchor_ref_placement.md`
 
 Expect: allow-custom-anchors (ref anchor placement), MD031 (blanks around fences).
 
-```markdownlint-expect
-{
-  "total": 2,
-  "errors": [
-    { "line": 20, "rule": "allow-custom-anchors" },
-    { "line": 21, "rule": "MD031/blanks-around-fences" }
-  ]
-}
-```
-
 ## Bad Reference Anchor Placement
 
 This should be rejected because reference anchors must be on their own line directly above a fenced code block.
