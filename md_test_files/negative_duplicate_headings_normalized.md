@@ -1,6 +1,6 @@
 # Negative Fixture: Duplicate Headings (Normalized)
 
-Expect: `no-duplicate-headings-normalized` (same title after stripping numbering/normalization).
+<!-- Expect: `no-duplicate-headings-normalized` (same title after stripping numbering/normalization). -->
 
 ## 1. Introduction
 

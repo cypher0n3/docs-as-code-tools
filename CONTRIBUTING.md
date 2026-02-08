@@ -1,10 +1,24 @@
 # Contributing
 
-Thanks for your interest in contributing. This project uses standard GitHub flow: open an issue or pull request from a fork.
+- [Before You Submit](#before-you-submit)
+  - [Install Testing Dependencies](#install-testing-dependencies)
+  - [Run the Same Checks as CI](#run-the-same-checks-as-ci)
+- [Checks - Makefile Targets](#checks---makefile-targets)
+  - [Lint Rule JavaScript (`make lint-js`)](#lint-rule-javascript-make-lint-js)
+  - [Markdownlint Tests (`make test-markdownlint`)](#markdownlint-tests-make-test-markdownlint)
+  - [Rule Unit Tests (`make test-rules`)](#rule-unit-tests-make-test-rules)
+  - [Python Unit Tests (`make test-python`)](#python-unit-tests-make-test-python)
+  - [Lint READMEs (`make lint-readmes`)](#lint-readmes-make-lint-readmes)
+- [Recommended Pre-Push](#recommended-pre-push)
+- [Custom Rules](#custom-rules)
+- [Sync Notes](#sync-notes)
 
 ## Before You Submit
 
-### Install Dependencies
+Thanks for your interest in contributing!
+This project uses standard GitHub flow: open an issue or pull request from a fork.
+
+### Install Testing Dependencies
 
 ```bash
 npm install

@@ -1,10 +1,15 @@
 # Custom Markdownlint Rules
 
+- [Overview](#overview)
+- [Reusing These Rules](#reusing-these-rules)
+- [Rules](#rules)
+- [Shared Helper](#shared-helper)
+
+## Overview
+
 This directory contains custom rules for [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2).
 In this repo they are registered in [.markdownlint-cli2.jsonc](../.markdownlint-cli2.jsonc) and configured in [.markdownlint.yml](../.markdownlint.yml).
 You can reuse any of them in your own project; see [Reusing These Rules](#reusing-these-rules) below.
-
-## Overview
 
 - **Rule modules**: Each `*.js` file here (except `utils.js`) is a custom rule.
 - **Config**: Rule-specific options are set under the rule name in a markdownlint config file.
@@ -66,7 +71,8 @@ Example for a repo that has copied rules into `.markdownlint-rules/`:
     "./.markdownlint-rules/heading-numbering.js",
     "./.markdownlint-rules/heading-title-case.js",
     "./.markdownlint-rules/no-duplicate-headings-normalized.js",
-    "./.markdownlint-rules/no-heading-like-lines.js"
+    "./.markdownlint-rules/no-heading-like-lines.js",
+    "./.markdownlint-rules/no-h1-content.js"
   ]
 }
 ```
@@ -130,6 +136,25 @@ Order of entries matters: the first pattern that matches the anchor id is used. 
 **Configuration:** None.
 
 **Behavior:** Reports lines that look like headings but are not (e.g. `**Text:**`, `**Text**:`, `1. **Text**`, and italic variants). Prompts use of real `#` headings instead.
+
+### `no-h1-content`
+
+**File:** `no-h1-content.js`
+
+**Description:** Under the first h1 heading, allow only table-of-contents content (blank lines, list-of-links, badges, HTML comments). No prose or other content is permitted.
+
+**Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `no-h1-content`:
+
+```yaml
+no-h1-content:
+  excludePathPatterns:
+    - "md_test_files/**"   # optional; skip rule for these paths
+```
+
+- **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
+
+**Behavior:** The block of lines after the first `#` heading and before the next heading (any level) may only contain blank lines, list items that are anchor links (e.g. `- [Section](#section)` or `1. [Section](#section)`), badge lines (e.g. `[![alt](url)](url)`), and HTML comments.
+Any other line (prose, code blocks, etc.) is reported.
 
 ### `document-length`
 

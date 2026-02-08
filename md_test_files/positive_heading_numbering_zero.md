@@ -1,8 +1,11 @@
 # Positive Fixture: 0-Indexed H2 Numbering
 
-Lint: `npx markdownlint-cli2 md_test_files/positive_heading_numbering_zero.md`
+<!-- Lint: `npx markdownlint-cli2 md_test_files/positive_heading_numbering_zero.md` -->
+<!-- This file should pass with zero errors. The first H2 is 0-indexed, so the rule treats the top-level section as 0-based. -->
 
-This file should pass with zero errors. The first H2 is 0-indexed, so the rule treats the top-level section as 0-based.
+- [Introduction](#0-introduction)
+- [First Section](#1-first-section)
+- [Second Section](#2-second-section)
 
 ## 0. Introduction
 

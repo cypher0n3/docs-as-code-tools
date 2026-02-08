@@ -1,10 +1,30 @@
 # Markdown Standards Fixtures - Positive Cases
 
-This file contains examples that should pass the Markdown standards enforced by markdownlint and the Python validators.
-
-It is intended to be linted explicitly via `npx markdownlint-cli2 md_test_files/positive_general.md`.
+- [Formatting](#formatting)
+- [Lists](#lists)
+- [Links](#links)
+- [Inline Code](#inline-code)
+- [Code Blocks](#code-blocks)
+- [Unicode/Emoji in Code (No Ascii-Only Errors)](#unicodeemoji-in-code-no-ascii-only-errors)
+- [Allowed Inline HTML Anchors](#allowed-inline-html-anchors)
+  - [Spec Anchor](#spec-anchor)
+  - [Reference Anchor](#reference-anchor)
+  - [Algorithm Anchor and Step Anchors](#algorithm-anchor-and-step-anchors)
+- [Headings](#headings)
+  - [1. Heading Numbering Example](#1-heading-numbering-example)
+  - [2. Parentheses and Brackets (Are Fine) in Headings](#2-parentheses-and-brackets-are-fine-in-headings)
+  - [3. Using Tools (In Practice)](#3-using-tools-in-practice)
+  - [4. How to Do a Follow-Up](#4-how-to-do-a-follow-up)
+  - [5. Summary: The Results](#5-summary-the-results)
+- [Zero-Indexed Heading Numbering](#zero-indexed-heading-numbering)
+  - [0. Introduction (Zero-Indexed)](#0-introduction-zero-indexed)
+  - [1. First Topic](#1-first-topic)
+  - [2. Second Topic](#2-second-topic)
 
 ## Formatting
+
+This file contains examples that should pass the Markdown standards enforced by markdownlint and the Python validators.
+It is intended to be linted explicitly via `npx markdownlint-cli2 md_test_files/positive_general.md`.
 
 This paragraph has one sentence.
 This is another sentence on its own line.

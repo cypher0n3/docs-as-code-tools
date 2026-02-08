@@ -8,9 +8,17 @@
 [![Python tests](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAnson/markdownlint) rules (JavaScript).
+- [Features](#features)
+- [Requirements](#requirements)
+- [Install Testing Dependencies](#install-testing-dependencies)
+- [Usage](#usage)
+- [Repository Layout](#repository-layout)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
+
+Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAnson/markdownlint) rules (JavaScript).
 
 - **Custom markdownlint rules** in [markdownlint-rules/](markdownlint-rules/README.md) (intended to be **copied directly** into whatever repo wishes to use them; no need to depend on this repo):
   - [allow-custom-anchors.js](markdownlint-rules/allow-custom-anchors.js) - Custom anchor validation.
@@ -32,6 +40,9 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
   - [no-heading-like-lines.js](markdownlint-rules/no-heading-like-lines.js) - no heading-like lines.
     - Report lines that look like headings but are not (e.g. `**Text:**`, `1. **Text**`); prompt use of real `#` headings.
     - Use when: ensuring real Markdown headings instead of bold/italic that look like headings.
+  - [no-h1-content.js](markdownlint-rules/no-h1-content.js) - no content under h1 except TOC.
+    - Under the first h1, allow only table-of-contents content (blank lines, list-of-links, HTML comments).
+    - Use when: enforcing that the only content under the doc title is a TOC.
   - [document-length.js](markdownlint-rules/document-length.js) - maximum document length.
     - Disallow documents longer than a configured number of lines (default 1500); reports on line 1 when over the limit.
     - Use when: keeping individual docs under a line cap to encourage splitting.

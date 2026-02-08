@@ -1,8 +1,7 @@
 # Negative Fixture: Heading-Like Lines
 
-Lint: `npx markdownlint-cli2 md_test_files/negative_heading_like.md`
-
-Expect: `no-heading-like-lines`.
+<!-- Lint: `npx markdownlint-cli2 md_test_files/negative_heading_like.md` -->
+<!-- Expect: `no-heading-like-lines`. -->
 
 ## Pseudo-Headings
 

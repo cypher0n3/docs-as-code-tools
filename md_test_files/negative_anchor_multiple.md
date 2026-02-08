@@ -1,8 +1,7 @@
 # Negative Fixture: Multiple Anchors per Line
 
-Lint: `npx markdownlint-cli2 md_test_files/negative_anchor_multiple.md`
-
-Expect: allow-custom-anchors (only one anchor per line), MD032 (blanks around lists).
+<!-- Lint: `npx markdownlint-cli2 md_test_files/negative_anchor_multiple.md` -->
+<!-- Expect: allow-custom-anchors (only one anchor per line), MD032 (blanks around lists). -->
 
 ## Multiple Anchors per Line
 

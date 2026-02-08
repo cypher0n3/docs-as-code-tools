@@ -53,6 +53,14 @@ document-length:
 #   lowercaseWords: ["through", ...]  # optional; extends default list (add words)
 #   lowercaseWordsReplaceDefault: true  # optional; true = use only lowercaseWords list, no default set
 
+# no-h1-content: under first h1 allow only TOC (blank, list-of-links, HTML comments)
+# - excludePathPatterns: glob list; skip this rule for matching paths (e.g. md_test_files for fixtures)
+# no-h1-content:
+#   excludePathPatterns:
+#     - "README.md"
+#     - "CONTRIBUTING.md"
+#     - "**/README.md"
+
 # allow-custom-anchors: require anchor ids to match patterns; optional placement (line/heading) per pattern
 # - allowedIdPatterns: list of regex strings or { pattern, placement? }; placement applies per pattern
 # - strictPlacement: true (default) = enforce placement when a pattern has placement set
