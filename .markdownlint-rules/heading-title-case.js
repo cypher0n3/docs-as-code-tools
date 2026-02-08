@@ -6,11 +6,22 @@ const {
   stripInlineCode,
 } = require("./utils.js");
 
-/** Default words that stay lowercase in title case (unless first or last word). */
+/** Default lowercase words for AP-style headings (unless first/last/subphrase-start). */
 const DEFAULT_LOWERCASE_WORDS = new Set([
-  "a", "an", "the", "and", "or", "but", "nor", "so", "yet", "as", "at", "by",
-  "for", "in", "of", "on", "to", "vs", "via", "per", "into", "with", "from",
-  "into", "than", "when", "if", "unless", "because", "although", "while",
+  // Articles
+  "a", "an", "the",
+
+  // Coordinating conjunctions
+  "and", "but", "for", "nor", "or", "so", "yet",
+
+  // Prepositions (3 letters or fewer) and infinitive "to"
+  "as", "at", "by", "in", "of", "off", "on", "out", "per", "to", "up", "via",
+
+  // Short verb/pronoun (AP: lowercase when not first/last)
+  "is", "its",
+
+  // Comparison/citations
+  "v", "vs",
 ]);
 
 /**
@@ -57,19 +68,21 @@ function checkWord(opts) {
   // the first word inside them should be capitalized, even if it's in lowercaseWords.
   const shouldBeLower = !isFirst && !isLast && !isSubphraseStart && lowercaseWords.has(coreLower);
   if (shouldBeLower) {
-    return isAllLower(raw) ? null : `"${core}" should be lowercase in title case (middle word).`;
+    return isAllLower(raw) ? null : `Word "${core}" should be lowercase (middle word in title case).`;
   }
   if (startsWithUpper(raw)) return null;
   const kind = (isFirst || isSubphraseStart) ? "first" : isLast ? "last" : "major";
-  return `"${core}" should be capitalized (${kind} word).`;
+  return `Word "${core}" should be capitalized (${kind} word in title case).`;
 }
 
 /**
  * Validate title case on a heading's title part (numbering stripped).
- * Words inside backticks are excluded from checking.
+ * AP rules: first/last/subphrase-start capitalized; hyphenated segments checked separately;
+ * first word after colon treated as subphrase start. Words in backticks are excluded.
+ *
  * @param {string} titleText - Title after stripping numbering
  * @param {Set<string>} lowercaseWords - Words that must be lowercase in middle
- * @returns {{ valid: boolean, detail?: string }}
+ * @returns {{ valid: boolean, detail?: string, wordIndex?: number, segmentOffset?: number, segmentLength?: number }}
  */
 function checkTitleCase(titleText, lowercaseWords) {
   const withCodeStripped = stripInlineCode(titleText);
@@ -78,29 +91,82 @@ function checkTitleCase(titleText, lowercaseWords) {
 
   for (let i = 0; i < words.length; i++) {
     const raw = words[i];
-    const core = stripWordPunctuation(raw);
-    if (!core || !/[a-zA-Z]/.test(core)) continue;
-
     const firstAlphaIdx = raw.search(/[A-Za-z0-9]/);
     const prefix = firstAlphaIdx > 0 ? raw.slice(0, firstAlphaIdx) : "";
-    const isSubphraseStart = prefix.includes("(") || prefix.includes("[");
+    const afterColon = i > 0 && words[i - 1].replace(/\s+$/, "").endsWith(":");
+    const wordIsSubphraseStart = prefix.includes("(") || prefix.includes("[") || afterColon;
 
-    const detail = checkWord({
-      raw,
-      core,
-      isFirst: i === 0,
-      isLast: i === words.length - 1,
-      lowercaseWords,
-      isSubphraseStart,
-    });
-    if (detail) return { valid: false, detail };
+    const rawSegments = raw.split(/-/);
+    for (let j = 0; j < rawSegments.length; j++) {
+      const rawSeg = rawSegments[j];
+      const core = stripWordPunctuation(rawSeg);
+      if (!core || !/[a-zA-Z]/.test(core)) continue;
+
+      const isFirst = i === 0 && j === 0;
+      const isLast = i === words.length - 1 && j === rawSegments.length - 1;
+      const isSubphraseStart = j === 0 && wordIsSubphraseStart;
+
+      const detail = checkWord({
+        raw: rawSeg,
+        core,
+        isFirst,
+        isLast,
+        lowercaseWords,
+        isSubphraseStart,
+      });
+      if (detail) {
+        let segmentOffset;
+        let segmentLength;
+        if (rawSegments.length > 1) {
+          segmentOffset = 0;
+          for (let k = 0; k < j; k++) segmentOffset += rawSegments[k].length + 1;
+          segmentLength = rawSegments[j].length;
+        }
+        return {
+          valid: false,
+          detail,
+          wordIndex: i,
+          ...(segmentOffset !== undefined && { segmentOffset, segmentLength }),
+        };
+      }
+    }
   }
   return { valid: true };
 }
 
 /**
- * markdownlint rule: enforce title case on headings (first/last/major words capitalized;
- * configurable lowercase words for middle). Words in backticks are skipped.
+ * Get 1-based column and length of the i-th word (or segment within it) in the heading line.
+ * @param {string} line - Full source line (e.g. "## 1.2 The quick Brown")
+ * @param {string} rawText - Content after ATX prefix (e.g. "1.2 The quick Brown")
+ * @param {string} titleText - Content after numbering (e.g. "The quick Brown")
+ * @param {number} wordIndex - 0-based index of the word in the title
+ * @param {number} [segmentOffset] - Offset of segment within word (for hyphenated words)
+ * @param {number} [segmentLength] - Length of segment (for hyphenated words)
+ * @returns {{ column: number, length: number }|null}
+ */
+function getWordRangeInLine(line, rawText, titleText, wordIndex, segmentOffset, segmentLength) {
+  const wordMatches = [...titleText.matchAll(/\S+/g)];
+  if (wordIndex < 0 || wordIndex >= wordMatches.length) return null;
+  const rawTextStart = line.indexOf(rawText);
+  if (rawTextStart === -1) return null;
+  const titleStartInRaw = rawText.indexOf(titleText);
+  if (titleStartInRaw === -1) return null;
+  const m = wordMatches[wordIndex];
+  let column = rawTextStart + titleStartInRaw + m.index + 1;
+  let length = m[0].length;
+  if (segmentOffset !== undefined && segmentLength !== undefined) {
+    column += segmentOffset;
+    length = segmentLength;
+  }
+  return { column, length };
+}
+
+/**
+ * markdownlint rule: enforce AP-style heading capitalization.
+ * - First and last words must be capitalized.
+ * - Lowercase only a small set of minor words (articles, coordinating conjunctions,
+ *   and short prepositions) in the middle.
+ * - Words in backticks are skipped.
  *
  * @param {object} params - markdownlint params (lines, config)
  * @param {function(object): void} onError - Callback to report an error
@@ -117,10 +183,20 @@ function ruleFunction(params, onError) {
       const { titleText } = parseHeadingNumberPrefix(h.rawText);
       const result = checkTitleCase(titleText, lowercaseWords);
       if (!result.valid) {
+        const line = params.lines[h.lineNumber - 1];
+        const rangeInfo = getWordRangeInLine(
+          line,
+          h.rawText,
+          titleText,
+          result.wordIndex,
+          result.segmentOffset,
+          result.segmentLength
+        );
         onError({
           lineNumber: h.lineNumber,
           detail: result.detail,
-          context: h.rawText,
+          context: line,
+          ...(rangeInfo && { range: [rangeInfo.column, rangeInfo.length] }),
         });
       }
     }
@@ -128,7 +204,7 @@ function ruleFunction(params, onError) {
 
 module.exports = {
   names: ["heading-title-case"],
-  description: "Enforce title case (capital case) for headings, with exceptions for words in backticks and configurable lowercase words.",
+  description: "Enforce AP-style capitalization for headings, with exceptions for words in backticks and configurable lowercase words.",
   tags: ["headings"],
   function: ruleFunction,
 };

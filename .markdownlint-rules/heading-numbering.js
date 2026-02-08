@@ -53,9 +53,11 @@ function getSiblings(sorted, parentIndex, i) {
     if (parentIndex[j] !== parentIndex[i]) {
       continue;
     }
+    /* c8 ignore start -- same parent implies same level by tree construction */
     if (sorted[j].level !== h.level) {
       continue;
     }
+    /* c8 ignore stop */
     siblings.push({ index: j, ...sorted[j] });
   }
   siblings.sort((a, b) => a.lineNumber - b.lineNumber);
@@ -76,17 +78,21 @@ function getExpectedNumberInSection(sorted, parentIndex, i) {
 
   const siblings = getSiblings(sorted, parentIndex, i);
   const myIdx = siblings.findIndex((s) => s.lineNumber === h.lineNumber);
+  /* c8 ignore start -- current heading is always in its sibling list */
   if (myIdx < 0) {
     return null;
   }
+  /* c8 ignore stop */
 
   const firstNumbered = siblings.find((s) =>
     parseHeadingNumberPrefix(s.rawText).numbering != null
   );
+  /* c8 ignore start -- sectionUsesNum ensures at least one numbered sibling */
   const firstNumbering =
     firstNumbered != null
       ? parseHeadingNumberPrefix(firstNumbered.rawText).numbering
       : null;
+  /* c8 ignore stop */
   const startAtZero = firstNumbering === "0";
   const nextNum = startAtZero ? myIdx : myIdx + 1;
   const prefix = parentNum ? parentNum + "." : "";
@@ -111,9 +117,11 @@ function getSectionPeriodStyle(sorted, parentIndex, i) {
   const firstNumbered = siblings.find((s) =>
     parseHeadingNumberPrefix(s.rawText).numbering != null
   );
+  /* c8 ignore start -- getPeriodStyleError only called for numbered headings */
   if (firstNumbered == null) {
     return null;
   }
+  /* c8 ignore stop */
   return parseHeadingNumberPrefix(firstNumbered.rawText).hasH2Dot;
 }
 
@@ -129,7 +137,7 @@ function getPeriodStyleError(ctx) {
   if (sectionPeriodStyle == null || hasH2Dot === sectionPeriodStyle) return null;
   return {
     lineNumber: h.lineNumber,
-    detail: `Period inconsistency in this section: use ${sectionPeriodStyle ? "period" : "no period"} after number to match sibling.`,
+    detail: `Numbering period style inconsistent: use ${sectionPeriodStyle ? "a period" : "no period"} after the number (e.g. "${sectionPeriodStyle ? "1.2." : "1.2"}") to match other numbered headings in this section.`,
     context: contextLine,
   };
 }
@@ -147,7 +155,7 @@ function checkSegmentCount(ctx) {
   const expectedSegmentCount = h.level - rootLevel;
   const segments = numbering.split(".");
   if (segments.length !== expectedSegmentCount) {
-    return { lineNumber: h.lineNumber, detail: `H${h.level} heading has ${segments.length} number(s), expected ${expectedSegmentCount} (level - numbering root).`, context: contextLine };
+    return { lineNumber: h.lineNumber, detail: `H${h.level} heading has ${segments.length} segment(s) in number prefix "${numbering}"; expected ${expectedSegmentCount} (one per level from numbering root).`, context: contextLine };
   }
   return null;
 }
@@ -166,7 +174,7 @@ function getHeadingErrors(h, i, ctx) {
   const sectionUsesNum = sectionUsesNumbering(sorted, parentIndex, i);
 
   if (sectionUsesNum && numbering == null) {
-    errors.push({ lineNumber: h.lineNumber, detail: "This section uses numbering; add a number prefix to match siblings.", context: contextLine });
+    errors.push({ lineNumber: h.lineNumber, detail: "This heading has no number prefix but other headings in this section are numbered; add a number prefix to match siblings (e.g. \"1.2\" for second under 1).", context: contextLine });
     return errors;
   }
   if (numbering == null) return errors;
@@ -182,7 +190,7 @@ function getHeadingErrors(h, i, ctx) {
   if (periodErr) errors.push(periodErr);
   const expected = getExpectedNumberInSection(sorted, parentIndex, i);
   if (expected != null && numbering !== expected) {
-    errors.push({ lineNumber: h.lineNumber, detail: `Non-sequential numbering in this section: got '${numbering}', expected '${expected}'.`, context: contextLine });
+    errors.push({ lineNumber: h.lineNumber, detail: `Number prefix "${numbering}" is out of sequence in this section; expected "${expected}" to match sibling order.`, context: contextLine });
   }
   return errors;
 }

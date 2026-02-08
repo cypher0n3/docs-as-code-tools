@@ -28,7 +28,7 @@ function ruleFunction(params, onError) {
       byNormalized.get(key).push(h);
     }
 
-    for (const [, group] of byNormalized) {
+    for (const [normTitle, group] of byNormalized) {
       if (group.length <= 1) {
         continue;
       }
@@ -38,7 +38,7 @@ function ruleFunction(params, onError) {
         const dup = group[i];
         onError({
           lineNumber: dup.lineNumber,
-          detail: `Duplicate heading title (same as line ${first.lineNumber}). Each heading should have a unique title after stripping numbering.`,
+          detail: `Duplicate heading title "${normTitle}" (same normalized text as line ${first.lineNumber}). Each heading must have a unique title after stripping numbering and normalizing.`,
           context: params.lines[dup.lineNumber - 1],
         });
       }
