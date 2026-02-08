@@ -1,6 +1,7 @@
 name: Python tests
 
-# Unit tests for test-scripts/*.py (unittest). NOTE: Keep in sync with 'test-python' Makefile target.
+# Unit tests and coverage for test-scripts/*.py. Keep in sync with 'test-python' and
+# 'test-python-coverage' Makefile targets.
 
 on:
   push:
@@ -24,3 +25,21 @@ jobs:
 
       - name: Run Python unit tests
         run: make test-python
+
+  coverage:
+    name: Python coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install coverage
+        run: pip install coverage
+
+      - name: Run Python coverage (fail if < 90%)
+        run: make test-python-coverage
