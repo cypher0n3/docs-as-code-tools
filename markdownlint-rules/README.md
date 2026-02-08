@@ -131,6 +131,23 @@ Order of entries matters: the first pattern that matches the anchor id is used. 
 
 **Behavior:** Reports lines that look like headings but are not (e.g. `**Text:**`, `**Text**:`, `1. **Text**`, and italic variants). Prompts use of real `#` headings instead.
 
+### `document-length`
+
+**File:** `document-length.js`
+
+**Description:** Disallow documents longer than a configured number of lines.
+
+**Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `document-length`:
+
+```yaml
+document-length:
+  maximum: 1500   # optional; default 1500
+```
+
+- **`maximum`** (number, default `1500`): Maximum allowed line count. Must be a positive integer.
+
+**Behavior:** When the file has more than `maximum` lines, the rule reports a single error on line 1. The message includes the actual line count and the maximum and suggests splitting into smaller files.
+
 ### `ascii-only`
 
 **File:** `ascii-only.js`

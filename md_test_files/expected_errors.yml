@@ -92,6 +92,16 @@ negative_duplicate_headings_normalized.md:
       rule: no-duplicate-headings-normalized
       message_contains: Duplicate heading title "overview"
 
+# negative_document_length.md is generated automatically (not committed).
+# See test-scripts/verify_markdownlint_fixtures.py: ensure_long_document_fixture() and
+# main() which creates it when missing; test_verify_markdownlint_fixtures.py generates
+# it in test_verify_document_length_generated_fixture then removes it.
+negative_document_length.md:
+  errors:
+    - line: 1
+      rule: document-length
+      message_contains: "maximum"
+
 negative_heading_like.md:
   errors:
     - line: 9

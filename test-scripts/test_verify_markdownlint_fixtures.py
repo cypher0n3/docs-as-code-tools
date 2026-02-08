@@ -294,6 +294,24 @@ class TestVerifyFile(unittest.TestCase):
         except (OSError, FileNotFoundError) as e:
             self.skipTest(f"markdownlint not runnable: {e}")
 
+    def test_verify_document_length_generated_fixture(self):
+        """Generate a 1501-line fixture, verify document-length error, then remove file."""
+        path = _REPO_ROOT / "md_test_files" / "negative_document_length.md"
+        expect_path = _REPO_ROOT / "md_test_files" / "expected_errors.yml"
+        if not expect_path.exists():
+            self.skipTest("expected_errors.yml not found")
+        v.ensure_long_document_fixture(path)
+        try:
+            self.assertIn("negative_document_length.md", v.load_expected_errors(expect_path))
+            cmd = v.find_markdownlint_cmd()
+            expectations = v.load_expected_errors(expect_path)
+            try:
+                v.verify_file(cmd, path, expectations)
+            except (OSError, FileNotFoundError) as e:
+                self.skipTest(f"markdownlint not runnable: {e}")
+        finally:
+            path.unlink(missing_ok=True)
+
     def test_verify_file_raises_when_exit_code_mismatch(self):
         """Exit code mismatch (expect 0 errors, got non-zero) raises AssertionError."""
         path = _REPO_ROOT / "md_test_files" / "positive.md"

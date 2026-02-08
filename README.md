@@ -31,6 +31,9 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
   - [no-heading-like-lines.js](markdownlint-rules/no-heading-like-lines.js) - no heading-like lines.
     - Report lines that look like headings but are not (e.g. `**Text:**`, `1. **Text**`); prompt use of real `#` headings.
     - Use when: ensuring real Markdown headings instead of bold/italic that look like headings.
+  - [document-length.js](markdownlint-rules/document-length.js) - maximum document length.
+    - Disallow documents longer than a configured number of lines (default 1500); reports on line 1 when over the limit.
+    - Use when: keeping individual docs under a line cap to encourage splitting.
   - [utils.js](markdownlint-rules/utils.js) - shared utilities
     - Heading/content helpers and path/glob matching; used by other rules.
       Do not register as a rule in markdownlint.

@@ -43,6 +43,11 @@ ascii-only:
     - "📊"
     - "⚠️"
 
+# document-length: disallow documents longer than maximum lines (default 1500)
+# - maximum: positive integer; default 1500
+document-length:
+  maximum: 1500
+
 # heading-title-case: AP-style headline capitalization; words in backticks ignored
 # heading-title-case:
 #   lowercaseWords: ["through", ...]  # optional; extends default list (add words)
