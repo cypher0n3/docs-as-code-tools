@@ -3,13 +3,27 @@
   "private": true,
   "description": "Docs-as-code tooling: custom markdownlint rules and lint/test helpers.",
   "scripts": {
-    "test:rules": "node --test 'test/markdownlint-rules/*.test.js'"
+    "test": "npm run test:rules:coverage",
+    "test:rules": "node --test 'test/markdownlint-rules/*.test.js'",
+    "test:rules:coverage": "c8 --per-file node --test 'test/markdownlint-rules/*.test.js'"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "c8": "^10.1.2",
     "eslint": "^9.15.0",
     "eslint-plugin-security": "^3.0.1",
     "globals": "^15.0.0",
     "markdownlint-cli2": "^0.14.0"
+  },
+  "c8": {
+    "include": [".markdownlint-rules/**/*.js"],
+    "exclude": ["test/**"],
+    "reporter": ["text", "lcov"],
+    "all": true,
+    "lines": 90,
+    "statements": 90,
+    "branches": 90,
+    "check-coverage": true,
+    "per-file": true
   }
 }

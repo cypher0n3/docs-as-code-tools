@@ -1,7 +1,7 @@
-.PHONY: ci lint-js lint-readmes lint-python test-markdownlint test-python test-rules venv
+.PHONY: ci lint-js lint-readmes lint-python test-markdownlint test-python test-python-coverage test-rules test-rules-coverage venv
 
 # Run all CI checks (same as GitHub Actions workflows). Run after 'npm install' and optionally 'make venv'.
-ci: lint-js test-rules test-markdownlint lint-python test-python lint-readmes
+ci: lint-js test-rules-coverage test-markdownlint lint-python test-python-coverage test-python lint-readmes
 
 # README linting - performs same checks as GitHub Actions workflow
 # NOTE: This target must be kept in sync with .github/workflows/lint-readmes.yml.
@@ -127,17 +127,27 @@ test-rules:
 		echo "Error: node not found. Install Node.js and run npm install."; \
 		exit 1; \
 	}
-	@node --test 'test/markdownlint-rules/*.test.js'
+	@node --test test/markdownlint-rules/*.test.js
+
+# Unit test coverage for .markdownlint-rules/*.js (fails if any file < 90% lines/statements).
+# Requires: Node.js, npm; run 'npm install' first.
+test-rules-coverage:
+	@command -v node >/dev/null 2>&1 || { \
+		echo "Error: node not found. Install Node.js and run npm install."; \
+		exit 1; \
+	}
+	@npm run test:rules:coverage
 
 # Markdownlint positive/negative tests - same as .github/workflows/markdownlint-tests.yml
 # NOTE: Keep in sync with that workflow. Positive must pass; each negative must fail.
 # Requires: Node.js, npm; run 'npm install' or 'npm ci' first.
+# VERBOSE=1 prints each fixture as it is verified.
 test-markdownlint:
 	@command -v node >/dev/null 2>&1 || { \
 		echo "Error: node not found. Install Node.js and run npm install."; \
 		exit 1; \
 	}
-	@python3 test-scripts/verify_markdownlint_fixtures.py
+	@python3 test-scripts/verify_markdownlint_fixtures.py $(if $(filter 1,$(VERBOSE)),--verbose)
 
 # Python unit tests - same as .github/workflows/python-tests.yml
 # NOTE: Keep in sync with that workflow. Requires: Python 3.
@@ -147,6 +157,21 @@ test-python:
 		exit 1; \
 	}
 	@python3 -m unittest discover -s test-scripts -p "test_*.py" -v
+
+# Python unit test coverage - runs tests with coverage, fails if coverage < 90%.
+# Requires: pip install coverage (or make venv). Sources: test-scripts/*.py (excl. test_*.py).
+test-python-coverage:
+	@command -v python3 >/dev/null 2>&1 || { \
+		echo "Error: python3 not found. Install Python 3 to run coverage."; \
+		exit 1; \
+	}
+	@command -v coverage >/dev/null 2>&1 || [ -x .venv/bin/coverage ] || { \
+		echo "Error: coverage not found. Install with: pip install coverage or run 'make venv'"; \
+		exit 1; \
+	}
+	@if [ -d .venv ]; then PATH="$(CURDIR)/.venv/bin:$$PATH"; export PATH; fi; \
+	coverage run -m unittest discover -s test-scripts -p "test_*.py" && \
+	coverage report --include="test-scripts/*.py" --omit="test-scripts/test_*.py" --fail-under=90
 
 # Python venv for lint tooling - creates .venv and installs test-scripts/requirements-lint.txt
 # Run once (or after adding/updating test-scripts/requirements-lint.txt) so make lint-python uses the venv.
