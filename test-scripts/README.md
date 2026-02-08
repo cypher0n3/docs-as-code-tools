@@ -21,6 +21,8 @@ This directory contains Python scripts used to support this repository's test su
 
   `make test-markdownlint`
 
+  Use `VERBOSE=1` to print each fixture as it is verified: `make test-markdownlint VERBOSE=1`.
+
 - Run Python unit tests (test-scripts/test_*.py):
 
   `make test-python`

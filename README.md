@@ -39,6 +39,7 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
 - **JS linting** for the rule code: ESLint (recommended + complexity/max-lines + eslint-plugin-security), aligned with the GitHub Actions workflow.
 - **Markdownlint fixture tests**: [md_test_files/](md_test_files/README.md) includes positive/negative fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
 - **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/` (including security tests for defensive regex handling and ReDoS awareness); run with `make test-rules` or `npm run test:rules`.
+  CI runs `make test-rules-coverage` (fails if any rule file is below 90% line/statement coverage).
 - **Python unit tests**: `unittest` tests for [test-scripts/](test-scripts/README.md) in `test-scripts/test_*.py`; run with `make test-python`.
 - **Python linting** for repo tooling scripts: `make lint-python` (flake8, pylint, xenon/radon, vulture, bandit).
 
@@ -72,11 +73,15 @@ npm install
   make test-markdownlint
   ```
 
+  Use `VERBOSE=1` to print each fixture as it is verified: `make test-markdownlint VERBOSE=1`.
+
 - **Run rule unit tests**:
 
   ```bash
   make test-rules
   ```
+
+  With coverage (fails if any rule &lt; 90%): `make test-rules-coverage`
 
 - **Run Python unit tests**:
 
@@ -100,10 +105,11 @@ npm install
   ```
 
 - **Use the custom rules**: Copy the `.markdownlint-rules/*.js` files (and optionally the rule [README](.markdownlint-rules/README.md) and config) into your docs repo, then point markdownlint-cli2 at that directory and your `.markdownlint.yml` / `.markdownlint-cli2.jsonc`.
+  For VS Code (and forks like Cursor), see [.markdownlint-rules/README.md](.markdownlint-rules/README.md#using-in-vs-code-and-its-forks).
 
 ## Repository Layout
 
-- **`.github/workflows/`** - CI:
+- **`.github/`** - [CODEOWNERS](.github/CODEOWNERS) and **workflows/** (CI):
   - [auto-assign.yml](.github/workflows/auto-assign.yml)
   - [js-lint.yml](.github/workflows/js-lint.yml)
   - [lint-readmes.yml](.github/workflows/lint-readmes.yml)
@@ -111,6 +117,7 @@ npm install
   - [rule-unit-tests.yml](.github/workflows/rule-unit-tests.yml)
   - [python-lint.yml](.github/workflows/python-lint.yml)
   - [python-tests.yml](.github/workflows/python-tests.yml)
+- **`.vscode/settings.json`** - Editor settings so the markdownlint extension uses this repo's custom rules in VS Code and compatible editors (see [.markdownlint-rules/README.md](.markdownlint-rules/README.md#using-in-vs-code-and-its-forks)).
 - **`.markdownlint-cli2.jsonc`** - markdownlint-cli2 config: custom rule paths, extends `.markdownlint.yml`, ignores.
 - **`.markdownlint-rules/`** - Custom rule modules (`*.js`) and [README](.markdownlint-rules/README.md). Copy into other repos; do not register `utils.js`.
 - **`.markdownlint.yml`** - markdownlint and custom-rule options (e.g. ascii-only, allow-custom-anchors).

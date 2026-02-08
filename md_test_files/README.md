@@ -27,7 +27,8 @@ Note: some negative fixtures intentionally trigger built-in markdownlint rules i
 Each fixture includes a `markdownlint-expect` fenced code block containing JSON:
 
 - `total`: expected number of markdownlint errors for this file
-- `errors`: list of expected errors (each has `line` and `rule`; optional `column` for rules that report at character level, e.g. `ascii-only`)
+- `errors`: list of expected errors (each has `line` and `rule`
+  - optional `column` for rules that report at character level, e.g. `ascii-only`, `heading-title-case`)
 
 The `make test-markdownlint` target runs `test-scripts/verify_markdownlint_fixtures.py`, which lints each fixture and validates the exact expected errors.
 
