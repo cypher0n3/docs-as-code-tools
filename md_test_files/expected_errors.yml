@@ -8,6 +8,9 @@ positive_general.md:
 positive_heading_numbering_zero.md:
   errors: []
 
+positive_general_index.md:
+  errors: []
+
 negative_anchor_algo_placement.md:
   errors:
     - line: 10
@@ -122,34 +125,34 @@ negative_heading_like.md:
 
 negative_heading_numbering.md:
   errors:
-    - line: 12
-      rule: heading-numbering
-      message_contains: expected "1.2" to match sibling
     - line: 14
       rule: heading-numbering
-      message_contains: period style inconsistent
-    - line: 16
-      rule: heading-numbering
-      message_contains: no number prefix
+      message_contains: expected "1.2" to match sibling
     - line: 18
       rule: heading-numbering
       message_contains: period style inconsistent
-    - line: 18
-      rule: heading-numbering
-      message_contains: expected "3" to match sibling
     - line: 22
       rule: heading-numbering
-      message_contains: 2 segment(s) in number prefix "1.1"
-    - line: 24
+      message_contains: no number prefix
+    - line: 26
       rule: heading-numbering
-      message_contains: Too Many Segments for H4
+      message_contains: period style inconsistent
+    - line: 26
+      rule: heading-numbering
+      message_contains: expected "3" to match sibling
+    - line: 30
+      rule: heading-numbering
+      message_contains: 2 segment(s) in number prefix "1.1"
     - line: 32
       rule: heading-numbering
+      message_contains: Too Many Segments for H4
+    - line: 44
+      rule: heading-numbering
       message_contains: expected "1" to match sibling
-    - line: 36
+    - line: 48
       rule: heading-numbering
       message_contains: expected "2" to match sibling
-    - line: 40
+    - line: 54
       rule: heading-numbering
       message_contains: expected "0.1" to match sibling
 
@@ -185,6 +188,27 @@ negative_no_h1_content.md:
     - line: 3
       rule: no-h1-content
       message_contains: table of contents
+
+negative_no_empty_heading.md:
+  errors:
+    - line: 11
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 17
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 23
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 25
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 29
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 33
+      rule: no-empty-heading
+      message_contains: at least one line of content
 
 negative_inline_html.md:
   errors:

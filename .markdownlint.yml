@@ -61,6 +61,14 @@ document-length:
 #     - "CONTRIBUTING.md"
 #     - "**/README.md"
 
+# no-empty-heading: H2+ must have content; allow file-level override or per-section suppress comment
+# - excludePathPatterns: glob list; skip this rule for matching paths (e.g. **/*_index.md)
+# - Other HTML comments in a section are allowed. Only the exact comment
+#   "<!-- no-empty-heading allow -->" on its own line (and nothing else) suppresses the error.
+no-empty-heading:
+  excludePathPatterns:
+    - "**/*_index.md"
+
 # allow-custom-anchors: require anchor ids to match patterns; optional placement (line/heading) per pattern
 # - allowedIdPatterns: list of regex strings or { pattern, placement? }; placement applies per pattern
 # - strictPlacement: true (default) = enforce placement when a pattern has placement set
