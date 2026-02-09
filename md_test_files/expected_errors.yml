@@ -125,6 +125,12 @@ negative_heading_like.md:
 
 negative_heading_numbering.md:
   errors:
+    - line: 6
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 8
+      rule: no-empty-heading
+      message_contains: at least one line of content
     - line: 14
       rule: heading-numbering
       message_contains: expected "1.2" to match sibling
@@ -141,6 +147,9 @@ negative_heading_numbering.md:
       rule: heading-numbering
       message_contains: expected "3" to match sibling
     - line: 30
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 30
       rule: heading-numbering
       message_contains: 2 segment(s) in number prefix "1.1"
     - line: 32
@@ -149,6 +158,9 @@ negative_heading_numbering.md:
     - line: 44
       rule: heading-numbering
       message_contains: expected "1" to match sibling
+    - line: 48
+      rule: no-empty-heading
+      message_contains: at least one line of content
     - line: 48
       rule: heading-numbering
       message_contains: expected "2" to match sibling
@@ -191,22 +203,22 @@ negative_no_h1_content.md:
 
 negative_no_empty_heading.md:
   errors:
-    - line: 11
-      rule: no-empty-heading
-      message_contains: at least one line of content
     - line: 17
-      rule: no-empty-heading
-      message_contains: at least one line of content
-    - line: 23
       rule: no-empty-heading
       message_contains: at least one line of content
     - line: 25
       rule: no-empty-heading
       message_contains: at least one line of content
-    - line: 29
+    - line: 41
       rule: no-empty-heading
       message_contains: at least one line of content
-    - line: 33
+    - line: 43
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 47
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 51
       rule: no-empty-heading
       message_contains: at least one line of content
 

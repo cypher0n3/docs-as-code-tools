@@ -2,7 +2,7 @@
 
 /**
  * Unit tests for no-empty-heading: H2+ headings must have at least one
- * line of content before the next same-or-higher-level heading.
+ * line of content directly under the heading (before any subheading).
  */
 
 const { describe, it } = require("node:test");
@@ -23,8 +23,8 @@ describe("no-empty-heading", () => {
     assert.strictEqual(errors.length, 0);
   });
 
-  it("reports no errors when H3 has content", () => {
-    const lines = ["# Doc", "## A", "Content.", "## B", "### B1", "Content."];
+  it("reports no errors when H3 has content (direct content under H2 and under H3)", () => {
+    const lines = ["# Doc", "## A", "Content.", "## B", "Intro under B.", "### B1", "Content."];
     const errors = runRule(rule, lines);
     assert.strictEqual(errors.length, 0);
   });
@@ -52,10 +52,43 @@ describe("no-empty-heading", () => {
   });
 
   it("reports error for H3 with no content before next H3", () => {
-    const lines = ["# Doc", "## Section", "", "### Empty", "", "### Next", "Content."];
+    const lines = ["# Doc", "## Section", "Intro.", "### Empty", "", "### Next", "Content."];
     const errors = runRule(rule, lines);
     assert.strictEqual(errors.length, 1);
     assert.strictEqual(errors[0].lineNumber, 4);
+  });
+
+  it("reports error for H2 with only subheading and content under subheading (no direct content)", () => {
+    const lines = ["# Doc", "## Empty", "### Sub", "Content under sub.", "## Next", "More."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
+  });
+
+  it("reports error for H3 with only H4 and content under H4 (no direct content under H3)", () => {
+    const lines = ["# Doc", "## Section", "Intro.", "### Empty H3", "#### H4", "Content.", "### Next", "More."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 4);
+  });
+
+  it("reports no error for H4 with direct content before next heading", () => {
+    const lines = ["# Doc", "## A", "Under A.", "### B", "Under B.", "#### C", "Direct under C.", "### D", "Content."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports no error when suppress comment is direct content before subheading", () => {
+    const lines = ["# Doc", "## Section", "<!-- no-empty-heading allow -->", "### Sub", "Content.", "## Next", "More."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports error for H2 with no direct content when H3 below has content", () => {
+    const lines = ["# Doc", "## Empty", "### Has content", "Text.", "## Next", "More."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
   });
 
   it("reports error for H2 with only HTML comment as content", () => {

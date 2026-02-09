@@ -2,7 +2,17 @@
 
 - [Overview](#overview)
 - [Reusing These Rules](#reusing-these-rules)
+  - [Using in `VS Code` and its Forks](#using-in-vs-code-and-its-forks)
 - [Rules](#rules)
+  - [`allow-custom-anchors`](#allow-custom-anchors)
+  - [`no-heading-like-lines`](#no-heading-like-lines)
+  - [`no-h1-content`](#no-h1-content)
+  - [`no-empty-heading`](#no-empty-heading)
+  - [`document-length`](#document-length)
+  - [`ascii-only`](#ascii-only)
+  - [`heading-title-case`](#heading-title-case)
+  - [`no-duplicate-headings-normalized`](#no-duplicate-headings-normalized)
+  - [`heading-numbering`](#heading-numbering)
 - [Shared Helper](#shared-helper)
 
 ## Overview
@@ -82,6 +92,8 @@ Do not list `utils.js` in `markdownlint.customRules`; it is a helper, not a rule
 
 ## Rules
 
+Custom rule reference:
+
 ### `allow-custom-anchors`
 
 **File:** `allow-custom-anchors.js`
@@ -93,13 +105,13 @@ Do not list `utils.js` in `markdownlint.customRules`; it is a helper, not a rule
 ```yaml
 allow-custom-anchors:
   allowedIdPatterns:
-    - pattern: '^my-anchor-[a-z0-9-]+$'
+    - pattern: "^my-anchor-[a-z0-9-]+$"
       placement:
         standaloneLine: true
         requireAfter:
           - blank
           - fencedBlock
-    - '^simple-regex$'   # no placement
+    - "^simple-regex$" # no placement
   strictPlacement: true
 ```
 
@@ -149,7 +161,7 @@ Order of entries matters: the first pattern that matches the anchor id is used. 
 ```yaml
 no-h1-content:
   excludePathPatterns:
-    - "md_test_files/**"   # optional; skip rule for these paths
+    - "md_test_files/**" # optional; skip rule for these paths
 ```
 
 - **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
@@ -161,23 +173,30 @@ Any other line (prose, code blocks, etc.) is reported.
 
 **File:** `no-empty-heading.js`
 
-**Description:** Every H2+ heading must have at least one line of content before the next heading of the same or higher level. Blank lines and HTML-comment-only lines do not count as content. Other HTML comments are allowed in the section. Optionally exclude files by path (e.g. index-style pages) or allow a section via the exact suppress comment on its own line.
+**Description:** Every H2+ heading must have at least one line of content directly under it (before any subheading).
+Content under subheadings does not count.
+Blank lines and HTML-comment-only lines do not count as content.
+Other HTML comments are allowed.
+Optionally exclude files by path (e.g. index-style pages) or allow a section via the exact suppress comment on its own line.
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `no-empty-heading`:
 
 ```yaml
 no-empty-heading:
   excludePathPatterns:
-    - "**/*_index.md"   # optional; skip rule for these paths
+    - "**/*_index.md" # optional; skip rule for these paths
 ```
 
 - **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
 
 Behavior:
 
-- For each H2-H6 heading, the section (from the line after the heading until the next same-or-higher-level heading or end of file) must contain at least one line that counts as content. Content is any non-blank line that is not only an HTML comment.
+- For each H2-H6 heading, only _direct_ content counts: non-blank, non-HTML-comment lines that appear **before** the next heading (any level).
+  Content under subheadings does **not** count for the parent heading.
 - Other HTML comments in the section are allowed; they do not count as content and do not suppress the error.
-- **Suppress per section:** A section with no other content is allowed only if it contains a line that is solely the comment `<!-- no-empty-heading allow -->` (optional whitespace around or inside the comment). The comment must be on its own line; if it appears on the same line as other text or another comment, it does not suppress. No other HTML comment format (e.g. `<!-- no-empty-heading: allow -->`) suppresses the rule.
+- **Suppress per section:** A section with no other direct content is allowed only if it contains a line that is solely the comment `<!-- no-empty-heading allow -->` (optional whitespace around or inside the comment).
+  The comment must be on its own line; if it appears on the same line as other text or another comment, it does not suppress.
+  No other HTML comment format (e.g. `<!-- no-empty-heading: allow -->`) suppresses the rule.
 - When the file path matches any of `excludePathPatterns`, the rule is skipped for the whole file.
 
 ### `document-length`
@@ -190,7 +209,7 @@ Behavior:
 
 ```yaml
 document-length:
-  maximum: 1500   # optional; default 1500
+  maximum: 1500 # optional; default 1500
 ```
 
 - **`maximum`** (number, default `1500`): Maximum allowed line count. Must be a positive integer.
@@ -210,9 +229,9 @@ Example: minimal (default letters plus path/emoji)
 ```yaml
 ascii-only:
   allowedPathPatternsUnicode:
-    - "**/README.md"          # any non-ASCII allowed in READMEs
+    - "**/README.md" # any non-ASCII allowed in READMEs
   allowedPathPatternsEmoji:
-    - "docs/**"               # only allowedEmoji in docs/
+    - "docs/**" # only allowedEmoji in docs/
   allowedEmoji:
     - "✅"
     - "⚠️"
@@ -224,7 +243,7 @@ Example: extend default allowed characters (e.g. degree sign, or `ń` for Polish
 ascii-only:
   allowedUnicode:
     - "°"
-    - "ń"                     # merged with default (é, ï, ñ, ç, etc.)
+    - "ń" # merged with default (é, ï, ñ, ç, etc.)
   # allowedUnicodeReplaceDefault: false  # default; true = use only the list above
 ```
 
@@ -234,25 +253,25 @@ Example: override default (strict allowlist only)
 ascii-only:
   allowedUnicode:
     - "°"
-    - "→"                     # only these two allowed in prose
+    - "→" # only these two allowed in prose
   allowedUnicodeReplaceDefault: true
 ```
 
 Example: check unicode inside code blocks (e.g. only in `text` and `bash` blocks)
 
-```yaml
+````yaml
 ascii-only:
   allowUnicodeInCodeBlocks: false
   disallowUnicodeInCodeBlockTypes:
     - "text"
-    - "bash"                  # ```text and ```bash checked; ```go skipped
-```
+    - "bash" # ```text and ```bash checked; ```go skipped
+````
 
 Example: custom replacement suggestions in error messages
 
 ```yaml
 ascii-only:
-  unicodeReplacements:        # object form
+  unicodeReplacements: # object form
     "→": "->"
     "←": "<-"
     "°": " deg"
@@ -276,7 +295,7 @@ ascii-only:
   allowedUnicode:
     - "°"
     - "ń"
-  allowUnicodeInCodeBlocks: true    # default; set false to check fenced blocks
+  allowUnicodeInCodeBlocks: true # default; set false to check fenced blocks
   # disallowUnicodeInCodeBlockTypes: ["text", "bash"]  # when allowUnicodeInCodeBlocks false
   unicodeReplacements:
     "→": "->"
@@ -314,13 +333,13 @@ Relative patterns (no leading `/` or `*`) match both path-prefix (e.g. `dev_docs
 **File:** `heading-title-case.js`
 
 **Description:** Enforce AP-style (Associated Press) headline capitalization for headings.
-  Words inside backticks are not checked. A configurable set of minor words (e.g. "vs", "and", "the", "is") stay lowercase except when they are the first word, last word, or the first word after a colon or after `(` / `[`.
+Words inside backticks are not checked. A configurable set of minor words (e.g. "vs", "and", "the", "is") stay lowercase except when they are the first word, last word, or the first word after a colon or after `(` / `[`.
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `heading-title-case`:
 
 ```yaml
 heading-title-case:
-  lowercaseWords:   # optional; extends default list (add words)
+  lowercaseWords: # optional; extends default list (add words)
     - "through"
   # lowercaseWordsReplaceDefault: true   # optional; true = use only lowercaseWords list, no default
 ```
@@ -332,13 +351,13 @@ heading-title-case:
 
 Built-in default list (when not replaced):
 
-  ```text
-  a, an, the,
-  and, but, for, nor, or, so, yet,
-  as, at, by, in, of, off, on, out, per, to, up, via,
-  is, its,
-  v, vs
-  ```
+```text
+a, an, the,
+and, but, for, nor, or, so, yet,
+as, at, by, in, of, off, on, out, per, to, up, via,
+is, its,
+v, vs
+```
 
 **Behavior (AP headline rules):** For each ATX heading, the title part (after stripping any numeric prefix like `1.2.3`) is checked.
 Content inside inline code (backticks) is ignored.

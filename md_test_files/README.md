@@ -43,7 +43,7 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
 - **negative_inline_html.md** - allow-custom-anchors
   - Inline HTML (MD033), anchor id/format, end-of-line content.
 - **negative_no_empty_heading.md** - no-empty-heading
-  - Empty H2/H3 or H2 at end; wrong HTML comment does not suppress; suppress comment on same line as another comment does not suppress; wrong-format comment (e.g. colon) does not suppress.
+  - Headings with no direct content (content under subheadings does not count); empty H2/H3 or H2 at end; wrong HTML comment does not suppress; suppress comment on same line as another comment does not suppress; wrong-format comment (e.g. colon) does not suppress.
 - **negative_no_h1_content.md** - no-h1-content
   - Prose under the first h1 (only TOC-style content allowed there).
 

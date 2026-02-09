@@ -38,7 +38,7 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Disallow duplicate heading titles after stripping numeric prefixes and normalizing case/whitespace; first occurrence is reference.
     - Use when: avoiding duplicate section titles that differ only by number or formatting.
   - [no-empty-heading.js](markdownlint-rules/no-empty-heading.js) - H2+ must have content.
-    - Every H2+ heading must have at least one line of content before the next same-or-higher-level heading; other HTML comments are allowed; only `<!-- no-empty-heading allow -->` on its own line suppresses; configurable `excludePathPatterns` (e.g. `**/*_index.md`).
+    - Every H2+ heading must have at least one line of content directly under it (before any subheading); content under subheadings does not count; only `<!-- no-empty-heading allow -->` on its own line suppresses; configurable `excludePathPatterns` (e.g. `**/*_index.md`).
     - Use when: avoiding placeholder sections with no body content.
   - [no-heading-like-lines.js](markdownlint-rules/no-heading-like-lines.js) - no heading-like lines.
     - Report lines that look like headings but are not (e.g. `**Text:**`, `1. **Text**`); prompt use of real `#` headings.

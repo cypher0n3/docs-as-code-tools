@@ -41,16 +41,22 @@ function isSuppressComment(trimmed) {
 }
 
 /**
- * Return whether the section from heading to endLine has content or a suppress comment.
+ * Return whether the heading has direct content or a suppress comment. Only lines
+ * before the next heading (any level) count; subheadings and content under them do not.
  *
  * @param {string[]} lines - All lines
  * @param {{ lineNumber: number }} heading - Heading info
  * @param {number} endLine - Last line index (1-based) of section
+ * @param {Array<{ lineNumber: number }>} headings - All headings (to detect next heading line)
  * @returns {boolean}
  */
-function sectionHasContentOrSuppress(lines, heading, endLine) {
+function sectionHasDirectContentOrSuppress(lines, heading, endLine, headings) {
+  const headingLineNumbers = new Set(headings.map((h) => h.lineNumber));
   const lastLine = Math.min(endLine, lines.length);
   for (let lineNumber = heading.lineNumber + 1; lineNumber <= lastLine; lineNumber++) {
+    if (headingLineNumbers.has(lineNumber)) {
+      return false;
+    }
     const trimmed = lines[lineNumber - 1].trim();
     if (isContentLine(trimmed)) {
       return true;
@@ -64,10 +70,9 @@ function sectionHasContentOrSuppress(lines, heading, endLine) {
 
 /**
  * markdownlint rule: every H2+ heading must have at least one line of content
- * before the next heading of the same or higher level. Blank lines and
- * HTML-comment-only lines do not count as content. Other HTML comments are allowed
- * in the section; only the exact comment "<!-- no-empty-heading allow -->" on its
- * own line suppresses the error.
+ * directly under it (before any subheading). Content under subheadings does not
+ * count. Blank lines and HTML-comment-only lines do not count as content. The
+ * exact comment "<!-- no-empty-heading allow -->" on its own line suppresses the error.
  *
  * @param {object} params - markdownlint params (lines, name, config)
  * @param {function(object): void} onError - Callback to report an error
@@ -89,12 +94,12 @@ function ruleFunction(params, onError) {
       (h) => h.lineNumber > heading.lineNumber && h.level <= heading.level
     );
     const endLine = nextSameOrHigher ? nextSameOrHigher.lineNumber - 1 : lines.length;
-    if (sectionHasContentOrSuppress(lines, heading, endLine)) {
+    if (sectionHasDirectContentOrSuppress(lines, heading, endLine, headings)) {
       continue;
     }
     onError({
       lineNumber: heading.lineNumber,
-      detail: "H2+ heading must have at least one line of content (blank and HTML-comment-only lines do not count).",
+      detail: "H2+ heading must have at least one line of content directly under it before any subheading (blank and HTML-comment-only lines do not count).",
       context: lines[heading.lineNumber - 1],
     });
   }
@@ -102,7 +107,7 @@ function ruleFunction(params, onError) {
 
 module.exports = {
   names: ["no-empty-heading"],
-  description: "H2+ headings must have at least one line of content before the next same-or-higher-level heading.",
+  description: "H2+ headings must have at least one line of content directly under them (before any subheading); content under subheadings does not count.",
   tags: ["headings"],
   function: ruleFunction,
 };
