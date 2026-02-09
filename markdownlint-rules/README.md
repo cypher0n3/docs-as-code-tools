@@ -173,30 +173,39 @@ Any other line (prose, code blocks, etc.) is reported.
 
 **File:** `no-empty-heading.js`
 
-**Description:** Every H2+ heading must have at least one line of content directly under it (before any subheading).
+**Description:** Every H2+ heading must have a configurable minimum number of lines of content directly under it (before any subheading).
 Content under subheadings does not count.
-Blank lines and HTML-comment-only lines do not count as content.
-Other HTML comments are allowed.
+By default prose and lines inside fenced code blocks (``` or ~~~) count; blank lines, HTML-comment-only lines, and HTML-tag-only lines do not.
+You can optionally count any of those.
 Optionally exclude files by path (e.g. index-style pages) or allow a section via the exact suppress comment on its own line.
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `no-empty-heading`:
 
 ```yaml
 no-empty-heading:
+  minimumContentLines: 1             # optional; default 1
+  countBlankLinesAsContent: false   # optional; default false
+  countHTMLCommentsAsContent: false # optional; default false
+  countHtmlLinesAsContent: false    # optional; default false
+  countCodeBlockLinesAsContent: true # optional; default true
   excludePathPatterns:
-    - "**/*_index.md" # optional; skip rule for these paths
+    - "**/*_index.md"               # optional; skip rule for these paths
 ```
 
+- **`minimumContentLines`** (number, default `1`): Minimum number of lines that must count as content directly under each H2+ heading. Must be >= 1; invalid values fall back to 1.
+- **`countBlankLinesAsContent`** (boolean, default `false`): If `true`, blank lines count toward the minimum content lines.
+- **`countHTMLCommentsAsContent`** (boolean, default `false`): If `true`, lines that are only an HTML comment (other than the suppress comment) count toward the minimum. The suppress comment `<!-- no-empty-heading allow -->` never counts as content.
+- **`countHtmlLinesAsContent`** (boolean, default `false`): If `true`, lines that are only an HTML tag (e.g. `<br>`, `<div>...</div>`) count toward the minimum.
+- **`countCodeBlockLinesAsContent`** (boolean, default `true`): If `false`, lines inside fenced code blocks (` ``` `or `~~~`) do not count toward the minimum. When `true`, they do (default).
 - **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
 
 Behavior:
 
-- For each H2-H6 heading, only _direct_ content counts: non-blank, non-HTML-comment lines that appear **before** the next heading (any level).
+- For each H2-H6 heading, only _direct_ content counts: lines that appear **before** the next heading (any level).
   Content under subheadings does **not** count for the parent heading.
-- Other HTML comments in the section are allowed; they do not count as content and do not suppress the error.
-- **Suppress per section:** A section with no other direct content is allowed only if it contains a line that is solely the comment `<!-- no-empty-heading allow -->` (optional whitespace around or inside the comment).
-  The comment must be on its own line; if it appears on the same line as other text or another comment, it does not suppress.
-  No other HTML comment format (e.g. `<!-- no-empty-heading: allow -->`) suppresses the rule.
+  Which line types count is controlled by the options above (by default: prose and code block lines; blank, HTML-comment, and HTML-tag lines do not).
+- **Suppress per section:** A section is allowed without meeting the minimum if it contains a line that is solely the comment `<!-- no-empty-heading allow -->` (optional whitespace around or inside the comment).
+  The comment must be on its own line. No other HTML comment format suppresses the rule.
 - When the file path matches any of `excludePathPatterns`, the rule is skipped for the whole file.
 
 ### `document-length`

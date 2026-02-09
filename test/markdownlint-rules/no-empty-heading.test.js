@@ -193,4 +193,107 @@ describe("no-empty-heading", () => {
     const errors = runRule(rule, lines, config, "md_test_files/positive_general_index.md");
     assert.strictEqual(errors.length, 0);
   });
+
+  it("respects minimumContentLines: 2 (reports when only 1 line)", () => {
+    const lines = ["# Doc", "## Section", "One line only.", "## Next", "Content.", "More."];
+    const config = { minimumContentLines: 2 };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
+    assert.ok(errors[0].detail.includes("at least 2 lines of content"));
+  });
+
+  it("respects minimumContentLines: 2 (no error when 2+ lines)", () => {
+    const lines = ["# Doc", "## Section", "First.", "Second.", "## Next", "Content.", "More."];
+    const config = { minimumContentLines: 2 };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("countHTMLCommentsAsContent: true treats HTML comment as content", () => {
+    const lines = ["# Doc", "## Section", "<!-- comment -->", "## Next", "Content."];
+    const config = { countHTMLCommentsAsContent: true };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("countBlankLinesAsContent: true treats blank line as content", () => {
+    const lines = ["# Doc", "## Section", "", "## Next", "Content."];
+    const config = { countBlankLinesAsContent: true };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("minimumContentLines with countBlankLinesAsContent counts blanks", () => {
+    const lines = ["# Doc", "## Section", "One.", "", "## Next", "Content.", "More."];
+    const config = { minimumContentLines: 2, countBlankLinesAsContent: true };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("uses default minimumContentLines when config is invalid", () => {
+    const lines = ["# Doc", "## Empty", "", "## Next", "Content."];
+    const errors = runRule(rule, lines, { minimumContentLines: 0 });
+    assert.strictEqual(errors.length, 1);
+    const errors2 = runRule(rule, lines, { minimumContentLines: "two" });
+    assert.strictEqual(errors2.length, 1);
+  });
+
+  it("countCodeBlockLinesAsContent: true (default) treats code block as content", () => {
+    const lines = ["# Doc", "## Section", "```", "const x = 1;", "```", "## Next", "Content."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("countCodeBlockLinesAsContent: false does not count lines inside code block", () => {
+    const lines = ["# Doc", "## Section", "```", "const x = 1;", "```", "## Next", "Content."];
+    const config = { countCodeBlockLinesAsContent: false };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
+  });
+
+  it("countHtmlLinesAsContent: true treats HTML tag line as content", () => {
+    const lines = ["# Doc", "## Section", "<br>", "## Next", "Content."];
+    const config = { countHtmlLinesAsContent: true };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("countHtmlLinesAsContent: false (default) does not count HTML tag line", () => {
+    const lines = ["# Doc", "## Section", "<br>", "## Next", "Content."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
+  });
+
+  it("countCodeBlockLinesAsContent: false ignores ~~~ fenced block", () => {
+    const lines = ["# Doc", "## Section", "~~~", "text", "~~~", "## Next", "Content."];
+    const config = { countCodeBlockLinesAsContent: false };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
+  });
+
+  it("error detail mentions at least N lines when minimumContentLines > 1", () => {
+    const lines = ["# Doc", "## Section", "One.", "## Next", "A.", "B."];
+    const config = { minimumContentLines: 2 };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].detail.includes("at least 2 lines of content"));
+  });
+
+  it("error detail reflects countHtmlLinesAsContent when true", () => {
+    const lines = ["# Doc", "## Section", "<br>", "## Next", "Content."];
+    const config = { countHtmlLinesAsContent: true };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("combined options: minimumContentLines 2 with prose and blank", () => {
+    const lines = ["# Doc", "## Section", "Line one.", "", "## Next", "A.", "B."];
+    const config = { minimumContentLines: 2, countBlankLinesAsContent: true };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
 });

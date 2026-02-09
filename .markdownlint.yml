@@ -62,9 +62,13 @@ document-length:
 #     - "**/README.md"
 
 # no-empty-heading: H2+ must have content; allow file-level override or per-section suppress comment
+# - minimumContentLines: number (default 1); minimum lines that count as content under each H2+
+# - countBlankLinesAsContent: bool (default false); count blank lines toward minimum
+# - countHTMLCommentsAsContent: bool (default false); count HTML-comment-only lines
+# - countHtmlLinesAsContent: bool (default false); count HTML-tag-only lines (e.g. <br>)
+# - countCodeBlockLinesAsContent: bool (default true); count lines inside ```/~~~ blocks
 # - excludePathPatterns: glob list; skip this rule for matching paths (e.g. **/*_index.md)
-# - Other HTML comments in a section are allowed. Only the exact comment
-#   "<!-- no-empty-heading allow -->" on its own line (and nothing else) suppresses the error.
+# - Only "<!-- no-empty-heading allow -->" on its own line suppresses the error.
 no-empty-heading:
   excludePathPatterns:
     - "**/*_index.md"
