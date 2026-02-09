@@ -22,6 +22,7 @@
   - [0. Introduction (Zero-Indexed)](#0-introduction-zero-indexed)
   - [1. First Topic](#1-first-topic)
   - [2. Second Topic](#2-second-topic)
+- [Nested Code Blocks Check](#nested-code-blocks-check)
 - [Intentionally Empty (Suppressed)](#intentionally-empty-suppressed)
 - [Intentionally Empty With Other Comments (Suppressed)](#intentionally-empty-with-other-comments-suppressed)
 
@@ -160,6 +161,16 @@ Some content here.
 #### 2.2. Second Subsection
 
 Some content here.
+
+## Nested Code Blocks Check
+
+````markdown
+<a id="ref-go-np-core-package-readfile"></a>
+
+```go
+func (p *Package) ReadFile(path string) ([]byte, error)
+```
+````
 
 ## Intentionally Empty (Suppressed)
 

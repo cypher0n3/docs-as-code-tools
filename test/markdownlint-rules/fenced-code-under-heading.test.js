@@ -196,4 +196,21 @@ describe("fenced-code-under-heading", () => {
     const errors = runRule(rule, lines, config);
     assert.strictEqual(errors.length, 0);
   });
+
+  it("nested fences: inner ``` does not close outer ````` block (exclusive passes)", () => {
+    const lines = [
+      "# Doc",
+      "## Nested Code Blocks Check",
+      "````markdown",
+      "<a id=\"x\"></a>",
+      "",
+      "```go",
+      "func ReadFile()",
+      "```",
+      "````",
+    ];
+    const config = { "fenced-code-under-heading": { languages: ["go", "markdown"], exclusive: true } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
 });

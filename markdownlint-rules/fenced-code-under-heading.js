@@ -42,17 +42,22 @@ function processFenceLine(args) {
   const { trimmed, line, lineNumber, languages, state, blocks } = args;
   const fenceMatch = trimmed.match(/^(```+|~~~+)/);
   if (!fenceMatch) return false;
-  const marker = fenceMatch[1][0] === "`" ? "```" : "~~~";
+  const fenceStr = fenceMatch[1];
+  const char = fenceStr[0];
+  const marker = char === "`" ? "```" : "~~~";
+  const len = fenceStr.length;
   if (!state.inFence) {
     state.inFence = true;
     state.fenceMarker = marker;
+    state.fenceLen = len;
     const blockType = parseFenceInfo(line);
     if (languages.includes(blockType)) {
       blocks.push({ lineNumber, language: blockType });
     }
-  } else if (state.fenceMarker === marker) {
+  } else if (state.fenceMarker === marker && len >= state.fenceLen) {
     state.inFence = false;
     state.fenceMarker = null;
+    state.fenceLen = 0;
   }
   return true;
 }
@@ -76,7 +81,7 @@ function processAtxLine(trimmed, lineNumber, opts, headings) {
 function findHeadingsAndBlocks(lines, opts) {
   const headings = [];
   const blocks = [];
-  const state = { inFence: false, fenceMarker: null };
+  const state = { inFence: false, fenceMarker: null, fenceLen: 0 };
 
   for (let i = 0; i < lines.length; i++) {
     const lineNumber = i + 1;
@@ -102,7 +107,7 @@ function findHeadingsAndBlocks(lines, opts) {
  */
 function findAllBlocks(lines) {
   const blocks = [];
-  const state = { inFence: false, fenceMarker: null };
+  const state = { inFence: false, fenceMarker: null, fenceLen: 0 };
 
   for (let i = 0; i < lines.length; i++) {
     const lineNumber = i + 1;
@@ -110,15 +115,20 @@ function findAllBlocks(lines) {
     const trimmed = line.trim();
     const fenceMatch = trimmed.match(/^(```+|~~~+)/);
     if (!fenceMatch) continue;
-    const marker = fenceMatch[1][0] === "`" ? "```" : "~~~";
+    const fenceStr = fenceMatch[1];
+    const char = fenceStr[0];
+    const marker = char === "`" ? "```" : "~~~";
+    const len = fenceStr.length;
     if (!state.inFence) {
       state.inFence = true;
       state.fenceMarker = marker;
+      state.fenceLen = len;
       const language = (parseFenceInfo(line) || "").toLowerCase().trim();
       blocks.push({ lineNumber, language });
-    } else if (state.fenceMarker === marker) {
+    } else if (state.fenceMarker === marker && len >= state.fenceLen) {
       state.inFence = false;
       state.fenceMarker = null;
+      state.fenceLen = 0;
     }
   }
 

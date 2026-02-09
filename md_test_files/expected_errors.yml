@@ -102,7 +102,7 @@ negative_fenced_code_under_heading.md:
   errors:
     - line: 15
       rule: fenced-code-under-heading
-      message_contains: At most 1
+      message_contains: Only one fenced code block allowed
 
 # negative_document_length.md is generated automatically (not committed).
 # See test-scripts/verify_markdownlint_fixtures.py: ensure_long_document_fixture() and
