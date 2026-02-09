@@ -61,6 +61,30 @@ document-length:
 #     - "CONTRIBUTING.md"
 #     - "**/README.md"
 
+# fenced-code-under-heading: code blocks for given languages must sit under an H2-H6 heading; use when grouping code under section titles
+# - languages: list of info strings (e.g. go, bash); only these block types are checked (first word after opening fence)
+# - minHeadingLevel / maxHeadingLevel: numbers (default 2 and 6); heading levels that count; blocks must fall under a heading in this range
+# - maxBlocksPerHeading: number (optional); max blocks that match languages per heading; only configured language(s) count (other block types allowed)
+# - requireHeading: bool (default true); when true, every applicable block must have a preceding heading
+# - exclusive: bool (default false); when true, at most one fenced code block (any language) per heading, and it must be one of languages
+# - excludePaths / includePaths: glob lists; skip or restrict which paths are checked (includePaths set = only those files)
+fenced-code-under-heading:
+  languages: ["go"]
+  maxBlocksPerHeading: 1
+  requireHeading: true
+  # exclusive: true   # uncomment to allow only one block total per heading (and it must be one of the configured languages)
+
+# heading-min-words: headings at or below a level must have at least N words; use to avoid single-word or empty-looking headings
+# - minWords: number (required); minimum word count per heading (after optional numbering strip)
+# - applyToLevelsAtOrBelow: number (required); apply to headings at this level or deeper (e.g. 4 = H1-H4 checked)
+# - minLevel / maxLevel: numbers (optional); only headings in this level range checked (default 1-6)
+# - excludePaths / includePaths: glob lists; skip or restrict which paths are checked
+# - allowList: list of exact heading titles (after strip) allowed even if below minWords (e.g. "Overview", "Summary")
+# - stripNumbering: bool (default true); when true, leading numbering (e.g. 1.2.3) stripped before counting words and allowList match
+heading-min-words:
+  minWords: 2
+  applyToLevelsAtOrBelow: 4
+
 # no-empty-heading: H2+ must have content; allow file-level override or per-section suppress comment
 # - minimumContentLines: number (default 1); minimum lines that count as content under each H2+
 # - countBlankLinesAsContent: bool (default false); count blank lines toward minimum

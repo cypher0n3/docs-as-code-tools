@@ -27,8 +27,14 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
   - [ascii-only.js](markdownlint-rules/ascii-only.js) - ASCII-only with path/emoji allowlists.
     - Disallow non-ASCII except in paths matching globs; allow Unicode or emoji-only in specific paths; optional replacement suggestions in errors.
     - Use when: keeping most docs ASCII while allowing Unicode/emoji only in chosen files (e.g. i18n or release notes).
+  - [fenced-code-under-heading.js](markdownlint-rules/fenced-code-under-heading.js) - fenced code under heading.
+    - For specified languages (e.g. `go`), every fenced block must sit under an H2-H6 heading; optional max blocks per heading and path filters.
+    - Use when: docs must group code under clear section headings.
+  - [heading-min-words.js](markdownlint-rules/heading-min-words.js) - minimum words in headings.
+    - Headings at or below a level must have at least N words (optional numbering strip, allowList, path filters).
+    - Use when: avoiding single-word or empty-looking headings.
   - [heading-numbering.js](markdownlint-rules/heading-numbering.js) - heading numbering.
-    - Enforce segment count by numbering root, sequential numbering per section, and consistent period style (e.g. `1. Title` vs `1 Title`).
+    - Enforce segment count by numbering root, sequential numbering per section, consistent period style (e.g. `1. Title` vs `1 Title`), optional `maxSegmentValue` and `maxHeadingLevel`.
       Default is 1-based (1., 2., 3.); if the first numbered heading in a section starts at 0 (e.g. `0.`, `0.0.`), that section is treated as 0-based and no error is reported.
     - Use when: docs use numbered headings (e.g. `### 1.2.3 Title` or 0-based `### 0. Introduction`) and you want structure and style consistent.
   - [heading-title-case.js](markdownlint-rules/heading-title-case.js) - heading title case.

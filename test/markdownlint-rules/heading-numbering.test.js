@@ -89,4 +89,43 @@ describe("heading-numbering", () => {
     const errors = runRule(rule, lines);
     assert.strictEqual(errors.length, 0);
   });
+
+  it("maxHeadingLevel: 5 reports H6", () => {
+    const lines = ["# Doc", "## 1. First", "### 1.1. Sub", "#### 1.1.1. A", "##### 1.1.1.1. B", "###### Too deep"];
+    const config = { "heading-numbering": { maxHeadingLevel: 5 } };
+    const errors = runRule(rule, lines, config);
+    const maxDepthErr = errors.find((e) => e.detail.includes("deeper than maximum"));
+    assert.ok(maxDepthErr, "should report max heading level error");
+    assert.strictEqual(maxDepthErr.lineNumber, 6);
+  });
+
+  it("maxHeadingLevel: 5 allows H2–H5", () => {
+    const lines = ["# Doc", "## 1. First", "### 1.1. Sub", "#### 1.1.1. A", "##### 1.1.1.1. B"];
+    const config = { "heading-numbering": { maxHeadingLevel: 5 } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("maxSegmentValue: 20 reports segment exceeding 20", () => {
+    const lines = ["# Doc", "## 1. First", "## 21. Too big"];
+    const config = { "heading-numbering": { maxSegmentValue: 20 } };
+    const errors = runRule(rule, lines, config);
+    const segErr = errors.find((e) => e.detail.includes("exceeds maximum allowed value"));
+    assert.ok(segErr, "should report max segment value error");
+    assert.ok(segErr.detail.includes("21"));
+  });
+
+  it("maxSegmentValue: 20 allows segments up to 20", () => {
+    const lines = ["# Doc", "## 1. Only"];
+    const config = { "heading-numbering": { maxSegmentValue: 20 } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("maxSegmentValue with maxSegmentValueMaxLevel only checks up to that level", () => {
+    const lines = ["# Doc", "## 1. First", "### 1.1. Sub", "#### 1.1.1. Deep segment"];
+    const config = { "heading-numbering": { maxSegmentValue: 20, maxSegmentValueMinLevel: 1, maxSegmentValueMaxLevel: 3 } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
 });

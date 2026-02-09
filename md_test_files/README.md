@@ -34,10 +34,14 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
   - Non-ASCII in prose (arrows, quotes, etc.) where not allowlisted.
 - **negative_duplicate_headings_normalized.md** - no-duplicate-headings-normalized
   - Duplicate heading titles after normalizing (and heading-numbering sibling/sequence).
+- **negative_fenced_code_under_heading.md** - fenced-code-under-heading
+  - Fenced blocks (e.g. `go`) not under a heading; excess blocks per heading when maxBlocksPerHeading is set.
 - **negative_heading_like.md** - no-heading-like-lines
   - Lines that look like headings (e.g. `**Text:**`, `1. **Text**`) but are not ATX headings.
+- **negative_heading_min_words.md** - heading-min-words
+  - Headings with fewer than the required word count (e.g. single-word H2/H4 when minWords is 2).
 - **negative_heading_numbering.md** - heading-numbering
-  - Segment count, sequence, period style, unnumbered sibling, zero-indexed violations.
+  - Segment count, sequence, period style, unnumbered sibling, zero-indexed violations; optional maxSegmentValue/maxHeadingLevel.
 - **negative_heading_title_case.md** - heading-title-case
   - AP-style capitalization (lowercase/middle words, hyphenated compounds, etc.).
 - **negative_inline_html.md** - allow-custom-anchors

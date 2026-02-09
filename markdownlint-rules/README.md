@@ -10,6 +10,8 @@
   - [`no-empty-heading`](#no-empty-heading)
   - [`document-length`](#document-length)
   - [`ascii-only`](#ascii-only)
+  - [`fenced-code-under-heading`](#fenced-code-under-heading)
+  - [`heading-min-words`](#heading-min-words)
   - [`heading-title-case`](#heading-title-case)
   - [`no-duplicate-headings-normalized`](#no-duplicate-headings-normalized)
   - [`heading-numbering`](#heading-numbering)
@@ -78,6 +80,9 @@ Example for a repo that has copied rules into `.markdownlint-rules/`:
   "markdownlint.customRules": [
     "./.markdownlint-rules/allow-custom-anchors.js",
     "./.markdownlint-rules/ascii-only.js",
+    "./.markdownlint-rules/document-length.js",
+    "./.markdownlint-rules/fenced-code-under-heading.js",
+    "./.markdownlint-rules/heading-min-words.js",
     "./.markdownlint-rules/heading-numbering.js",
     "./.markdownlint-rules/heading-title-case.js",
     "./.markdownlint-rules/no-duplicate-headings-normalized.js",
@@ -337,6 +342,75 @@ Relative patterns (no leading `/` or `*`) match both path-prefix (e.g. `dev_docs
 - **One error per disallowed character:** each violation highlights only that character (range) on the line. The detail names the character, its code point (e.g. U+2192), and the suggested replacement when present in `unicodeReplacements`.
 - Inline code (backticks) is stripped before scanning. Fenced code blocks are skipped by default; set `allowUnicodeInCodeBlocks: false` to check them, and optionally `disallowUnicodeInCodeBlockTypes` to restrict which block types (e.g. `text`, `bash`) are checked.
 
+### `fenced-code-under-heading`
+
+**File:** `fenced-code-under-heading.js`
+
+**Description:** For specified languages (e.g. `go`), every fenced code block must sit under an H2-H6 heading, and each heading may have at most a configured number of such blocks. Use when docs must group code under clear section headings.
+
+**Configuration:** In `.markdownlint.yml` under `fenced-code-under-heading`:
+
+```yaml
+fenced-code-under-heading:
+  languages: ["go"]
+  minHeadingLevel: 2
+  maxHeadingLevel: 6
+  maxBlocksPerHeading: 3
+  requireHeading: true
+  exclusive: false   # when true: at most one block (any language) per heading, and it must be one of languages
+  # optional path filters:
+  # excludePaths: ["**/README.md"]
+  # includePaths: ["**/*.md"]
+```
+
+- **`languages`** (array of strings, required): Info strings (e.g. `go`, `bash`) to which the rule applies. Only blocks whose first word after the opening fence matches an entry are checked.
+- **`minHeadingLevel`** / **`maxHeadingLevel`** (numbers, default 2 and 6): Heading levels that count (e.g. H2-H6). Blocks must fall under a heading in this range.
+- **`maxBlocksPerHeading`** (number, optional): Maximum fenced blocks of the given languages per heading; excess blocks are reported. Only blocks matching `languages` count; other block types are allowed unless `exclusive` is true.
+- **`requireHeading`** (boolean, default true): When true, every applicable block must be under a heading; blocks before any heading or after the last heading are reported.
+- **`exclusive`** (boolean, default false): When true, at most one fenced code block (of any language) per heading, and that block must be one of the configured languages. Replaces the per-language limit with a single-block-per-heading rule.
+- **`excludePaths`** / **`includePaths`** (arrays of globs, optional): Path filters; see [Shared Helper](#shared-helper). When `includePaths` is set, only those paths are checked; `excludePaths` always skips matching paths.
+
+#### Behavior (`fenced-code-under-heading`)
+
+The rule scans lines for ATX headings and fenced code blocks. Block type is the first word of the info string (e.g. `go` for ` ```go `).
+
+When **`exclusive`** is false: only blocks whose type is in `languages` are validated; each must have a preceding heading at a level between `minHeadingLevel` and `maxHeadingLevel`.
+If `maxBlocksPerHeading` is set, each heading is allowed only that many blocks of the given languages (other languages do not count).
+
+When **`exclusive`** is true: every fenced block is considered; each heading may have at most one block total, and that block must be one of the configured languages. Multiple blocks of any type, or a single block not in `languages`, are reported.
+
+### `heading-min-words`
+
+**File:** `heading-min-words.js`
+
+**Description:** Headings at or below a given level must have at least N words (after optional stripping of numbering). Use when you want to avoid single-word or empty-looking headings (e.g. "Overview" alone).
+
+**Configuration:** In `.markdownlint.yml` under `heading-min-words`:
+
+```yaml
+heading-min-words:
+  minWords: 2
+  applyToLevelsAtOrBelow: 4
+  # optional:
+  # minLevel: 1
+  # maxLevel: 6
+  # excludePaths: ["**/README.md"]
+  # includePaths: ["**/*.md"]
+  # allowList: ["Overview", "Summary"]
+  # stripNumbering: true
+```
+
+- **`minWords`** (number, required): Minimum word count per heading (split on whitespace; empty segments ignored).
+- **`applyToLevelsAtOrBelow`** (number, required): Apply to headings at this level or deeper (e.g. 4 = H1-H4).
+- **`minLevel`** / **`maxLevel`** (numbers, optional): Only headings in this level range are checked (default 1-6).
+- **`excludePaths`** / **`includePaths`** (arrays of globs, optional): Path filters; when `includePaths` is set, only those paths are checked.
+- **`allowList`** (array of strings, optional): Exact heading titles (after stripping numbering if enabled) that are allowed even if below `minWords`.
+- **`stripNumbering`** (boolean, default true): When true, leading numbering (e.g. `1.2.3`) is stripped before counting words and checking allowList.
+
+#### Behavior (`heading-min-words`)
+
+For each ATX heading in the level range, the title is normalized (optional numbering stripped, then split on whitespace). If the resulting word count is less than `minWords` and the title is not in `allowList`, the rule reports an error. Path filters apply before any check.
+
 ### `heading-title-case`
 
 **File:** `heading-title-case.js`
@@ -394,9 +468,21 @@ The first occurrence is the reference; duplicates are reported with the line num
 
 **File:** `heading-numbering.js`
 
-**Description:** Enforces structure and consistency of numbered headings: segment count by numbering root; numbering sequential within each section; period style consistent within section.
+**Description:** Enforces structure and consistency of numbered headings: segment count by numbering root; numbering sequential within each section; period style consistent within section; optional max segment value and max heading level.
 
-**Configuration:** None.
+**Configuration:** In `.markdownlint.yml` under `heading-numbering` (all optional):
+
+```yaml
+heading-numbering:
+  maxHeadingLevel: 4
+  maxSegmentValue: 99
+  maxSegmentValueMinLevel: 2
+  maxSegmentValueMaxLevel: 4
+```
+
+- **`maxHeadingLevel`** (number, optional): Only headings at this level or lower are validated (e.g. 4 = H1-H4); deeper headings are ignored.
+- **`maxSegmentValue`** (number, optional): When set, each segment in a numeric prefix must be <= this value (e.g. 99 disallows `100.0`).
+- **`maxSegmentValueMinLevel`** / **`maxSegmentValueMaxLevel`** (numbers, optional): Level range to which `maxSegmentValue` applies (default all levels).
 
 #### Behavior (`heading-numbering`)
 
@@ -407,6 +493,8 @@ The first occurrence is the reference; duplicates are reported with the line num
 2. **Section-scoped consistency:** For each section (siblings under the same parent), if any sibling has numbering then all siblings at that level must be numbered sequentially and use consistent period style (all `## 1. Title` or all `## 1 Title`).
    **Index base:** Default is 1-based (e.g. 1., 2., 3.). If the first numbered sibling in a section has last segment `0` (e.g. `0.`, `0.0.`, `1.0.`), that section is treated as 0-based (0., 1., 2. or 0.0., 0.1., etc.) and no sequence error is reported.
    Unnumbered siblings in a numbered section are reported.
+3. **Max heading level:** If `maxHeadingLevel` is set, only headings at that level or lower are checked; deeper headings are skipped.
+4. **Max segment value:** If `maxSegmentValue` is set, each numeric segment (in the level range when min/max level options are set) must be <= that value.
 
 ## Shared Helper
 
@@ -417,3 +505,4 @@ When reusing rules that use it, copy `utils.js` into your `.markdownlint-rules` 
 - **Heading and content:** `extractHeadings`, `iterateNonFencedLines`, `stripInlineCode`, `parseHeadingNumberPrefix`, `normalizeHeadingTitleForDup`, `normalizedTitleForDuplicate`, `RE_ATX_HEADING`, `RE_NUMBERING_PREFIX`.
 - **Path/glob matching:** `globToRegExp`, `matchGlob`, `pathMatchesAny` - used for path-pattern options (e.g. ascii-only `allowedPathPatternsUnicode`).
   Supports `**` and `*`; paths normalized to forward slashes; relative patterns match path prefix or mid-path.
+- **Fence parsing:** `parseFenceInfo`, `iterateLinesWithFenceInfo` - used to detect fenced code block type (e.g. ascii-only skips content; fenced-code-under-heading finds blocks by language).

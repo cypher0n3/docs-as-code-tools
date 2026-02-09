@@ -161,70 +161,160 @@ function checkSegmentCount(ctx) {
   return null;
 }
 
+function levelInSegmentValueScope(level, minL, maxL) {
+  return level >= minL && level <= maxL;
+}
+
 /**
- * Return zero or more errors for heading at index i (numbering, segment count, sequence, period style).
+ * Check that no segment in numbering exceeds maxSegmentValue (when configured and level in scope).
+ * @param {object} ctx - { h, contextLine, maxSegmentValue, maxSegmentValueMinLevel, maxSegmentValueMaxLevel }
+ * @returns {object|null} Error object or null
+ */
+function checkMaxSegmentValue(ctx) {
+  const { h, contextLine, maxSegmentValue, maxSegmentValueMinLevel, maxSegmentValueMaxLevel } = ctx;
+  if (typeof maxSegmentValue !== "number" || maxSegmentValue < 0) return null;
+  const minL = typeof maxSegmentValueMinLevel === "number" ? maxSegmentValueMinLevel : 1;
+  const maxL = typeof maxSegmentValueMaxLevel === "number" ? maxSegmentValueMaxLevel : 6;
+  if (!levelInSegmentValueScope(h.level, minL, maxL)) return null;
+  const { numbering } = parseHeadingNumberPrefix(h.rawText);
+  if (numbering == null) return null;
+  const segments = numbering.split(".");
+  const over = segments.find((seg) => {
+    const n = parseInt(seg, 10);
+    return !Number.isNaN(n) && n > maxSegmentValue;
+  });
+  if (!over) return null;
+  return {
+    lineNumber: h.lineNumber,
+    detail: `Number segment "${over}" in prefix "${numbering}" exceeds maximum allowed value (${maxSegmentValue}).`,
+    context: contextLine,
+  };
+}
+
+function addMaxHeadingLevelError(h, opts, contextLine, errors) {
+  if (typeof opts.maxHeadingLevel !== "number" || h.level <= opts.maxHeadingLevel) return;
+  errors.push({
+    lineNumber: h.lineNumber,
+    detail: `Heading level H${h.level} is deeper than maximum allowed (${opts.maxHeadingLevel}); use at most H${opts.maxHeadingLevel}.`,
+    context: contextLine,
+  });
+}
+
+function addNumberingErrorsForNumberedHeading(h, i, ctx, errors) {
+  const { sorted, parentIndex, contextLine, opts = {} } = ctx;
+  const maxSegErr = checkMaxSegmentValue({
+    h,
+    contextLine,
+    maxSegmentValue: opts.maxSegmentValue,
+    maxSegmentValueMinLevel: opts.maxSegmentValueMinLevel,
+    maxSegmentValueMaxLevel: opts.maxSegmentValueMaxLevel,
+  });
+  if (maxSegErr) errors.push(maxSegErr);
+
+  const segmentErr = checkSegmentCount({ h, sorted, parentIndex, i, contextLine });
+  if (segmentErr) {
+    errors.push(segmentErr);
+    return;
+  }
+  const periodErr = getPeriodStyleError({ h, sorted, parentIndex, i, contextLine });
+  if (periodErr) errors.push(periodErr);
+  const expected = getExpectedNumberInSection(sorted, parentIndex, i);
+  const num = parseHeadingNumberPrefix(h.rawText).numbering;
+  if (expected != null && num !== expected) {
+    errors.push({ lineNumber: h.lineNumber, detail: `Number prefix "${num}" is out of sequence in this section; expected "${expected}" to match sibling order.`, context: contextLine });
+  }
+}
+
+/**
+ * Return zero or more errors for heading at index i (numbering, segment count, sequence, period style, maxSegmentValue, maxHeadingLevel).
  * @param {object} h - Heading object { lineNumber, level, rawText }
  * @param {number} i - Index in sorted headings
- * @param {object} ctx - { sorted, parentIndex, contextLine }
+ * @param {object} ctx - { sorted, parentIndex, contextLine, opts }
  * @returns {object[]} Array of error objects
  */
 function getHeadingErrors(h, i, ctx) {
   const errors = [];
+  const { sorted, parentIndex, contextLine, opts = {} } = ctx;
   const { numbering } = parseHeadingNumberPrefix(h.rawText);
-  const { sorted, parentIndex, contextLine } = ctx;
-  const sectionUsesNum = sectionUsesNumbering(sorted, parentIndex, i);
 
+  addMaxHeadingLevelError(h, opts, contextLine, errors);
+
+  const sectionUsesNum = sectionUsesNumbering(sorted, parentIndex, i);
   if (sectionUsesNum && numbering == null) {
     errors.push({ lineNumber: h.lineNumber, detail: "This heading has no number prefix but other headings in this section are numbered; add a number prefix to match siblings (e.g. \"1.2\" for second under 1).", context: contextLine });
     return errors;
   }
   if (numbering == null) return errors;
 
-  const segmentErr = checkSegmentCount({ h, sorted, parentIndex, i, contextLine });
-  if (segmentErr) {
-    errors.push(segmentErr);
-    return errors;
-  }
-  if (!sectionUsesNum) return errors;
-
-  const periodErr = getPeriodStyleError({ h, sorted, parentIndex, i, contextLine });
-  if (periodErr) errors.push(periodErr);
-  const expected = getExpectedNumberInSection(sorted, parentIndex, i);
-  if (expected != null && numbering !== expected) {
-    errors.push({ lineNumber: h.lineNumber, detail: `Number prefix "${numbering}" is out of sequence in this section; expected "${expected}" to match sibling order.`, context: contextLine });
-  }
+  addNumberingErrorsForNumberedHeading(h, i, ctx, errors);
   return errors;
+}
+
+function readMaxHeadingLevel(block) {
+  const v = block.maxHeadingLevel;
+  return typeof v === "number" && v >= 1 && v <= 6 ? v : undefined;
+}
+
+function readMaxSegmentValueOpts(block) {
+  const v = block.maxSegmentValue;
+  if (typeof v !== "number" || v < 0) return undefined;
+  return {
+    maxSegmentValue: v,
+    maxSegmentValueMinLevel: typeof block.maxSegmentValueMinLevel === "number" ? block.maxSegmentValueMinLevel : 1,
+    maxSegmentValueMaxLevel: typeof block.maxSegmentValueMaxLevel === "number" ? block.maxSegmentValueMaxLevel : 6,
+  };
+}
+
+/**
+ * Normalize optional config for heading-numbering extensions: maxHeadingLevel, maxSegmentValue, level range for maxSegmentValue.
+ *
+ * @param {object} raw - Full config (params.config)
+ * @returns {object} opts for getHeadingErrors
+ */
+function getNumberingOpts(raw) {
+  const block = raw?.["heading-numbering"] ?? raw ?? {};
+  const opts = {};
+  const segOpts = readMaxSegmentValueOpts(block);
+  if (segOpts) Object.assign(opts, segOpts);
+  const mhl = readMaxHeadingLevel(block);
+  if (mhl !== undefined) opts.maxHeadingLevel = mhl;
+  return opts;
 }
 
 /**
  * markdownlint rule: validate numbered headings (segment count, sequence per section, period style).
+ * Optional: maxHeadingLevel (disallow deeper headings), maxSegmentValue (cap segment value, with level range).
  *
  * @param {object} params - markdownlint params (lines, config)
  * @param {function(object): void} onError - Callback to report an error
  */
 function ruleFunction(params, onError) {
-    const headings = extractHeadings(params.lines);
-    const withNumbering = headings
-      .map((h) => ({
-        ...h,
-        parsed: parseHeadingNumberPrefix(h.rawText),
-      }))
-      .filter((h) => h.parsed.numbering != null);
+  const lines = params.lines;
+  const headings = extractHeadings(lines);
+  const opts = getNumberingOpts(params.config || {});
 
-    if (withNumbering.length === 0) {
-      return;
-    }
+  const withNumbering = headings
+    .map((h) => ({
+      ...h,
+      parsed: parseHeadingNumberPrefix(h.rawText),
+    }))
+    .filter((h) => h.parsed.numbering != null);
 
-    const { sorted, parentIndex } = buildParentIndex(headings);
+  const hasMaxHeadingLevel = typeof opts.maxHeadingLevel === "number";
+  if (withNumbering.length === 0 && !hasMaxHeadingLevel) {
+    return;
+  }
 
-    for (let i = 0; i < sorted.length; i++) {
-      const h = sorted[i];
-      const contextLine = params.lines[h.lineNumber - 1];
-      for (const err of getHeadingErrors(h, i, { sorted, parentIndex, contextLine })) {
-        onError(err);
-      }
+  const { sorted, parentIndex } = buildParentIndex(headings);
+
+  for (let i = 0; i < sorted.length; i++) {
+    const h = sorted[i];
+    const contextLine = lines[h.lineNumber - 1];
+    for (const err of getHeadingErrors(h, i, { sorted, parentIndex, contextLine, opts })) {
+      onError(err);
     }
   }
+}
 
 module.exports = {
   names: ["heading-numbering"],

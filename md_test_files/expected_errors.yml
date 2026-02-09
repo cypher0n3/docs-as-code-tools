@@ -98,6 +98,12 @@ negative_duplicate_headings_normalized.md:
       rule: no-duplicate-headings-normalized
       message_contains: Duplicate heading title "overview"
 
+negative_fenced_code_under_heading.md:
+  errors:
+    - line: 15
+      rule: fenced-code-under-heading
+      message_contains: At most 1
+
 # negative_document_length.md is generated automatically (not committed).
 # See test-scripts/verify_markdownlint_fixtures.py: ensure_long_document_fixture() and
 # main() which creates it when missing; test_verify_markdownlint_fixtures.py generates
@@ -122,6 +128,12 @@ negative_heading_like.md:
     - line: 14
       rule: no-heading-like-lines
       message_contains: numbered list with bold
+
+negative_heading_min_words.md:
+  errors:
+    - line: 17
+      rule: heading-min-words
+      message_contains: at least 2 word(s)
 
 negative_heading_numbering.md:
   errors:

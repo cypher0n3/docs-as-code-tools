@@ -3,21 +3,23 @@
     "default": true,
     "extends": ".markdownlint.yml"
   },
-  "ignores": [
-    ".github/**",
-    "**/node_modules/**",
-    "tmp/**",
-    "**/*.plan.md"
-  ],
   "customRules": [
     "markdownlint-rules/allow-custom-anchors.js",
     "markdownlint-rules/ascii-only.js",
     "markdownlint-rules/document-length.js",
+    "markdownlint-rules/fenced-code-under-heading.js",
+    "markdownlint-rules/heading-min-words.js",
     "markdownlint-rules/heading-numbering.js",
     "markdownlint-rules/heading-title-case.js",
     "markdownlint-rules/no-duplicate-headings-normalized.js",
     "markdownlint-rules/no-empty-heading.js",
     "markdownlint-rules/no-h1-content.js",
     "markdownlint-rules/no-heading-like-lines.js"
+  ],
+  "ignores": [
+    ".github/**",
+    "**/node_modules/**",
+    "tmp/**",
+    "**/*.plan.md"
   ]
 }

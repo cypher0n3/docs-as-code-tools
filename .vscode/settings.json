@@ -3,6 +3,8 @@
     "./markdownlint-rules/allow-custom-anchors.js",
     "./markdownlint-rules/ascii-only.js",
     "./markdownlint-rules/document-length.js",
+    "./markdownlint-rules/fenced-code-under-heading.js",
+    "./markdownlint-rules/heading-min-words.js",
     "./markdownlint-rules/heading-numbering.js",
     "./markdownlint-rules/heading-title-case.js",
     "./markdownlint-rules/no-duplicate-headings-normalized.js",
