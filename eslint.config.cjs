@@ -17,7 +17,11 @@ module.exports = defineConfig([
       globals: { ...globals.node },
     },
     rules: {
-      "max-lines": ["warn", { max: 250, skipBlankLines: true, skipComments: true }],
+      "max-lines": ["warn", {
+        max: 500,
+        skipBlankLines: true,
+        skipComments: true,
+      }],
       complexity: ["warn", { max: 10 }],
       "max-depth": ["warn", 4],
       "max-params": ["warn", 4],

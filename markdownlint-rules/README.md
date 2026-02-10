@@ -470,6 +470,8 @@ The first occurrence is the reference; duplicates are reported with the line num
 
 **Description:** Enforces structure and consistency of numbered headings: segment count by numbering root; numbering sequential within each section; period style consistent within section; optional max segment value and max heading level.
 
+**Fixable:** Yes, for wrong sequence, missing number prefix, wrong segment count, and period style inconsistency. Auto-fix replaces or inserts the correct number prefix (and period) to match sibling order and section style. Not fixable: max segment value exceeded, max heading level (structural).
+
 **Configuration:** In `.markdownlint.yml` under `heading-numbering` (all optional):
 
 ```yaml

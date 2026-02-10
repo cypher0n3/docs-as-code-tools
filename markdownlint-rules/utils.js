@@ -127,6 +127,28 @@ function parseHeadingNumberPrefix(text) {
 }
 
 /**
+ * Get 1-based edit column and length of the number prefix on the heading line for fixInfo.
+ * @param {number} level - ATX heading level (number of #)
+ * @param {string} rawText - Content after ATX (e.g. "1.2 Title")
+ * @param {string|null} numbering - Current numbering string or null if none
+ * @param {boolean} hasH2Dot - Whether there is a period after the number
+ * @returns {{ editColumn: number, deleteCount: number }}
+ */
+function getNumberPrefixSpan(level, rawText, numbering, hasH2Dot) {
+  const editColumn = level + 2;
+  if (numbering == null || numbering === "") {
+    return { editColumn, deleteCount: 0 };
+  }
+  const prefixLength = numbering.length + (hasH2Dot ? 1 : 0) + 1;
+  return { editColumn, deleteCount: prefixLength };
+}
+
+/** Build insertText for expected number prefix (expected + optional period + space). */
+function insertTextForExpectedNumber(expected, usePeriod) {
+  return expected != null ? expected + (usePeriod ? "." : "") + " " : "";
+}
+
+/**
  * Normalize heading title for duplicate comparison: trim, collapse whitespace, lowercase.
  *
  * @param {string} titleText - Title part of heading (may already have numbering stripped)
@@ -278,6 +300,8 @@ module.exports = {
   parseFenceInfo,
   extractHeadings,
   parseHeadingNumberPrefix,
+  getNumberPrefixSpan,
+  insertTextForExpectedNumber,
   normalizeHeadingTitleForDup,
   normalizedTitleForDuplicate,
   globToRegExp,

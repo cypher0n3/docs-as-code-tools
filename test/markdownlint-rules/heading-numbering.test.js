@@ -128,4 +128,73 @@ describe("heading-numbering", () => {
     const errors = runRule(rule, lines, config);
     assert.strictEqual(errors.length, 0);
   });
+
+  it("reports fixInfo for out-of-sequence error (replace prefix with expected)", () => {
+    const lines = ["# Doc", "## 1. First", "## 2. Second", "## 4. Skip"];
+    const errors = runRule(rule, lines);
+    const seqError = errors.find((e) => e.detail.includes("sequence") || e.detail.includes("expected"));
+    assert.ok(seqError, "should report sequencing error");
+    assert.ok(seqError.fixInfo, "fixable error should include fixInfo");
+    assert.strictEqual(typeof seqError.fixInfo.editColumn, "number");
+    assert.strictEqual(typeof seqError.fixInfo.deleteCount, "number");
+    assert.strictEqual(typeof seqError.fixInfo.insertText, "string");
+    assert.ok(seqError.fixInfo.insertText.startsWith("3"), "insertText should be expected prefix (3. or 3 )");
+  });
+
+  it("reports fixInfo for missing number prefix (insert expected prefix)", () => {
+    const lines = ["# Doc", "## 1. First", "## 2. Second", "## Unnumbered"];
+    const errors = runRule(rule, lines);
+    const missingNum = errors.find((e) => e.detail.includes("no number prefix") || e.detail.includes("numbered"));
+    assert.ok(missingNum, "should report missing number");
+    assert.ok(missingNum.fixInfo, "fixable error should include fixInfo");
+    assert.strictEqual(missingNum.fixInfo.editColumn, 4, "editColumn after ## ");
+    assert.strictEqual(missingNum.fixInfo.deleteCount, 0, "insert only");
+    assert.ok(missingNum.fixInfo.insertText.startsWith("3"), "insertText should be expected prefix for 4th sibling (3. or 3 )");
+  });
+
+  it("reports fixInfo for wrong segment count (replace with expected prefix)", () => {
+    const lines = ["# Doc", "## 1. First", "## 2. Second", "### 2.1.2. Too many segments"];
+    const errors = runRule(rule, lines);
+    const segmentErr = errors.find((e) => e.detail.includes("segment") && e.detail.includes("expected"));
+    assert.ok(segmentErr, "should report segment count error");
+    assert.ok(segmentErr.fixInfo, "fixable error should include fixInfo");
+    assert.strictEqual(typeof segmentErr.fixInfo.editColumn, "number");
+    assert.ok(segmentErr.fixInfo.deleteCount > 0);
+    assert.ok(segmentErr.fixInfo.insertText.includes("2.1"), "insertText should be correct prefix (e.g. 2.1. )");
+  });
+
+  it("reports fixInfo for period style inconsistency (add or remove period)", () => {
+    const lines = ["# Doc", "## 1. First", "## 2. Second", "## 3 No period"];
+    const errors = runRule(rule, lines);
+    const periodErr = errors.find((e) => e.detail.includes("period") && e.detail.includes("section"));
+    assert.ok(periodErr, "should report period style error");
+    assert.ok(periodErr.fixInfo, "fixable error should include fixInfo");
+    assert.strictEqual(typeof periodErr.fixInfo.editColumn, "number");
+    assert.ok(periodErr.fixInfo.insertText.startsWith("3"), "insertText should be same number with section period style");
+  });
+
+  it("reports fixInfo for period style when section uses no period (remove period)", () => {
+    const lines = ["# Doc", "## 1 First", "## 2 Second", "## 3. With period"];
+    const errors = runRule(rule, lines);
+    const periodErr = errors.find((e) => e.detail.includes("period") && e.detail.includes("section"));
+    assert.ok(periodErr, "should report period style error");
+    assert.ok(periodErr.fixInfo, "fixable error should include fixInfo");
+    assert.ok(periodErr.fixInfo.insertText.startsWith("3") && !periodErr.fixInfo.insertText.startsWith("3."), "insertText should be 3 without trailing period");
+  });
+
+  it("does not report fixInfo for maxSegmentValue or maxHeadingLevel errors", () => {
+    const linesMaxSeg = ["# Doc", "## 1. First", "## 21. Too big"];
+    const config = { "heading-numbering": { maxSegmentValue: 20 } };
+    const errorsMaxSeg = runRule(rule, linesMaxSeg, config);
+    const segErr = errorsMaxSeg.find((e) => e.detail.includes("exceeds maximum"));
+    assert.ok(segErr, "should report max segment value error");
+    assert.ok(!segErr.fixInfo, "maxSegmentValue error should not have fixInfo");
+
+    const linesMaxLevel = ["# Doc", "## 1. First", "###### Too deep"];
+    const configLevel = { "heading-numbering": { maxHeadingLevel: 5 } };
+    const errorsMaxLevel = runRule(rule, linesMaxLevel, configLevel);
+    const levelErr = errorsMaxLevel.find((e) => e.detail.includes("deeper than maximum"));
+    assert.ok(levelErr, "should report max heading level error");
+    assert.ok(!levelErr.fixInfo, "maxHeadingLevel error should not have fixInfo");
+  });
 });
