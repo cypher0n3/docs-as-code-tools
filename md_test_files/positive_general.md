@@ -23,6 +23,7 @@
   - [1. First Topic](#1-first-topic)
   - [2. Second Topic](#2-second-topic)
 - [Nested Code Blocks Check](#nested-code-blocks-check)
+- [Heading With Per-Section in Name](#heading-with-per-section-in-name)
 - [Intentionally Empty (Suppressed)](#intentionally-empty-suppressed)
 - [Intentionally Empty With Other Comments (Suppressed)](#intentionally-empty-with-other-comments-suppressed)
 
@@ -171,6 +172,10 @@ Some content here.
 func (p *Package) ReadFile(path string) ([]byte, error)
 ```
 ````
+
+## Heading With Per-Section in Name
+
+This heading has "Per-Section" in the name; "Per" in this case should be capitalized.
 
 ## Intentionally Empty (Suppressed)
 

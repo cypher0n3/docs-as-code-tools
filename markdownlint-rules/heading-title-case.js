@@ -57,22 +57,41 @@ function isAllLower(w) {
 }
 
 /**
+ * True if this position is exempt from lowercase (first/last/subphrase start/hyphen compound start).
+ * @param {{ isFirst: boolean, isLast: boolean, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean }} opts
+ * @returns {boolean}
+ */
+function isExemptFromLowercase(opts) {
+  const { isFirst, isLast, isSubphraseStart, isHyphenCompoundStart } = opts;
+  return Boolean(isFirst || isLast || isSubphraseStart || isHyphenCompoundStart);
+}
+
+/**
+ * Label for error message: "first", "last", or "major" word in title case.
+ * @param {{ isFirst: boolean, isLast: boolean, isSubphraseStart?: boolean }} opts
+ * @returns {"first"|"last"|"major"}
+ */
+function getCapitalizationKind(opts) {
+  const { isFirst, isLast, isSubphraseStart } = opts;
+  if (isFirst || isSubphraseStart) return "first";
+  if (isLast) return "last";
+  return "major";
+}
+
+/**
  * Validate one word for title case; returns error detail string or null if valid.
- * @param {{ raw: string, core: string, isFirst: boolean, isLast: boolean, lowercaseWords: Set<string> }} opts
+ * @param {{ raw: string, core: string, isFirst: boolean, isLast: boolean, lowercaseWords: Set<string>, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean }} opts
  * @returns {string|null}
  */
 function checkWord(opts) {
-  const { raw, core, isFirst, isLast, lowercaseWords, isSubphraseStart } = opts;
+  const { raw, core, lowercaseWords } = opts;
   const coreLower = core.toLowerCase();
-  // Parenthetical/bracketed phrases act like a new "sentence start":
-  // the first word inside them should be capitalized, even if it's in lowercaseWords.
-  const shouldBeLower = !isFirst && !isLast && !isSubphraseStart && lowercaseWords.has(coreLower);
+  const shouldBeLower = !isExemptFromLowercase(opts) && lowercaseWords.has(coreLower);
   if (shouldBeLower) {
     return isAllLower(raw) ? null : `Word "${core}" should be lowercase (middle word in title case).`;
   }
   if (startsWithUpper(raw)) return null;
-  const kind = (isFirst || isSubphraseStart) ? "first" : isLast ? "last" : "major";
-  return `Word "${core}" should be capitalized (${kind} word in title case).`;
+  return `Word "${core}" should be capitalized (${getCapitalizationKind(opts)} word in title case).`;
 }
 
 /**
@@ -102,6 +121,7 @@ function checkOneSegment(opts) {
   const isFirst = i === 0 && j === 0;
   const isLast = i === words.length - 1 && j === rawSegments.length - 1;
   const isSubphraseStart = j === 0 && wordIsSubphraseStart;
+  const isHyphenCompoundStart = rawSegments.length > 1 && j === 0;
 
   const detail = checkWord({
     raw: rawSeg,
@@ -110,6 +130,7 @@ function checkOneSegment(opts) {
     isLast,
     lowercaseWords,
     isSubphraseStart,
+    isHyphenCompoundStart,
   });
   if (!detail) return null;
 

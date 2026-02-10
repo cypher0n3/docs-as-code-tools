@@ -137,4 +137,10 @@ describe("heading-title-case", () => {
     assert.ok(Array.isArray(errors[0].range) && errors[0].range.length === 2);
     assert.strictEqual(errors[0].range[1], 4, "range length should be segment 'stop'");
   });
+
+  it("allows capitalized first segment of hyphenated compound when that word is in lowercase list (e.g. Per-Section)", () => {
+    const lines = ["## Heading With Per-Section in Name"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
 });
