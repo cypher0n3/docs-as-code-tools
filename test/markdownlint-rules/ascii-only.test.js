@@ -270,4 +270,26 @@ describe("ascii-only", () => {
     }, "doc.md");
     assert.ok(errors.length >= 1);
   });
+
+  describe("fixInfo (auto-fix)", () => {
+    it("reports fixInfo when unicodeReplacements provides a replacement", () => {
+      const lines = ["Arrow \u2192 here"];
+      const errors = runRule(rule, lines, {
+        unicodeReplacements: { "\u2192": "->" },
+      }, "doc.md");
+      const arrowError = errors.find((e) => e.detail && (e.detail.includes("U+2192") || e.detail.includes("→")));
+      assert.ok(arrowError, "error for arrow should be reported");
+      assert.ok(arrowError.fixInfo, "fixable error should include fixInfo when replacement is configured");
+      assert.strictEqual(typeof arrowError.fixInfo.editColumn, "number");
+      assert.strictEqual(typeof arrowError.fixInfo.deleteCount, "number");
+      assert.strictEqual(arrowError.fixInfo.insertText, "->", "insertText should be the configured replacement");
+    });
+
+    it("does not report fixInfo when no replacement is configured", () => {
+      const lines = ["Arrow \u2192"];
+      const errors = runRule(rule, lines, { unicodeReplacements: {} }, "doc.md");
+      assert.ok(errors.length >= 1);
+      assert.ok(!errors[0].fixInfo, "error should not have fixInfo when unicodeReplacements has no replacement for the character");
+    });
+  });
 });

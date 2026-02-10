@@ -236,6 +236,8 @@ document-length:
 
 **Description:** Disallow non-ASCII except in configured paths; optional replacement suggestions via `unicodeReplacements`.
 
+**Fixable:** Yes, when a replacement is configured in `unicodeReplacements` (or the default map). Auto-fix replaces the disallowed character with that replacement. Not fixable when no replacement is available.
+
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `ascii-only`:
 
 Example: minimal (default letters plus path/emoji)
@@ -313,7 +315,7 @@ ascii-only:
   # disallowUnicodeInCodeBlockTypes: ["text", "bash"]  # when allowUnicodeInCodeBlocks false
   unicodeReplacements:
     "→": "->"
-    "—": "--"
+    "—": "-"
 ```
 
 - **`allowedPathPatternsUnicode`** (list of strings, default none): Glob patterns for files where any non-ASCII is allowed.
@@ -417,6 +419,8 @@ For each ATX heading in the level range, the title is normalized (optional numbe
 
 **Description:** Enforce AP-style (Associated Press) headline capitalization for headings.
 Words inside backticks are not checked. A configurable set of minor words (e.g. "vs", "and", "the", "is") stay lowercase except when they are the first word, last word, or the first word after a colon or after `(` / `[`.
+
+**Fixable:** Yes. Auto-fix corrects each violating word to AP title case (lowercase or capitalize per AP rules).
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `heading-title-case`:
 

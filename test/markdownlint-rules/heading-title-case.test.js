@@ -146,4 +146,44 @@ describe("heading-title-case", () => {
     const errors = runRule(rule, lines);
     assert.strictEqual(errors.length, 0);
   });
+
+  describe("fixInfo (auto-fix)", () => {
+    it("reports fixInfo with editColumn, deleteCount, insertText for middle-word lowercase violation", () => {
+      const lines = ["# The Cat And the Hat"];
+      const errors = runRule(rule, lines);
+      const andError = errors.find((e) => e.detail && e.detail.includes("And"));
+      assert.ok(andError, "error for 'And' should be reported");
+      assert.ok(andError.fixInfo, "fixable error should include fixInfo");
+      assert.strictEqual(typeof andError.fixInfo.editColumn, "number");
+      assert.strictEqual(typeof andError.fixInfo.deleteCount, "number");
+      assert.strictEqual(typeof andError.fixInfo.insertText, "string");
+      assert.strictEqual(andError.fixInfo.insertText, "and", "insertText should correct 'And' to lowercase 'and'");
+    });
+
+    it("reports fixInfo with insertText capitalizing last word", () => {
+      const lines = ["## Using Tools in practice"];
+      const errors = runRule(rule, lines);
+      const practiceError = errors.find((e) => e.detail && e.detail.includes("practice"));
+      assert.ok(practiceError, "error for 'practice' should be reported");
+      assert.ok(practiceError.fixInfo);
+      assert.strictEqual(practiceError.fixInfo.insertText, "Practice", "insertText should capitalize 'practice' to 'Practice'");
+    });
+
+    it("reports fixInfo with insertText capitalizing first word", () => {
+      const lines = ["## getting started"];
+      const errors = runRule(rule, lines);
+      const gettingError = errors.find((e) => e.detail && e.detail.includes("getting"));
+      assert.ok(gettingError, "error for 'getting' should be reported");
+      assert.ok(gettingError.fixInfo);
+      assert.strictEqual(gettingError.fixInfo.insertText, "Getting", "insertText should capitalize 'getting' to 'Getting'");
+    });
+
+    it("reports fixInfo for hyphenated segment (correct segment only)", () => {
+      const lines = ["# One-stop Shop"];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo);
+      assert.strictEqual(errors[0].fixInfo.insertText, "Stop", "insertText should capitalize segment 'stop' to 'Stop'");
+    });
+  });
 });

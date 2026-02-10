@@ -151,6 +151,7 @@ test-markdownlint:
 
 # Python unit tests - same as .github/workflows/python-tests.yml
 # NOTE: Keep in sync with that workflow. Requires: Python 3.
+# Includes fix tests (test_fix_*.py) that run markdownlint-cli2 --fix and assert file content.
 test-python:
 	@command -v python3 >/dev/null 2>&1 || { \
 		echo "Error: python3 not found. Install Python 3 to run tests."; \

@@ -14,6 +14,10 @@ This directory contains Python scripts used to support this repository's test su
   - Used by `make test-markdownlint` and the `markdownlint-tests` GitHub Actions workflow.
 - `test_verify_markdownlint_fixtures.py`
   - Unit tests for the fixture verifier (run via `make test-python`).
+- **Fix (functional) tests** - one script per custom rule that supports `fixInfo`; each generates a temp file with intentional violations, runs markdownlint (asserts errors), runs `markdownlint-cli2 --fix`, then asserts the file content matches the expected fixed result. Run via `make test-python`.
+  - `test_fix_heading_title_case.py` - heading-title-case
+  - `test_fix_ascii_only.py` - ascii-only
+  - `test_fix_heading_numbering.py` - heading-numbering
 
 ## Requirements
 

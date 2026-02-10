@@ -95,6 +95,26 @@ function checkWord(opts) {
 }
 
 /**
+ * Return the corrected segment text for fixInfo: lowercase or capitalize per AP rules, preserving punctuation.
+ * @param {string} rawSeg - Segment as in source (e.g. "And", "(in", "practice)")
+ * @param {string} core - stripWordPunctuation(rawSeg)
+ * @param {{ isFirst: boolean, isLast: boolean, lowercaseWords: Set<string>, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean }} opts
+ * @returns {string}
+ */
+function getCorrectedSegment(rawSeg, core, opts) {
+  const coreLower = core.toLowerCase();
+  const shouldBeLower = !isExemptFromLowercase(opts) && opts.lowercaseWords.has(coreLower);
+  const correctedCore = shouldBeLower
+    ? coreLower
+    : core.charAt(0).toUpperCase() + core.slice(1).toLowerCase();
+  const firstAlpha = rawSeg.search(/[A-Za-z0-9]/);
+  if (firstAlpha < 0) return rawSeg;
+  const runMatch = rawSeg.slice(firstAlpha).match(/^[A-Za-z0-9]+/);
+  const runLen = runMatch ? runMatch[0].length : 0;
+  return rawSeg.slice(0, firstAlpha) + correctedCore + rawSeg.slice(firstAlpha + runLen);
+}
+
+/**
  * Compute 0-based offset and length of segment j within a hyphenated word.
  * @param {string[]} rawSegments - Parts of the word split on '-'
  * @param {number} j - Segment index
@@ -134,11 +154,19 @@ function checkOneSegment(opts) {
   });
   if (!detail) return null;
 
+  const insertText = getCorrectedSegment(rawSeg, core, {
+    isFirst,
+    isLast,
+    lowercaseWords,
+    isSubphraseStart,
+    isHyphenCompoundStart,
+  });
   const seg = getSegmentPosition(rawSegments, j);
   return {
     valid: false,
     detail,
     wordIndex: i,
+    insertText,
     ...(seg && { segmentOffset: seg.segmentOffset, segmentLength: seg.segmentLength }),
   };
 }
@@ -176,7 +204,7 @@ function checkTitleCase(titleText, lowercaseWords) {
         wordIsSubphraseStart,
         lowercaseWords,
       });
-      if (result) errors.push({ detail: result.detail, wordIndex: result.wordIndex, segmentOffset: result.segmentOffset, segmentLength: result.segmentLength });
+      if (result) errors.push({ detail: result.detail, wordIndex: result.wordIndex, insertText: result.insertText, segmentOffset: result.segmentOffset, segmentLength: result.segmentLength });
     }
   }
   return { valid: errors.length === 0, errors };
@@ -206,6 +234,29 @@ function getWordRangeInLine(line, rawText, titleText, opts) {
     length = segmentLength;
   }
   return { column, length };
+}
+
+/**
+ * Report a single heading-title-case error (with optional range and fixInfo).
+ * @param {object} opts
+ * @param {function(object): void} opts.onError
+ * @param {number} opts.lineNumber
+ * @param {string} opts.line
+ * @param {string} opts.detail
+ * @param {{ column: number, length: number }|null} opts.rangeInfo
+ * @param {string|undefined} opts.insertText
+ */
+function reportTitleCaseError(opts) {
+  const { onError, lineNumber, line, detail, rangeInfo, insertText } = opts;
+  onError({
+    lineNumber,
+    detail,
+    context: line,
+    ...(rangeInfo && { range: [rangeInfo.column, rangeInfo.length] }),
+    ...(rangeInfo && insertText != null && {
+      fixInfo: { editColumn: rangeInfo.column, deleteCount: rangeInfo.length, insertText },
+    }),
+  });
 }
 
 /**
@@ -241,11 +292,13 @@ function ruleFunction(params, onError) {
             segmentOffset: err.segmentOffset,
             segmentLength: err.segmentLength,
           });
-          onError({
+          reportTitleCaseError({
+            onError,
             lineNumber: h.lineNumber,
+            line,
             detail: err.detail,
-            context: line,
-            ...(rangeInfo && { range: [rangeInfo.column, rangeInfo.length] }),
+            rangeInfo,
+            insertText: err.insertText,
           });
         }
       }

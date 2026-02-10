@@ -23,6 +23,7 @@ const DEFAULT_UNICODE_REPLACEMENTS = {
   "\u201D": "\"",
   "\u2019": "'",
   "\u2018": "'",
+  "\u2014": "-",  // em dash
 };
 
 /**
@@ -301,6 +302,7 @@ function ruleFunction(params, onError) {
         detail: buildOccurrenceDetail(char, replacement, allowEmojiOnly, config),
         context: line,
         range: [column, length],
+        ...(replacement != null && replacement !== "" && { fixInfo: { editColumn: column, deleteCount: length, insertText: replacement } }),
       });
     }
   };
