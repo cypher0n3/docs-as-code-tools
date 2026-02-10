@@ -147,16 +147,18 @@ function checkOneSegment(opts) {
  * Validate title case on a heading's title part (numbering stripped).
  * AP rules: first/last/subphrase-start capitalized; hyphenated segments checked separately;
  * first word after colon treated as subphrase start. Words in backticks are excluded.
+ * Returns all violations so each can be reported and highlighted separately.
  *
  * @param {string} titleText - Title after stripping numbering
  * @param {Set<string>} lowercaseWords - Words that must be lowercase in middle
- * @returns {{ valid: boolean, detail?: string, wordIndex?: number, segmentOffset?: number, segmentLength?: number }}
+ * @returns {{ valid: boolean, errors: Array<{ detail: string, wordIndex: number, segmentOffset?: number, segmentLength?: number }> }}
  */
 function checkTitleCase(titleText, lowercaseWords) {
   const withCodeStripped = stripInlineCode(titleText);
   const words = withCodeStripped.split(/\s+/).filter((w) => w.length > 0);
-  if (words.length === 0) return { valid: true };
+  if (words.length === 0) return { valid: true, errors: [] };
 
+  const errors = [];
   for (let i = 0; i < words.length; i++) {
     const raw = words[i];
     const firstAlphaIdx = raw.search(/[A-Za-z0-9]/);
@@ -174,10 +176,10 @@ function checkTitleCase(titleText, lowercaseWords) {
         wordIsSubphraseStart,
         lowercaseWords,
       });
-      if (result) return result;
+      if (result) errors.push({ detail: result.detail, wordIndex: result.wordIndex, segmentOffset: result.segmentOffset, segmentLength: result.segmentLength });
     }
   }
-  return { valid: true };
+  return { valid: errors.length === 0, errors };
 }
 
 /**
@@ -233,17 +235,19 @@ function ruleFunction(params, onError) {
       const result = checkTitleCase(titleText, lowercaseWords);
       if (!result.valid) {
         const line = params.lines[h.lineNumber - 1];
-        const rangeInfo = getWordRangeInLine(line, h.rawText, titleText, {
-          wordIndex: result.wordIndex,
-          segmentOffset: result.segmentOffset,
-          segmentLength: result.segmentLength,
-        });
-        onError({
-          lineNumber: h.lineNumber,
-          detail: result.detail,
-          context: line,
-          ...(rangeInfo && { range: [rangeInfo.column, rangeInfo.length] }),
-        });
+        for (const err of result.errors) {
+          const rangeInfo = getWordRangeInLine(line, h.rawText, titleText, {
+            wordIndex: err.wordIndex,
+            segmentOffset: err.segmentOffset,
+            segmentLength: err.segmentLength,
+          });
+          onError({
+            lineNumber: h.lineNumber,
+            detail: err.detail,
+            context: line,
+            ...(rangeInfo && { range: [rangeInfo.column, rangeInfo.length] }),
+          });
+        }
       }
     }
   }

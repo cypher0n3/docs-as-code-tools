@@ -71,6 +71,7 @@ negative_ascii_only.md:
       message_contains: "U+2019"
     - line: 9
       rule: ascii-only
+      column: 41
       message_contains: "U+0142"
     - line: 11
       rule: ascii-only
@@ -184,27 +185,43 @@ negative_heading_title_case.md:
   errors:
     - line: 6
       rule: heading-title-case
+      column: 4
       message_contains: 'Word "getting" should be capitalized'
+    - line: 6
+      rule: heading-title-case
+      column: 12
+      message_contains: 'Word "started" should be capitalized'
     - line: 10
       rule: heading-title-case
+      column: 12
       message_contains: 'Word "And" should be lowercase'
     - line: 14
       rule: heading-title-case
+      column: 19
       message_contains: 'Word "practice" should be capitalized'
     - line: 18
       rule: heading-title-case
+      column: 16
       message_contains: 'Word "in" should be capitalized'
     - line: 22
       rule: heading-title-case
+      column: 16
       message_contains: 'Word "in" should be capitalized'
+    - line: 22
+      rule: heading-title-case
+      column: 20
+      message_contains: 'Word "practice" should be capitalized'
     - line: 26
       rule: heading-title-case
+      column: 4
       message_contains: 'Word "is" should be capitalized'
     - line: 30
       rule: heading-title-case
+      column: 8
       message_contains: 'Word "stop" should be capitalized'
     - line: 34
       rule: heading-title-case
+      column: 14
       message_contains: 'Word "the" should be capitalized'
 
 negative_no_h1_content.md:

@@ -76,6 +76,7 @@ fenced-code-under-heading:
     - "yaml"
     - "bash"
     - "json"
+    - "js"
   maxBlocksPerHeading: 1
   requireHeading: true
   exclusive: true   # one block total per heading; must be one of languages

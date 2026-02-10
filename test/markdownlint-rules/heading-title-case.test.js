@@ -21,13 +21,15 @@ describe("heading-title-case", () => {
   });
 
   it("reports error when middle word should be lowercase", () => {
-    // Default lowercase list includes "and"; "And" in the middle is invalid.
+    // Default lowercase list includes "is" and "and"; "Is" and "And" in the middle are invalid.
     const lines = ["# This Is And Valid"];
     const errors = runRule(rule, lines);
-    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors.length, 2, "both 'Is' and 'And' should be reported");
     assert.strictEqual(errors[0].lineNumber, 1);
-    assert.ok(errors[0].detail.includes("lowercase"));
-    assert.ok(errors[0].detail.includes("Word ") && errors[0].detail.includes("lowercase"), "detail should name the violation and expected case");
+    assert.strictEqual(errors[1].lineNumber, 1);
+    const details = errors.map((e) => e.detail);
+    assert.ok(details.some((d) => d.includes("Is") && d.includes("lowercase")), "one error for 'Is'");
+    assert.ok(details.some((d) => d.includes("And") && d.includes("lowercase")), "one error for 'And'");
     assert.ok(Array.isArray(errors[0].range) && errors[0].range.length === 2, "error should include range [column, length] for the violating word");
   });
 
@@ -60,7 +62,7 @@ describe("heading-title-case", () => {
   it("reports error with range pointing to the violating word", () => {
     const lines = ["# The Cat And the Hat"];
     const errors = runRule(rule, lines);
-    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors.length, 1, "only 'And' reported ('the' is already lowercase)");
     assert.strictEqual(errors[0].lineNumber, 1);
     assert.ok(Array.isArray(errors[0].range) && errors[0].range.length === 2);
     const [col, len] = errors[0].range;
@@ -73,15 +75,16 @@ describe("heading-title-case", () => {
   it("reports first-word violation with expected case in detail", () => {
     const lines = ["## getting started"];
     const errors = runRule(rule, lines);
-    assert.strictEqual(errors.length, 1);
-    assert.ok(errors[0].detail.includes("getting"));
-    assert.ok(errors[0].detail.includes("capitalized") || errors[0].detail.includes("first"));
+    assert.strictEqual(errors.length, 2, "both 'getting' (first) and 'started' (last) should be capitalized");
+    const details = errors.map((e) => e.detail);
+    assert.ok(details.some((d) => d.includes("getting") && (d.includes("capitalized") || d.includes("first"))));
+    assert.ok(details.some((d) => d.includes("started") && (d.includes("capitalized") || d.includes("last"))));
   });
 
   it("reports last-word violation with expected case in detail", () => {
     const lines = ["## Using Tools in practice"];
     const errors = runRule(rule, lines);
-    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors.length, 1, "only 'practice' reported ('in' is already lowercase)");
     assert.ok(errors[0].detail.includes("practice"));
     assert.ok(errors[0].detail.includes("capitalized") || errors[0].detail.includes("last"));
   });
