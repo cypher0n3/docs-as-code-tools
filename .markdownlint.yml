@@ -53,6 +53,18 @@ document-length:
 #   lowercaseWords: ["through", ...]  # optional; extends default list (add words)
 #   lowercaseWordsReplaceDefault: true  # optional; true = use only lowercaseWords list, no default set
 
+# no-heading-like-lines: report lines that look like headings but are not (e.g. **Text:**, 1. **Text**); fixable
+# - convertToHeading: bool (default false); when false, fix strips emphasis to plain text; when true, fix converts to ATX heading (context-aware level, optional blank after)
+# - defaultHeadingLevel: number 1-6 (default 2); used when converting to heading and there is no preceding heading
+# - fixedHeadingLevel: number 1-6 (optional); when set, suggested heading uses this level and ignores context
+# - excludePathPatterns: list of globs; skip this rule for matching file paths
+# With convertToHeading true, optional heading-title-case.js and heading-numbering.js in same dir add AP title case and numbering.
+# no-heading-like-lines:
+#   convertToHeading: false
+#   defaultHeadingLevel: 2
+#   # fixedHeadingLevel: 3
+#   # excludePathPatterns: ["**/README.md"]
+
 # no-h1-content: under first h1 allow only TOC (blank, list-of-links, HTML comments)
 # - excludePathPatterns: glob list; skip this rule for matching paths (e.g. md_test_files for fixtures)
 # no-h1-content:

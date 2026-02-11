@@ -22,7 +22,10 @@
 This directory contains custom rules for [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2).
 In this repo they are registered in [.markdownlint-cli2.jsonc](../.markdownlint-cli2.jsonc) and configured in [.markdownlint.yml](../.markdownlint.yml).
 You can reuse any of them in your own project; see [Reusing These Rules](#reusing-these-rules) below.
+Some rules are **fixable** (heading-title-case, ascii-only, heading-numbering, no-heading-like-lines): they report `fixInfo` so `markdownlint-cli2 --fix` and the editor "Fix all" can apply corrections automatically.
 
+- **Requirements:** Node.js and [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) (or the [markdownlint](https://github.com/DavidAnson/markdownlint) core with custom rule support).
+  When reusing rules, copy any helper files they depend on; see [Shared Helper](#shared-helper) for which rules require **utils.js**.
 - **Rule modules**: Each `*.js` file here (except `utils.js`) is a custom rule.
 - **Config**: Rule-specific options are set under the rule name in a markdownlint config file.
   You can use `.markdownlint.yml` or `.markdownlint.json` (markdownlint accepts either).
@@ -36,7 +39,9 @@ To use one or more of these rules in another repo:
 1. Create a `.markdownlint-rules` directory in that repo (if it does not exist).
 2. Copy the rule file(s) you want (e.g. `ascii-only.js`, `no-heading-like-lines.js`) into `.markdownlint-rules`.
 3. If a rule depends on helpers, copy those too.
-   Several rules use **utils.js** (see [Shared Helper](#shared-helper)); copy `utils.js` into `.markdownlint-rules` and do **not** list it in `customRules` (see below).
+   Most rules require **utils.js** (see [Shared Helper](#shared-helper) for the full list).
+   Copy `utils.js` into `.markdownlint-rules` and do **not** list it in `customRules` (see below).
+   **no-heading-like-lines** optionally uses `heading-title-case.js` and `heading-numbering.js` when `convertToHeading: true` (for AP title case and number prefixes); copy those into the same directory only if you want that behavior.
 4. In the repo root, in `.markdownlint-cli2.jsonc` (or your config file), add the rule name(s) to the `customRules` array and set `customRulePaths` so it points at your `.markdownlint-rules` folder (see [markdownlint-cli2 custom rules](https://github.com/DavidAnson/markdownlint-cli2#custom-rules)).
 5. For rules that accept options, add a section under the rule name in `.markdownlint.yml` (or `.markdownlint.json`) and set the options you need (see each rule's **Configuration** below).
 
@@ -151,9 +156,34 @@ Order of entries matters: the first pattern that matches the anchor id is used. 
 
 **Description:** Disallow heading-like lines that should be proper Markdown headings.
 
-**Configuration:** None.
+**Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `no-heading-like-lines` (all optional):
 
-**Behavior:** Reports lines that look like headings but are not (e.g. `**Text:**`, `**Text**:`, `1. **Text**`, and italic variants). Prompts use of real `#` headings instead.
+```yaml
+no-heading-like-lines:
+  convertToHeading: false   # when true, fix converts to ATX heading instead of stripping emphasis
+  defaultHeadingLevel: 2    # level when there is no preceding heading (1-6)
+  fixedHeadingLevel: 3     # if set, force this level and ignore context
+  excludePathPatterns:      # optional; skip this rule for matching paths
+    - "**/README.md"
+```
+
+- **`convertToHeading`** (boolean, default `false`): When false, the default fix strips emphasis to plain text (e.g. `**Summary:**` -> `Summary:`). When true, the fix converts the line to an ATX heading with context-aware level (one below the last preceding heading; no prior heading -> `defaultHeadingLevel`).
+- **`defaultHeadingLevel`** (number 1-6, default 2): Used when converting to a heading and there is no preceding heading in the document.
+- **`fixedHeadingLevel`** (number 1-6, optional): When set, the suggested heading uses this level and ignores context.
+- **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped. When the file path matches any pattern, the rule does not report for that file.
+
+**Fixable:** Yes (config-controlled). Default fix strips emphasis to plain text. When `convertToHeading` is true, the fix converts to an ATX heading with context-aware level, adds a blank line after the heading when the next line is non-blank, and when the optional dependency files are present respects numbering (adds the correct number prefix when the section uses numbered headings) and applies AP title case to the heading text (same rules as heading-title-case).
+
+**Behavior:** Reports lines that look like headings but are not (e.g. `**Text:**`, `**Text**:`, `1. **Text**`, and italic variants). When fixInfo is applied, the line is replaced by the stripped text or by the suggested ATX heading.
+
+#### Using Without Heading-Title-Case And/Or Heading-Numbering
+
+You can use `no-heading-like-lines.js` with only `utils.js`; the other rule files are optional. For the default fix (strip emphasis), no other files are needed. For `convertToHeading: true`:
+
+- If `heading-title-case.js` is not in the same rules directory, suggested headings use the extracted title as-is (no AP title case).
+- If `heading-numbering.js` is not in the same rules directory, no number prefix is added to suggested headings. When it is present, a number prefix is only added when the section already uses numbering (i.e. when the parent has numbering or at least one sibling heading at the same level has numbering; see `sectionUsesNumbering` in heading-numbering.js).
+
+To get full convertToHeading behavior (AP title case and numbering), copy `heading-title-case.js` and `heading-numbering.js` into the same directory as `no-heading-like-lines.js`. The rule degrades gracefully when those files are absent.
 
 ### `no-h1-content`
 
@@ -328,7 +358,8 @@ ascii-only:
 - **`disallowUnicodeInCodeBlockTypes`** (list of strings, default empty):
   When `allowUnicodeInCodeBlocks` is false, only fenced blocks whose info string (e.g. `text`, `bash`) is in this list are checked; block type is the first word after the opening fence.
   When empty, all code blocks are checked.
-- **`unicodeReplacements`** (object or array of [char, replacement], default built-in): Map of single Unicode character to suggested ASCII replacement in error messages. When omitted, rule uses built-in defaults (arrows, quotes, <=, >=, \*).
+- **`unicodeReplacements`** (object or array of [char, replacement], default built-in):
+  Map of single Unicode character to suggested ASCII replacement in error messages. When omitted, rule uses built-in defaults (arrows, quotes, em dash, <=, >=, \*).
 
 Glob matching supports `**` (any path) and `*` (within a segment).
 Paths are normalized (forward slashes, leading `./` removed).
@@ -504,9 +535,12 @@ heading-numbering:
 
 ## Shared Helper
 
-**utils.js** is not a rule; it provides utilities used by several rules.
+**utils.js** is not a rule; it provides utilities used by most rules.
 Do not list it in `customRules` in `.markdownlint-cli2.jsonc`.
-When reusing rules that use it, copy `utils.js` into your `.markdownlint-rules` (see [Reusing These Rules](#reusing-these-rules)).
+When reusing any rule that requires it, copy `utils.js` into your `.markdownlint-rules` (see [Reusing These Rules](#reusing-these-rules)).
+
+**Rules that require utils.js:** allow-custom-anchors, ascii-only, fenced-code-under-heading, heading-min-words, heading-numbering, heading-title-case, no-duplicate-headings-normalized, no-empty-heading, no-heading-like-lines, no-h1-content.
+**Rules with no helper dependency:** document-length.
 
 - **Heading and content:** `extractHeadings`, `iterateNonFencedLines`, `stripInlineCode`, `parseHeadingNumberPrefix`, `normalizeHeadingTitleForDup`, `normalizedTitleForDuplicate`, `RE_ATX_HEADING`, `RE_NUMBERING_PREFIX`.
 - **Path/glob matching:** `globToRegExp`, `matchGlob`, `pathMatchesAny` - used for path-pattern options (e.g. ascii-only `allowedPathPatternsUnicode`).

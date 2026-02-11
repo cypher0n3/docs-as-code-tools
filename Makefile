@@ -1,7 +1,7 @@
-.PHONY: ci lint-js lint-readmes lint-python test-markdownlint test-python test-python-coverage test-rules test-rules-coverage venv
+.PHONY: ci lint-js lint-readmes lint-python test-markdownlint test-markdownlint-fix test-python test-python-coverage test-rules test-rules-coverage venv
 
 # Run all CI checks (same as GitHub Actions workflows). Run after 'npm install' and optionally 'make venv'.
-ci: lint-js test-rules-coverage test-markdownlint lint-python test-python-coverage test-python lint-readmes
+ci: lint-js test-rules-coverage lint-python test-python-coverage test-python test-markdownlint test-markdownlint-fix lint-readmes
 
 # README linting - performs same checks as GitHub Actions workflow
 # NOTE: This target must be kept in sync with .github/workflows/lint-readmes.yml.
@@ -148,6 +148,19 @@ test-markdownlint:
 		exit 1; \
 	}
 	@python3 test-scripts/verify_markdownlint_fixtures.py $(if $(filter 1,$(VERBOSE)),--verbose)
+
+# Markdownlint --fix functional tests - run Python tests that invoke markdownlint-cli2 --fix and assert file content.
+# Requires: Node.js, npm (for markdownlint-cli2); Python 3.
+test-markdownlint-fix:
+	@command -v node >/dev/null 2>&1 || { \
+		echo "Error: node not found. Install Node.js and run npm install."; \
+		exit 1; \
+	}
+	@command -v python3 >/dev/null 2>&1 || { \
+		echo "Error: python3 not found. Install Python 3 to run tests."; \
+		exit 1; \
+	}
+	@python3 -m unittest discover -s test-scripts -p "test_fix_*.py" -v
 
 # Python unit tests - same as .github/workflows/python-tests.yml
 # NOTE: Keep in sync with that workflow. Requires: Python 3.

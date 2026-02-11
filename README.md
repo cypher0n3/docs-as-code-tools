@@ -20,12 +20,13 @@
 
 Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAnson/markdownlint) rules (JavaScript).
 
-- **Custom markdownlint rules** in [markdownlint-rules/](markdownlint-rules/README.md) (intended to be **copied directly** into whatever repo wishes to use them; no need to depend on this repo):
+- **Custom markdownlint rules** in [markdownlint-rules/](markdownlint-rules/README.md) (intended to be **copied directly** into whatever repo wishes to use them; no need to depend on this repo).
+  Some rules support auto-fix.
   - [allow-custom-anchors.js](markdownlint-rules/allow-custom-anchors.js) - Custom anchor validation.
     - Only allow `<a id="..."></a>` whose ids match configured regex patterns; optional placement (heading match, line match, require-after, max per section).
     - Use when: enforcing stable fragment links (e.g. spec/algo docs) and consistent anchor placement.
   - [ascii-only.js](markdownlint-rules/ascii-only.js) - ASCII-only with path/emoji allowlists.
-    - Disallow non-ASCII except in paths matching globs; allow Unicode or emoji-only in specific paths; optional replacement suggestions in errors.
+    - Disallow non-ASCII except in paths matching globs; allow Unicode or emoji-only in specific paths; optional replacement suggestions in errors. Fixable when a replacement is configured (default map includes arrows, quotes, em dash).
     - Use when: keeping most docs ASCII while allowing Unicode/emoji only in chosen files (e.g. i18n or release notes).
   - [fenced-code-under-heading.js](markdownlint-rules/fenced-code-under-heading.js) - fenced code under heading.
     - For specified languages (e.g. `go`), every fenced block must sit under an H2-H6 heading; optional max blocks per heading and path filters.
@@ -35,10 +36,10 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Use when: avoiding single-word or empty-looking headings.
   - [heading-numbering.js](markdownlint-rules/heading-numbering.js) - heading numbering.
     - Enforce segment count by numbering root, sequential numbering per section, consistent period style (e.g. `1. Title` vs `1 Title`), optional `maxSegmentValue` and `maxHeadingLevel`.
-      Default is 1-based (1., 2., 3.); if the first numbered heading in a section starts at 0 (e.g. `0.`, `0.0.`), that section is treated as 0-based and no error is reported.
+      Default is 1-based (1., 2., 3.); if the first numbered heading in a section starts at 0 (e.g. `0.`, `0.0.`), that section is treated as 0-based and no error is reported. Fixable for wrong sequence, missing prefix, wrong segment count, period style.
     - Use when: docs use numbered headings (e.g. `### 1.2.3 Title` or 0-based `### 0. Introduction`) and you want structure and style consistent.
   - [heading-title-case.js](markdownlint-rules/heading-title-case.js) - heading title case.
-    - Enforce title case for headings; words in backticks ignored; configurable lowercase words (e.g. vs, and, the).
+    - Enforce title case for headings; words in backticks ignored; configurable lowercase words (e.g. vs, and, the). Fixable: corrects each violating word to AP title case.
     - Use when: you want consistent capitalization of headings (first/last and major words capped; small words lowercase in the middle).
   - [no-duplicate-headings-normalized.js](markdownlint-rules/no-duplicate-headings-normalized.js) - duplicate-heading checks.
     - Disallow duplicate heading titles after stripping numeric prefixes and normalizing case/whitespace; first occurrence is reference.
@@ -50,6 +51,7 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Use when: avoiding placeholder sections with no body content.
   - [no-heading-like-lines.js](markdownlint-rules/no-heading-like-lines.js) - no heading-like lines.
     - Report lines that look like headings but are not (e.g. `**Text:**`, `1. **Text**`); prompt use of real `#` headings.
+      Fixable: default strips emphasis to plain text; optional `convertToHeading` converts to ATX heading (context-aware level; optional AP title case and numbering when heading-title-case and heading-numbering are present).
     - Use when: ensuring real Markdown headings instead of bold/italic that look like headings.
   - [no-h1-content.js](markdownlint-rules/no-h1-content.js) - no content under h1 except TOC.
     - Under the first h1, allow only table-of-contents content (blank lines, list-of-links, HTML comments).
@@ -67,6 +69,7 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
 - **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/` (including security tests for defensive regex handling and ReDoS awareness); run with `make test-rules` or `npm run test:rules`.
   CI runs `make test-rules-coverage` (fails if any rule file is below 90% line/statement coverage).
 - **Python unit tests**: `unittest` tests for [test-scripts/](test-scripts/README.md) in `test-scripts/test_*.py`; run with `make test-python`.
+  Includes functional fix tests (`test_fix_heading_title_case.py`, `test_fix_ascii_only.py`, `test_fix_heading_numbering.py`) that run `markdownlint-cli2 --fix` and assert file content.
 - **Python linting** for repo tooling scripts: `make lint-python` (flake8, pylint, xenon/radon, vulture, bandit).
 
 See **[markdownlint-rules/README.md](markdownlint-rules/README.md)** for rule docs and configuration.
@@ -132,6 +135,7 @@ npm install
 
 - **Use the custom rules**: Copy the `markdownlint-rules/*.js` files (and optionally the rule [README](markdownlint-rules/README.md) and config) into your docs repo, then point markdownlint-cli2 at that directory and your `.markdownlint.yml` / `.markdownlint-cli2.jsonc`.
   For VS Code (and forks like Cursor), see [markdownlint-rules/README.md](markdownlint-rules/README.md#using-in-vs-code-and-its-forks).
+  To auto-fix fixable violations (e.g. heading title case, ascii-only replacements, heading numbering), run `markdownlint-cli2 --fix <paths>` or use the editor "Fix all supported markdownlint violations".
 
 ## Repository Layout
 

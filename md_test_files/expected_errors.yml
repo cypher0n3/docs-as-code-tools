@@ -180,6 +180,12 @@ negative_heading_numbering.md:
     - line: 54
       rule: heading-numbering
       message_contains: expected "0.1" to match sibling
+    - line: 62
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 64
+      rule: heading-numbering
+      message_contains: no number prefix
 
 negative_heading_title_case.md:
   errors:

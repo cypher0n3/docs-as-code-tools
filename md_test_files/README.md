@@ -41,7 +41,7 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
 - **negative_heading_min_words.md** - heading-min-words
   - Headings with fewer than the required word count (e.g. single-word H2/H4 when minWords is 2).
 - **negative_heading_numbering.md** - heading-numbering
-  - Segment count, sequence, period style, unnumbered sibling, zero-indexed violations; optional maxSegmentValue/maxHeadingLevel.
+  - Segment count, sequence, period style, unnumbered sibling or child (section uses numbering when parent or siblings have numbering), zero-indexed violations; optional maxSegmentValue/maxHeadingLevel.
 - **negative_heading_title_case.md** - heading-title-case
   - AP-style capitalization (lowercase/middle words, hyphenated compounds, etc.).
 - **negative_inline_html.md** - allow-custom-anchors
@@ -60,7 +60,7 @@ Expected errors are defined in **expected_errors.yml** (one entry per fixture, k
 
 - **errors**: list of expected errors. Each error has:
   - **line** (required), **rule** (required)
-  - **column** (optional) - for rules that report at character level (e.g. ascii-only, heading-title-case)
+  - **column** (optional) - for rules that report at character level (e.g. ascii-only, heading-title-case); also used for fixable rules (fixInfo)
   - **message_contains** (optional) - substring that must appear in the rule's message
 
 Total expected count is the length of the errors list. The `make test-markdownlint` target runs `test-scripts/verify_markdownlint_fixtures.py`, which lints each fixture and validates output against this file.
@@ -74,5 +74,8 @@ Total expected count is the length of the errors list. The `make test-markdownli
 - Run the full fixture suite:
 
   `make test-markdownlint`
+
+- Some rules (heading-title-case, ascii-only, heading-numbering) are fixable; use `markdownlint-cli2 --fix <file>.md` to apply fixes.
+  Functional fix tests in [test-scripts/](../test-scripts/README.md) verify fix behavior.
 
 See **expected_errors.yml** for the expected errors per fixture.

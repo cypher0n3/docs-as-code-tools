@@ -71,10 +71,13 @@ describe("heading-numbering", () => {
     assert.strictEqual(errors.length, 0);
   });
 
-  it("reports no errors for unnumbered subsections under numbered section", () => {
+  it("reports error when parent has numbering but child has no number (first child must be numbered)", () => {
     const lines = ["# Doc", "## 1. First", "### Sub A", "### Sub B"];
     const errors = runRule(rule, lines);
-    assert.strictEqual(errors.length, 0);
+    const missingNum = errors.filter((e) => e.detail.includes("no number prefix") || e.detail.includes("numbered"));
+    assert.ok(missingNum.length >= 2, "should report missing number for both unnumbered children");
+    const fixFirst = missingNum.find((e) => e.lineNumber === 3);
+    assert.ok(fixFirst?.fixInfo?.insertText.startsWith("1.1"), "first child under 1. should get prefix 1.1. or 1.1 ");
   });
 
   it("reports segment error when root heading has number prefix (exercises numbering root level 1)", () => {
@@ -180,6 +183,14 @@ describe("heading-numbering", () => {
     assert.ok(periodErr, "should report period style error");
     assert.ok(periodErr.fixInfo, "fixable error should include fixInfo");
     assert.ok(periodErr.fixInfo.insertText.startsWith("3") && !periodErr.fixInfo.insertText.startsWith("3."), "insertText should be 3 without trailing period");
+  });
+
+  it("getExpectedPrefixForNewHeading returns prefix for first child under numbered parent (no sibling)", () => {
+    const { getExpectedPrefixForNewHeading } = rule;
+    const lines = ["# Doc", "## 1. First", "Content", "## 2. Second"];
+    const prefixAt3 = getExpectedPrefixForNewHeading(lines, 3, 3);
+    assert.ok(prefixAt3.startsWith("1.1"), "insert H3 after 1. First should get 1.1. or 1.1 ");
+    assert.ok(prefixAt3.endsWith(" "), "prefix should end with space");
   });
 
   it("does not report fixInfo for maxSegmentValue or maxHeadingLevel errors", () => {

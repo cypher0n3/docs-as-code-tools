@@ -186,4 +186,27 @@ describe("heading-title-case", () => {
       assert.strictEqual(errors[0].fixInfo.insertText, "Stop", "insertText should capitalize segment 'stop' to 'Stop'");
     });
   });
+
+  describe("applyTitleCase (export)", () => {
+    it("handles hyphenated word with punctuation-only segment (coverage)", () => {
+      assert.strictEqual(typeof rule.applyTitleCase, "function");
+      const result = rule.applyTitleCase("Test---Here");
+      assert.strictEqual(result, "Test---Here", "punctuation-only segments preserved");
+    });
+
+    it("accepts lowercaseWords as Set (coverage)", () => {
+      const result = rule.applyTitleCase("use and through", {
+        lowercaseWords: new Set(["and", "through"]),
+      });
+      assert.strictEqual(result, "Use and Through");
+    });
+
+    it("lowercaseWordsReplaceDefault: true uses only config list (coverage)", () => {
+      const result = rule.applyTitleCase("a and the b", {
+        lowercaseWords: ["and", "the"],
+        lowercaseWordsReplaceDefault: true,
+      });
+      assert.strictEqual(result, "A and the B");
+    });
+  });
 });

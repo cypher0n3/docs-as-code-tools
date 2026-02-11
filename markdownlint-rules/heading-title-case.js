@@ -211,6 +211,99 @@ function checkTitleCase(titleText, lowercaseWords) {
 }
 
 /**
+ * Build lowercase-words Set from applyTitleCase options.
+ * @param {{ lowercaseWords?: string[]|Set<string>, lowercaseWordsReplaceDefault?: boolean }} options
+ * @returns {Set<string>}
+ */
+function getLowercaseWordsFromOptions(options) {
+  const customLower = options.lowercaseWords;
+  const configSet = Array.isArray(customLower)
+    ? new Set([...customLower].map((w) => String(w).toLowerCase().trim()).filter(Boolean))
+    : customLower instanceof Set
+      ? customLower
+      : new Set();
+  const replaceDefault = options.lowercaseWordsReplaceDefault === true;
+  return replaceDefault
+    ? configSet
+    : new Set([...DEFAULT_LOWERCASE_WORDS, ...configSet]);
+}
+
+/**
+ * Correct one segment of a word for AP title case.
+ * @param {string} rawSeg - Segment as in source
+ * @param {string} core - stripWordPunctuation(rawSeg)
+ * @param {{ i: number, j: number, words: string[], rawSegments: string[], wordIsSubphraseStart: boolean, lowercaseWords: Set<string> }} ctx
+ * @returns {string}
+ */
+function correctSegmentForTitleCase(rawSeg, core, ctx) {
+  const { i, j, words, rawSegments, wordIsSubphraseStart, lowercaseWords } = ctx;
+  const isFirst = i === 0 && j === 0;
+  const isLast = i === words.length - 1 && j === rawSegments.length - 1;
+  const isSubphraseStart = j === 0 && wordIsSubphraseStart;
+  const isHyphenCompoundStart = rawSegments.length > 1 && j === 0;
+  return getCorrectedSegment(rawSeg, core, {
+    isFirst,
+    isLast,
+    lowercaseWords,
+    isSubphraseStart,
+    isHyphenCompoundStart,
+  });
+}
+
+/**
+ * Process one word (possibly hyphenated) for applyTitleCase.
+ * @param {string} raw - Raw word
+ * @param {number} i - Word index
+ * @param {string[]} words - All words
+ * @param {Set<string>} lowercaseWords
+ * @returns {string}
+ */
+function processWordForTitleCase(raw, i, words, lowercaseWords) {
+  const firstAlphaIdx = raw.search(/[A-Za-z0-9]/);
+  const prefix = firstAlphaIdx > 0 ? raw.slice(0, firstAlphaIdx) : "";
+  const afterColon = i > 0 && words[i - 1].replace(/\s+$/, "").endsWith(":");
+  const wordIsSubphraseStart = prefix.includes("(") || prefix.includes("[") || afterColon;
+  const rawSegments = raw.split(/-/);
+  const segmentParts = [];
+  for (let j = 0; j < rawSegments.length; j++) {
+    const rawSeg = rawSegments[j];
+    const core = stripWordPunctuation(rawSeg);
+    if (!core || !/[a-zA-Z]/.test(core)) {
+      segmentParts.push(rawSeg);
+      continue;
+    }
+    segmentParts.push(correctSegmentForTitleCase(rawSeg, core, {
+      i,
+      j,
+      words,
+      rawSegments,
+      wordIsSubphraseStart,
+      lowercaseWords,
+    }));
+  }
+  return segmentParts.join("-");
+}
+
+/**
+ * Apply AP title case to a title string and return the full corrected title.
+ * Uses the same word/segment logic and getCorrectedSegment as the rule.
+ *
+ * @param {string} titleText - Raw title (e.g. "the quick Brown" or "getting started")
+ * @param {{ lowercaseWords?: string[]|Set<string>, lowercaseWordsReplaceDefault?: boolean }} [options] - Optional config; defaults to DEFAULT_LOWERCASE_WORDS when not provided
+ * @returns {string} Title with AP capitalization applied
+ */
+function applyTitleCase(titleText, options = {}) {
+  const lowercaseWords = getLowercaseWordsFromOptions(options);
+  const withCodeStripped = stripInlineCode(titleText);
+  const words = withCodeStripped.split(/\s+/).filter((w) => w.length > 0);
+  if (words.length === 0) return titleText;
+  const resultParts = words.map((raw, i) =>
+    processWordForTitleCase(raw, i, words, lowercaseWords)
+  );
+  return resultParts.join(" ");
+}
+
+/**
  * Get 1-based column and length of the i-th word (or segment within it) in the heading line.
  * @param {string} line - Full source line (e.g. "## 1.2 The quick Brown")
  * @param {string} rawText - Content after ATX prefix (e.g. "1.2 The quick Brown")
@@ -310,4 +403,5 @@ module.exports = {
   description: "Enforce AP-style capitalization for headings, with exceptions for words in backticks and configurable lowercase words.",
   tags: ["headings"],
   function: ruleFunction,
+  applyTitleCase,
 };
