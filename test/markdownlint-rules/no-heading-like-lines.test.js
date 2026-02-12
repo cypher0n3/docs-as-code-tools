@@ -256,6 +256,36 @@ describe("no-heading-like-lines", () => {
       assert.strictEqual(errors.length, 1);
       assert.ok(errors[0].fixInfo.insertText.startsWith("###### "), "level should be capped at 6");
     });
+
+    it("fixedHeadingLevel 0 falls back to default level", () => {
+      const lines = ["**Title:**", "Content."];
+      const config = { "no-heading-like-lines": { convertToHeading: true, fixedHeadingLevel: 0 } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo.insertText.startsWith("## "), "invalid fixedHeadingLevel should fall back to ##");
+    });
+
+    it("fixedHeadingLevel 7 falls back to default level", () => {
+      const lines = ["**Title:**", "Content."];
+      const config = { "no-heading-like-lines": { convertToHeading: true, fixedHeadingLevel: 7 } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo.insertText.startsWith("## "), "fixedHeadingLevel > 6 should fall back");
+    });
+
+    it("reports **Text:** with leading and trailing spaces (trimmed before match)", () => {
+      const lines = ["   **Summary:**   ", "Content."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 1);
+      assert.strictEqual(errors[0].fixInfo.insertText, "Summary:");
+    });
+
+    it("bold colon only **:** does not match **.*:** (needs content)", () => {
+      const lines = ["**:**", "Content."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0);
+    });
   });
 
   describe("optional dependencies (graceful degradation)", () => {

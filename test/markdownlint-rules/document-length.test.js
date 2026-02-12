@@ -104,4 +104,25 @@ describe("document-length", () => {
     assert.strictEqual(errors.length, 1);
     assert.strictEqual(errors[0].context, "");
   });
+
+  describe("edge cases", () => {
+    it("maximum 0 uses default maximum (1500)", () => {
+      const lines = makeLines(10);
+      const errors = runRule(rule, lines, { maximum: 0 });
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("maximum negative uses default maximum", () => {
+      const lines = makeLines(10);
+      const errors = runRule(rule, lines, { maximum: -1 });
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("rule-level config block with empty object uses top-level maximum", () => {
+      const lines = makeLines(1501);
+      const config = { "document-length": {}, maximum: 1500 };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+    });
+  });
 });

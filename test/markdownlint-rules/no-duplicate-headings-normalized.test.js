@@ -85,4 +85,21 @@ describe("no-duplicate-headings-normalized", () => {
     assert.ok(errors.every((e) => e.detail.includes("Overview") || e.detail.includes("overview")));
     assert.ok(errors.some((e) => e.detail.includes("line 1")));
   });
+
+  describe("edge cases", () => {
+    it("duplicate with different casing and whitespace normalizes to same key", () => {
+      const lines = ["##  Introduction  ", "Content.", "##  INTRODUCTION"];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 3);
+      assert.ok(errors[0].detail.toLowerCase().includes("introduction"));
+    });
+
+    it("config from rule-level key no-duplicate-headings-normalized", () => {
+      const lines = ["# A", "## A"];
+      const config = { "no-duplicate-headings-normalized": { excludePathPatterns: [] } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+    });
+  });
 });

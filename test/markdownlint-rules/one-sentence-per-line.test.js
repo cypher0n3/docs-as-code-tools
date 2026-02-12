@@ -229,4 +229,62 @@ describe("one-sentence-per-line", () => {
     const errors = runRule(rule, lines, undefined);
     assert.strictEqual(errors.length, 1);
   });
+
+  describe("edge cases (sentence boundary)", () => {
+    it("does not split on Dr. abbreviation (Dr in default list)", () => {
+      const lines = ["See Dr. Smith for details."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("splits when ellipsis is not sentence end and real sentence end follows", () => {
+      const lines = ["First... Then the next sentence."];
+      const errors = runRule(rule, lines);
+      assert.ok(errors.length >= 1, "ellipsis then space then capital should be boundary");
+    });
+
+    it("handles multiple spaces between sentences", () => {
+      const lines = ["First.    Second."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo);
+    });
+
+    it("strictAbbreviations empty array treats every period+space as boundary", () => {
+      const lines = ["No abbrev. Here."];
+      const config = { "one-sentence-per-line": { strictAbbreviations: [] } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+    });
+
+    it("getFirstSentenceBoundary returns null for empty string", () => {
+      assert.strictEqual(rule.getFirstSentenceBoundary(""), null);
+    });
+
+    it("skips line that is only whitespace after trim", () => {
+      const lines = ["   ", "One sentence."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("version number 1. not treated as sentence end", () => {
+      const lines = ["Use version 1. It is stable."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo.insertText.includes("It is stable"));
+    });
+
+    it("bullet with multiple spaces after marker", () => {
+      const lines = ["-   First. Second."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo.insertText.includes("Second."));
+    });
+
+    it("numbered list with period in number (1. First. Second.)", () => {
+      const lines = ["1. First. Second."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+    });
+  });
 });

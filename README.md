@@ -73,9 +73,7 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Use when: copying the rule files; required by several of the rules above.
 
 - **JS linting** for the rule code: ESLint (recommended + complexity/max-lines + eslint-plugin-security), aligned with the GitHub Actions workflow.
-- **Markdownlint fixture tests**: [md_test_files/](md_test_files/README.md) includes positive_*.
-  md and negative_*.
-  md fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
+- **Markdownlint fixture tests**: [md_test_files/](md_test_files/README.md) includes `positive_*.md` and `negative_*.md` fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
 - **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/` (including security tests for defensive regex handling and ReDoS awareness); run with `make test-rules` or `npm run test:rules`.
   CI runs `make test-rules-coverage` (fails if any rule file is below 90% line/statement coverage).
 - **Python unit tests**: `unittest` tests for [test-scripts/](test-scripts/README.md) in `test-scripts/test_*.py`; run with `make test-python`.
@@ -86,8 +84,7 @@ See **[markdownlint-rules/README.md](markdownlint-rules/README.md)** for rule do
 
 ## Requirements
 
-- Node.
-  js and npm (for JS linting)
+- `Node.js` and npm (for JS linting)
 - Python 3 (for repo test scripts and `make lint-python`)
 - [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) and config (`.markdownlint-cli2.jsonc`, `.markdownlint.yml`) when using the custom rules in another repo
 

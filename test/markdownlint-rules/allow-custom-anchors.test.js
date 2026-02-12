@@ -189,4 +189,49 @@ describe("allow-custom-anchors", () => {
     });
     assert.strictEqual(errors.length, 0);
   });
+
+  describe("edge cases", () => {
+    it("when allowedIdPatterns is empty array no anchors are allowed (reports invalid id)", () => {
+      const lines = ["<a id=\"any\"></a>", "Content"];
+      const config = { allowedIdPatterns: [] };
+      const errors = runRule(rule, lines, config);
+      assert.ok(errors.length >= 1, "empty patterns should not allow any anchor id");
+      assert.ok(errors[0].detail.includes("allowedIdPatterns") || errors[0].detail.includes("pattern"));
+    });
+
+    it("invalid regex in allowedIdPatterns entry is skipped (other patterns still apply)", () => {
+      const lines = ["<a id=\"spec-ok\"></a>", "Content"];
+      const config = { allowedIdPatterns: ["invalid[", "^spec-"] };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("anchor with empty id is reported (format or pattern)", () => {
+      const lines = ["<a id=\"\"></a>", "Content"];
+      const config = { allowedIdPatterns: [".*"] };
+      const errors = runRule(rule, lines, config);
+      assert.ok(errors.length >= 1);
+    });
+
+    it("strictPlacement false does not apply placement (anchor only checked for pattern)", () => {
+      const lines = ["# Spec", "Content in between", "<a id=\"spec-a\"></a>"];
+      const config = {
+        allowedIdPatterns: [{ pattern: "^spec-", placement: { anchorImmediatelyAfterHeading: true } }],
+        strictPlacement: false,
+      };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("headingMatch when no heading in document matches reports headingMatch error", () => {
+      const lines = ["Intro.", "<a id=\"spec-a\"></a>"];
+      const config = {
+        allowedIdPatterns: [{ pattern: "^spec-", placement: { headingMatch: "^#\\s+Spec" } }],
+        strictPlacement: true,
+      };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].detail.includes("headingMatch"));
+    });
+  });
 });

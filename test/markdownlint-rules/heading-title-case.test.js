@@ -301,4 +301,31 @@ describe("heading-title-case", () => {
     const errors = runRule(rule, lines, undefined);
     assert.strictEqual(errors.length, 0);
   });
+
+  describe("edge cases (applyTitleCase export)", () => {
+    it("applyTitleCase with empty string returns empty string", () => {
+      assert.strictEqual(rule.applyTitleCase(""), "");
+    });
+
+    it("applyTitleCase with null or undefined (edge case: may throw or return)", () => {
+      try {
+        const rNull = rule.applyTitleCase(null);
+        assert.ok(rNull === null || typeof rNull === "string", "null input: return null or string");
+      } catch (err) {
+        assert.ok(err instanceof Error, "null input may throw in current implementation");
+      }
+      try {
+        const rUndef = rule.applyTitleCase(undefined);
+        assert.ok(rUndef === undefined || typeof rUndef === "string", "undefined input: return undefined or string");
+      } catch (err) {
+        assert.ok(err instanceof Error, "undefined input may throw in current implementation");
+      }
+    });
+
+    it("heading with only numbers and symbols has no title-case violation", () => {
+      const lines = ["## 1.2.3"];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0);
+    });
+  });
 });

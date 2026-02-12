@@ -29,10 +29,10 @@ try {
 }
 /* c8 ignore stop */
 
-/** Patterns: [regex, description]. Order matches EXTRACTORS. Includes MD036-style whole-line emphasis. */
+/** Patterns: [regex, description]. Order matches EXTRACTORS. Includes MD036-style whole-line emphasis. Require content (.+ not .*) so **:** does not match. */
 const PATTERNS = [
-  [/^\s*\*\*.*:\*\*\s*$/, "bold with colon inside (**Text:**)"],
-  [/^\s*\*\*.*\*\*:\s*$/, "bold with colon outside (**Text**:)"],
+  [/^\s*\*\*.+:\*\*\s*$/, "bold with colon inside (**Text:**)"],
+  [/^\s*\*\*.+\*\*:\s*$/, "bold with colon outside (**Text**:)"],
   [/^\s*[0-9]+\.\s+\*\*.*\*\*\s*$/, "numbered list with bold (1. **Text**)"],
   [/^\s*\*.*:\*\s*$/, "italic with colon inside (*Text:*)"],
   [/^\s*\*.*\*:\s*$/, "italic with colon outside (*Text*:)"],
@@ -123,6 +123,75 @@ function buildConvertToHeadingInsertText(opts) {
   return headingLine;
 }
 
+/** True when pattern p matched but content is only colon (e.g. **:**); skip reporting. */
+function skipBoldColonOnly(trimmedLine, p, pattern) {
+  if (![0, 1, 6].includes(p)) return false;
+  const reWithGroup = p <= 1 ? EXTRACTORS[p][0] : pattern;
+  const m = trimmedLine.match(reWithGroup);
+  const content = m?.[1];
+  return content != null && (content.trim() === "" || content.trim() === ":");
+}
+
+/**
+ * Find first pattern index that matches and passes skip checks; returns { p, description, extractedTitle } or null.
+ */
+function findHeadingLikeMatch(trimmedLine, punctuationMarks) {
+  for (let p = 0; p < PATTERNS.length; p++) {
+    const [pattern, description] = PATTERNS[p];
+    if (!pattern.test(trimmedLine) || skipBoldColonOnly(trimmedLine, p, pattern)) continue;
+    const extractedTitle = extractTitleFromHeadingLike(trimmedLine, p);
+    if (MD036_STYLE_PATTERN_INDICES.has(p) && extractedTitle.length > 0) {
+      const lastChar = extractedTitle.slice(-1);
+      if (punctuationMarks.includes(lastChar)) continue;
+    }
+    return { p, description, extractedTitle };
+  }
+  return null;
+}
+
+/** Build and report one heading-like error. */
+function reportHeadingLikeError(line, index, match, ctx) {
+  const { lines, headings, config, ruleConfig, convertToHeading, onError } = ctx;
+  const { description, extractedTitle } = match;
+  const lineNumber = index + 1;
+  const insertText = !convertToHeading
+    ? extractedTitle
+    : buildConvertToHeadingInsertText({
+      lines, index, lineNumber, headings, config, ruleConfig, extractedTitle,
+    });
+  onError({
+    lineNumber,
+    detail: `Line looks like ${description}; use an ATX heading (# Title) instead of heading-like formatting.`,
+    context: line,
+    fixInfo: { editColumn: 1, deleteCount: line.length, insertText },
+  });
+}
+
+/** Normalize rule config and build context for processing. */
+function getNoHeadingLikeContext(params, onError) {
+  const lines = params.lines;
+  const ruleConfig = params.config?.["no-heading-like-lines"] ?? params.config ?? {};
+  const convertToHeading = ruleConfig.convertToHeading === true;
+  const defaultHeadingLevel = ruleConfig.defaultHeadingLevel;
+  const fixedHeadingLevel = ruleConfig.fixedHeadingLevel;
+  const punctuationMarks = typeof ruleConfig.punctuationMarks === "string"
+    ? ruleConfig.punctuationMarks
+    : ".,;!?";
+  const config = { defaultHeadingLevel, fixedHeadingLevel };
+  const headings = convertToHeading ? extractHeadings(lines) : [];
+  return {
+    lines,
+    ruleConfig,
+    excludePathPatterns: ruleConfig.excludePathPatterns,
+    punctuationMarks,
+    config,
+    headings,
+    convertToHeading,
+    onError,
+    ctx: { lines, headings, config, ruleConfig, convertToHeading, onError },
+  };
+}
+
 /**
  * markdownlint rule: flag lines that look like headings but use bold/italic
  * (e.g. **Section:** or 1. **Item**, or MD036-style **Introduction** / *Note*)
@@ -132,57 +201,19 @@ function buildConvertToHeadingInsertText(opts) {
  * @param {function(object): void} onError - Callback to report an error
  */
 function ruleFunction(params, onError) {
-  const lines = params.lines;
+  const { lines, excludePathPatterns, punctuationMarks, ctx } = getNoHeadingLikeContext(params, onError);
   const filePath = params.name || "";
-  const ruleConfig = params.config?.["no-heading-like-lines"] ?? params.config ?? {};
-  const excludePathPatterns = ruleConfig.excludePathPatterns;
   if (Array.isArray(excludePathPatterns) && excludePathPatterns.length > 0 && pathMatchesAny(filePath, excludePathPatterns)) {
     return;
   }
-  const convertToHeading = ruleConfig.convertToHeading === true;
-  const defaultHeadingLevel = ruleConfig.defaultHeadingLevel;
-  const fixedHeadingLevel = ruleConfig.fixedHeadingLevel;
-  const punctuationMarks = typeof ruleConfig.punctuationMarks === "string"
-    ? ruleConfig.punctuationMarks
-    : ".,;!?";
-  const config = { defaultHeadingLevel, fixedHeadingLevel };
-
-  const headings = convertToHeading ? extractHeadings(lines) : [];
-
-  lines.forEach((line, index) => {
-    const lineNumber = index + 1;
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     const trimmedLine = line.trim();
-
-    if (!trimmedLine) return;
-
-    for (let p = 0; p < PATTERNS.length; p++) {
-      const [pattern, description] = PATTERNS[p];
-      if (!pattern.test(trimmedLine)) continue;
-
-      const extractedTitle = extractTitleFromHeadingLike(trimmedLine, p);
-      if (MD036_STYLE_PATTERN_INDICES.has(p) && extractedTitle.length > 0) {
-        const lastChar = extractedTitle.slice(-1);
-        if (punctuationMarks.includes(lastChar)) continue;
-      }
-      let insertText;
-
-      if (!convertToHeading) {
-        insertText = extractedTitle;
-      } else {
-        insertText = buildConvertToHeadingInsertText({
-          lines, index, lineNumber, headings, config, ruleConfig, extractedTitle,
-        });
-      }
-
-      onError({
-        lineNumber,
-        detail: `Line looks like ${description}; use an ATX heading (# Title) instead of heading-like formatting.`,
-        context: line,
-        fixInfo: { editColumn: 1, deleteCount: line.length, insertText },
-      });
-      return;
-    }
-  });
+    if (!trimmedLine) continue;
+    const match = findHeadingLikeMatch(trimmedLine, punctuationMarks);
+    if (!match) continue;
+    reportHeadingLikeError(line, index, match, ctx);
+  }
 }
 
 module.exports = {

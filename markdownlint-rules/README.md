@@ -25,10 +25,8 @@ In this repo they are registered in [.markdownlint-cli2.jsonc](../.markdownlint-
 You can reuse any of them in your own project; see [Reusing These Rules](#reusing-these-rules) below.
 Some rules are **fixable** (heading-title-case, ascii-only, heading-numbering, no-heading-like-lines, one-sentence-per-line): they report `fixInfo` so `markdownlint-cli2 --fix` and the editor "Fix all" can apply corrections automatically.
 
-- **Requirements:** Node.
-  js and [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) (or the [markdownlint](https://github.com/DavidAnson/markdownlint) core with custom rule support).
-  When reusing rules, copy any helper files they depend on; see [Shared Helper](#shared-helper) for which rules require **utils.
-    js**.
+- **Requirements:** `Node.js` and [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) (or the [markdownlint](https://github.com/DavidAnson/markdownlint) core with custom rule support).
+  When reusing rules, copy any helper files they depend on; see [Shared Helper](#shared-helper) for which rules require `utils.js`.
 - **Rule modules**: Each `*.js` file here (except `utils.js`) is a custom rule.
 - **Config**: Rule-specific options are set under the rule name in a markdownlint config file.
   You can use `.markdownlint.yml` or `.markdownlint.json` (markdownlint accepts either).
@@ -42,8 +40,7 @@ To use one or more of these rules in another repo:
 1. Create a `.markdownlint-rules` directory in that repo (if it does not exist).
 2. Copy the rule file(s) you want (e.g. `ascii-only.js`, `no-heading-like-lines.js`) into `.markdownlint-rules`.
 3. If a rule depends on helpers, copy those too.
-   Most rules require **utils.
-    js** (see [Shared Helper](#shared-helper) for the full list).
+   Most rules require `utils.js` (see [Shared Helper](#shared-helper) for the full list).
    Copy `utils.js` into `.markdownlint-rules` and do **not** list it in `customRules` (see below).
    **no-heading-like-lines** optionally uses `heading-title-case.js` and `heading-numbering.js` when `convertToHeading: true` (for AP title case and number prefixes); copy those into the same directory only if you want that behavior.
 4. In the repo root, in `.markdownlint-cli2.jsonc` (or your config file), add the rule name(s) to the `customRules` array and set `customRulePaths` so it points at your `.markdownlint-rules` folder (see [markdownlint-cli2 custom rules](https://github.com/DavidAnson/markdownlint-cli2#custom-rules)).
@@ -298,7 +295,8 @@ document-length:
   Must be a positive integer.
 - **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
 
-**Behavior:** When the file has more than `maximum` lines, the rule reports a single error on line 1. The message includes the actual line count and the maximum and suggests splitting into smaller files.
+**Behavior:** When the file has more than `maximum` lines, the rule reports a single error on line 1.
+The message includes the actual line count and the maximum and suggests splitting into smaller files.
 
 ### `ascii-only`
 
@@ -634,18 +632,15 @@ one-sentence-per-line:
 
 ## Shared Helper
 
-**utils.
-js** is not a rule; it provides utilities used by all custom rules in this repo.
+`utils.js` is not a rule; it provides utilities used by all custom rules in this repo.
 Do not list it in `customRules` in `.markdownlint-cli2.jsonc`.
 When reusing any rule, copy `utils.js` into your `.markdownlint-rules` (see [Reusing These Rules](#reusing-these-rules)).
 
-**All custom rules in this repo depend on utils.
-js** (for `pathMatchesAny` and/or other helpers): allow-custom-anchors, ascii-only, document-length, fenced-code-under-heading, heading-min-words, heading-numbering, heading-title-case, no-duplicate-headings-normalized, no-empty-heading, no-heading-like-lines, no-h1-content, one-sentence-per-line.
+**All custom rules in this repo depend on `utils.js`** (for `pathMatchesAny` and/or other helpers): allow-custom-anchors, ascii-only, document-length, fenced-code-under-heading, heading-min-words, heading-numbering, heading-title-case, no-duplicate-headings-normalized, no-empty-heading, no-heading-like-lines, no-h1-content, one-sentence-per-line.
 
 **All custom rules accept `excludePathPatterns`** (optional list of glob patterns).
 When the file path matches any pattern, the rule is skipped for that file.
-This uses `pathMatchesAny` from utils.
-js.
+This uses `pathMatchesAny` from `utils.js`.
 
 - **Heading and content:** `extractHeadings`, `iterateNonFencedLines`, `iterateProseLines`, `stripInlineCode`, `parseHeadingNumberPrefix`, `normalizeHeadingTitleForDup`, `normalizedTitleForDuplicate`, `RE_ATX_HEADING`, `RE_NUMBERING_PREFIX`.
 - **Path/glob matching:** `globToRegExp`, `matchGlob`, `pathMatchesAny` - used for `excludePathPatterns` and other path options (e.g. ascii-only `allowedPathPatternsUnicode`).

@@ -299,4 +299,30 @@ describe("ascii-only", () => {
       assert.ok(!errors[0].fixInfo, "error should not have fixInfo when unicodeReplacements has no replacement for the character");
     });
   });
+
+  describe("edge cases", () => {
+    it("line containing only variation selector after allowed emoji is allowed", () => {
+      const lines = ["\u263A\uFE00"];
+      const errors = runRule(rule, lines, {
+        allowedPathPatternsEmoji: ["*.md"],
+        allowedEmoji: ["\u263A"],
+      }, "doc.md");
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("astral character (emoji) reported with code point in detail (4–6 hex digits)", () => {
+      const lines = ["Smile \u{1F600} here"];
+      const errors = runRule(rule, lines, {}, "doc.md");
+      assert.ok(errors.length >= 1);
+      assert.ok(errors.some((e) => /U\+[0-9A-F]{4,6}/i.test(e.detail)), "detail should include code point");
+    });
+
+    it("path matching both unicode and emoji patterns allows unicode when only unicode config set", () => {
+      const lines = ["Café"];
+      const errors = runRule(rule, lines, {
+        allowedPathPatternsUnicode: ["*.md"],
+      }, "doc.md");
+      assert.strictEqual(errors.length, 0);
+    });
+  });
 });

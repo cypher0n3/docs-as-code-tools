@@ -141,7 +141,8 @@ Edit utils.js or README.md.
             path.write_text(content, encoding="utf-8")
             overrides = {"default": False, RULE: True}
             proc = _run_markdownlint(path, fix=False, config_overrides=overrides)
-            self.assertEqual(proc.returncode, 0, f"no one-sentence-per-line errors expected: {proc.stderr}")
+            msg = f"no one-sentence-per-line errors expected: {proc.stderr}"
+            self.assertEqual(proc.returncode, 0, msg)
 
     def test_exclude_path_patterns_skips_rule(self) -> None:
         """With excludePathPatterns matching file, no error and fix not needed."""

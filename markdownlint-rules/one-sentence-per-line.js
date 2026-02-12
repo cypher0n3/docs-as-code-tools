@@ -91,7 +91,11 @@ function getNextToken(scanned, startIndex) {
 }
 
 function isAbbreviation(scanned, i, j, abbreviations) {
-  if (scanned[i] === "." && i > 0 && /\d/.test(scanned[i - 1])) return true;
+  if (scanned[i] === "." && i > 0 && /\d/.test(scanned[i - 1])) {
+    const nextToken = getNextToken(scanned, j);
+    if (/^\d/.test(nextToken)) return true;
+    return false;
+  }
   const word = getWordBefore(scanned, i);
   if (word.length === 0) return false;
   const nextToken = getNextToken(scanned, j);
@@ -102,6 +106,27 @@ function isAbbreviation(scanned, i, j, abbreviations) {
     || abbreviations.has(wordWithNext) || abbreviations.has(wordWithNextLower);
 }
 
+/** Skip optional quotes after position i; return next position or null if no space follows. */
+function skipQuotesThenSpace(scanned, i) {
+  let pos = i + 1;
+  while (pos < scanned.length && (scanned[pos] === "'" || scanned[pos] === '"')) {
+    pos++;
+  }
+  if (pos >= scanned.length || scanned[pos] === "\n" || scanned[pos] !== " ") return null;
+  return pos;
+}
+
+/** From start of spaces, skip spaces and return { spaceStart, j } or null if no word char follows. */
+function spaceStartAndNextWordPos(scanned, spaceStart) {
+  let pos = spaceStart;
+  while (pos < scanned.length && scanned[pos] === " ") {
+    pos++;
+  }
+  const j = pos;
+  if (j >= scanned.length || scanned[j] === "\n" || !/[a-zA-Z0-9]/.test(scanned[j])) return null;
+  return { spaceStart, j };
+}
+
 /**
  * Find index of the first sentence boundary (space before second sentence) in content.
  * Uses stripInlineCode; skips link/paren context; avoids decimals and abbreviations.
@@ -110,21 +135,11 @@ function isAbbreviation(scanned, i, j, abbreviations) {
  * @returns {number|null} Index of space before second sentence, or null if at most one sentence
  */
 function trySentenceBoundary(scanned, i, abbreviations) {
-  let pos = i + 1;
-  while (pos < scanned.length && (scanned[pos] === "'" || scanned[pos] === '"')) {
-    pos++;
-  }
-  if (pos >= scanned.length || scanned[pos] === "\n") return null;
-  if (scanned[pos] !== " ") return null;
-  const spaceStart = pos;
-  while (pos < scanned.length && scanned[pos] === " ") {
-    pos++;
-  }
-  const j = pos;
-  if (j >= scanned.length || scanned[j] === "\n") return null;
-  if (!/[a-zA-Z0-9]/.test(scanned[j])) return null;
-  if (isAbbreviation(scanned, i, j, abbreviations)) return null;
-  return i > 0 ? spaceStart : null;
+  const spaceStart = skipQuotesThenSpace(scanned, i);
+  if (spaceStart === null) return null;
+  const after = spaceStartAndNextWordPos(scanned, spaceStart);
+  if (!after || isAbbreviation(scanned, i, after.j, abbreviations)) return null;
+  return i > 0 ? after.spaceStart : null;
 }
 
 function getFirstSentenceBoundary(content, opts) {

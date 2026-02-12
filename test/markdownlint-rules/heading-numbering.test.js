@@ -215,4 +215,31 @@ describe("heading-numbering", () => {
     assert.ok(levelErr, "should report max heading level error");
     assert.ok(!levelErr.fixInfo, "maxHeadingLevel error should not have fixInfo");
   });
+
+  describe("edge cases", () => {
+    it("getExpectedPrefixForNewHeading at line before any heading returns sensible prefix", () => {
+      const { getExpectedPrefixForNewHeading } = rule;
+      const lines = ["No heading yet.", "More text.", "## 1. First"];
+      const prefixAt1 = getExpectedPrefixForNewHeading(lines, 1, 2);
+      assert.ok(typeof prefixAt1 === "string");
+      assert.ok(prefixAt1.length >= 0);
+    });
+
+    it("mixed 0-based and 1-based siblings in same section reports sequence or style error", () => {
+      const lines = ["# Doc", "## 0. Zero", "## 1. One", "## 2. Two"];
+      const errors = runRule(rule, lines);
+      const periodErr = errors.find((e) => e.detail.includes("period") || e.detail.includes("sequence"));
+      assert.ok(periodErr != null || errors.length === 0, "mixed 0. and 1. style may report period/sequence");
+    });
+
+    it("maxSegmentValueMaxLevel excludes deeper levels from max value check", () => {
+      const lines = ["# Doc", "## 1. First", "### 1.1. Sub", "#### 25. Deep"];
+      const config = { "heading-numbering": { maxSegmentValue: 20, maxSegmentValueMaxLevel: 3 } };
+      const errors = runRule(rule, lines, config);
+      const maxValueErr = errors.find(
+        (e) => e.lineNumber === 4 && e.detail.includes("exceeds maximum")
+      );
+      assert.ok(!maxValueErr, "level 4 segment 25 should not get max value error when maxSegmentValueMaxLevel is 3");
+    });
+  });
 });

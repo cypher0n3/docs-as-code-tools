@@ -33,8 +33,7 @@ This directory contains Python scripts used to support this repository's test su
 ## Requirements
 
 - Python 3
-- Node.
-  js and npm (the verifier runs `markdownlint-cli2` via the repo's `node_modules` or `npx`)
+- `Node.js` and npm (the verifier runs `markdownlint-cli2` via the repo's `node_modules` or `npx`)
 
 ## Usage
 
