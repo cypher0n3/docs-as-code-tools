@@ -21,7 +21,7 @@ lint-readmes:
 		MDL="npx markdownlint-cli2"; \
 	fi; \
 	echo "Linting READMEs..."; \
-	$$MDL README.md **/README.md markdownlint-rules/README.md CONTRIBUTING.md
+	$$MDL --fix README.md **/README.md markdownlint-rules/README.md CONTRIBUTING.md
 
 # JavaScript linting - performs same checks as GitHub Actions workflow
 # NOTE: This target must be kept in sync with .github/workflows/js-lint.yml.

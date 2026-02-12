@@ -178,6 +178,9 @@ negative_heading_numbering.md:
     - line: 35
       rule: heading-numbering
       message_contains: Too Many Segments for H4
+    - line: 41
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
     - line: 47
       rule: heading-numbering
       message_contains: expected "1" to match sibling
@@ -266,6 +269,24 @@ negative_no_empty_heading.md:
     - line: 51
       rule: no-empty-heading
       message_contains: at least one line of content
+
+negative_one_sentence_per_line.md:
+  errors:
+    - line: 8
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 10
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 12
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 17
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 18
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
 
 negative_inline_html.md:
   errors:

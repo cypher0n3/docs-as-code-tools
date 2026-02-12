@@ -200,4 +200,13 @@ allow-custom-anchors:
 #   excludePathPatterns: list of globs; skip this rule for matching file paths
 # no-duplicate-headings-normalized:
 #   # excludePathPatterns: ["**/README.md"]
+
+# one-sentence-per-line: enforce one sentence per line in prose and list content. Fixable (repeated Fix all).
+# Options (all optional):
+#   continuationIndent: number (default 4); spaces for paragraph continuation lines
+#   strictAbbreviations: list of strings; abbreviations that do not end a sentence (extends/replaces default)
+#   excludePathPatterns: list of globs; skip this rule for matching file paths
+# one-sentence-per-line:
+#   continuationIndent: 4
+#   # excludePathPatterns: ["**/README.md"]
 ...

@@ -37,13 +37,14 @@ class TestFixAsciiOnly(unittest.TestCase):
     def test_fix_applied_and_file_updated(self) -> None:
         # Use characters that have default unicodeReplacements: → ->, " ", ' '
         # Include minimal TOC under first h1 so no-h1-content passes.
+        # Use one sentence so one-sentence-per-line does not trigger.
         content_before = """# Test
 
 - [Section One](#section-one)
 
 ## Section One
 
-Arrow \u2192 here. Smart quotes: \u201cleft\u201d and \u2018right\u2019.
+Arrow \u2192 here and smart quotes: \u201cleft\u201d and \u2018right\u2019.
 """
         content_after = """# Test
 
@@ -51,7 +52,7 @@ Arrow \u2192 here. Smart quotes: \u201cleft\u201d and \u2018right\u2019.
 
 ## Section One
 
-Arrow -> here. Smart quotes: "left" and 'right'.
+Arrow -> here and smart quotes: "left" and 'right'.
 """
         with tempfile.TemporaryDirectory(prefix="fix_ascii_only_") as tmp:
             path = Path(tmp) / "test.md"

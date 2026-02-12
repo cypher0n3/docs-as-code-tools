@@ -294,9 +294,88 @@ function* iterateLinesWithFenceInfo(lines) {
   }
 }
 
+/** Match link-reference definition line (e.g. [id]: https://...). */
+const RE_LINK_REF_DEF = /^\[[^\]]+\]:\s/;
+/** Match ATX heading. */
+const RE_ATX_HEADING_LINE = /^#{1,6}\s+/;
+/** Match thematic break (---, ***, ___). */
+const RE_THEMATIC_BREAK = /^(\s*)([-*_])\s*\2\2\s*$/;
+
+function isProseBlank(trimmed, line) {
+  return trimmed === "" || /^\s*$/.test(line);
+}
+
+function updateFrontMatterState(trimmed, lineNumber, inFrontMatter) {
+  if (trimmed !== "---" && !/^---\s*$/.test(trimmed)) {
+    return { toggled: false, inFrontMatter };
+  }
+  const open = lineNumber === 1;
+  const close = inFrontMatter && lineNumber > 1;
+  return { toggled: true, inFrontMatter: open ? true : (close ? false : inFrontMatter) };
+}
+
+function isProseSkipLine(ctx) {
+  if (RE_LINK_REF_DEF.test(ctx.trimmed)) return true;
+  if (ctx.hasPipe && ctx.prevHadPipe && ctx.inTable) return true;
+  if (RE_ATX_HEADING_LINE.test(ctx.trimmed)) return true;
+  if (RE_THEMATIC_BREAK.test(ctx.line)) return true;
+  return false;
+}
+
+/**
+ * Iterate over lines that are prose (excludes fenced code, front matter, link refs,
+ * table rows, ATX headings, thematic breaks, blank lines).
+ * Table context: a line with | is skipped only when the previous line also had |
+ * (two consecutive lines with |), to avoid false positives on single | in prose.
+ *
+ * @param {string[]} lines - All lines
+ * @yields {{ lineNumber: number, line: string, trimmed: string }}
+ */
+function* iterateProseLines(lines) {
+  let inFrontMatter = false;
+  let prevHadPipe = false;
+  let inTable = false;
+
+  for (const { lineNumber, line, trimmed } of iterateNonFencedLines(lines)) {
+    const hasPipe = line.includes("|");
+
+    if (isProseBlank(trimmed, line)) {
+      inTable = false;
+      prevHadPipe = false;
+      continue;
+    }
+
+    const fm = updateFrontMatterState(trimmed, lineNumber, inFrontMatter);
+    if (fm.toggled) {
+      inFrontMatter = fm.inFrontMatter;
+      prevHadPipe = false;
+      inTable = false;
+      if (lineNumber === 1 || inFrontMatter) continue;
+    }
+    if (inFrontMatter) {
+      prevHadPipe = false;
+      inTable = false;
+      continue;
+    }
+
+    if (hasPipe) {
+      if (prevHadPipe) inTable = true;
+      prevHadPipe = true;
+    } else {
+      inTable = false;
+      prevHadPipe = false;
+    }
+
+    if (isProseSkipLine({ trimmed, line, hasPipe, prevHadPipe, inTable })) continue;
+
+    yield { lineNumber, line, trimmed };
+  }
+}
+
 module.exports = {
   stripInlineCode,
   iterateNonFencedLines,
+  iterateProseLines,
   iterateLinesWithFenceInfo,
   parseFenceInfo,
   extractHeadings,

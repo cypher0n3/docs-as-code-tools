@@ -51,19 +51,24 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
     By default blank/HTML-comment/HTML-tag lines do not count; code block lines do count (configurable).
 - **negative_no_h1_content.md** - no-h1-content
   - Prose under the first h1 (only TOC-style content allowed there).
+- **negative_one_sentence_per_line.md** - one-sentence-per-line
+  - Prose and list lines with multiple sentences (paragraph, bullet, numbered, nested); line with abbreviation (e.g.) not reported.
 
 Note: some negative fixtures intentionally trigger built-in markdownlint rules in addition to custom rules (e.g. MD031/MD032/MD033), so the test suite can assert multiple errors on specific lines.
 
 ## Expectations
 
-Expected errors are defined in **expected_errors.yml** (one entry per fixture, keyed by filename). Each entry has:
+Expected errors are defined in **expected_errors.yml** (one entry per fixture, keyed by filename).
+Each entry has:
 
-- **errors**: list of expected errors. Each error has:
+- **errors**: list of expected errors.
+  Each error has:
   - **line** (required), **rule** (required)
   - **column** (optional) - for rules that report at character level (e.g. ascii-only, heading-title-case); also used for fixable rules (fixInfo)
   - **message_contains** (optional) - substring that must appear in the rule's message
 
-Total expected count is the length of the errors list. The `make test-markdownlint` target runs `test-scripts/verify_markdownlint_fixtures.py`, which lints each fixture and validates output against this file.
+Total expected count is the length of the errors list.
+The `make test-markdownlint` target runs `test-scripts/verify_markdownlint_fixtures.py`, which lints each fixture and validates output against this file.
 
 ## Linting
 
@@ -75,7 +80,7 @@ Total expected count is the length of the errors list. The `make test-markdownli
 
   `make test-markdownlint`
 
-- Some rules (heading-title-case, ascii-only, heading-numbering) are fixable; use `markdownlint-cli2 --fix <file>.md` to apply fixes.
+- Some rules (heading-title-case, ascii-only, heading-numbering, one-sentence-per-line) are fixable; use `markdownlint-cli2 --fix <file>.md` to apply fixes.
   Functional fix tests in [test-scripts/](../test-scripts/README.md) verify fix behavior.
 
 See **expected_errors.yml** for the expected errors per fixture.
