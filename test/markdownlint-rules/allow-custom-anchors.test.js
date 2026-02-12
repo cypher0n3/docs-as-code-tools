@@ -19,6 +19,27 @@ describe("allow-custom-anchors", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("skips when file path matches excludePathPatterns", () => {
+    const lines = ["<a id=\"custom\"></a>", "Content"];
+    const config = { allowedIdPatterns: ["^spec-"], excludePathPatterns: ["**"] };
+    const errors = runRule(rule, lines, config, "any.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("skips when file path matches excludePathPatterns (rule-level config)", () => {
+    const lines = ["<a id=\"custom\"></a>"];
+    const config = { "allow-custom-anchors": { allowedIdPatterns: ["^spec-"], excludePathPatterns: ["**"] } };
+    const errors = runRule(rule, lines, config, "any.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("stays in fence when different fence marker appears (~~~ after ```)", () => {
+    const lines = ["```", "code", "~~~", "more", "```", "<a id=\"custom\"></a>"];
+    const errors = runRule(rule, lines, { allowedIdPatterns: ["^spec-"] });
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 6);
+  });
+
   it("reports error for anchor id not matching allowed pattern", () => {
     // allowedIdPatterns: only ids starting with "spec-" are allowed.
     const lines = ["<a id=\"custom\"></a>", "Content"];

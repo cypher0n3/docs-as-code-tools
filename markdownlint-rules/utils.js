@@ -92,8 +92,9 @@ function* iterateNonFencedLines(lines) {
  */
 function extractHeadings(lines) {
   const result = [];
-  for (const { lineNumber, trimmed } of iterateNonFencedLines(lines)) {
-    const match = trimmed.match(RE_ATX_HEADING);
+  for (const { lineNumber, line } of iterateNonFencedLines(lines)) {
+    const content = line.replace(/^\s+/, "");
+    const match = content.match(RE_ATX_HEADING);
     if (match) {
       const level = match[1].length;
       const rawText = match[2].trim();

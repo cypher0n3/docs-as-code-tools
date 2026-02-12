@@ -42,6 +42,42 @@ describe("no-heading-like-lines", () => {
     assert.ok(errors[0].detail.includes("numbered") || errors[0].detail.includes("bold"), "detail should describe the matched pattern");
   });
 
+  it("reports error for MD036-style **Introduction** (whole line bold)", () => {
+    const lines = ["**Introduction**", "Content here."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 1);
+    assert.ok(errors[0].detail.includes("bold only") || errors[0].detail.includes("whole line"), "detail should describe whole-line bold");
+  });
+
+  it("reports error for MD036-style *Note* (whole line italic)", () => {
+    const lines = ["*Note*", "Content here."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 1);
+    assert.ok(errors[0].detail.includes("italic only") || errors[0].detail.includes("whole line"), "detail should describe whole-line italic");
+  });
+
+  it("does not report **Summary.** when content ends with punctuation (punctuationMarks)", () => {
+    const lines = ["**Summary.**", "Content."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "whole-line bold ending with . should be skipped by default punctuationMarks");
+  });
+
+  it("does not report *Note.* when content ends with punctuation", () => {
+    const lines = ["*Note.*", "Content."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports **Summary.** when punctuationMarks is empty", () => {
+    const lines = ["**Summary.**", "Content."];
+    const config = { "no-heading-like-lines": { punctuationMarks: "" } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].fixInfo.insertText, "Summary.");
+  });
+
   it("ignores empty lines", () => {
     const lines = ["", "   ", ""];
     const errors = runRule(rule, lines);
@@ -55,6 +91,28 @@ describe("no-heading-like-lines", () => {
     assert.strictEqual(errorsMatch.length, 0, "matching path should be excluded");
     const errorsNoMatch = runRule(rule, lines, config, "project/src/guide.md");
     assert.strictEqual(errorsNoMatch.length, 1, "non-matching path should report error");
+  });
+
+  it("skips when file path matches excludePathPatterns (top-level config)", () => {
+    const lines = ["**Summary:**", "Content."];
+    const config = { excludePathPatterns: ["**"] };
+    const errors = runRule(rule, lines, config, "any.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("uses default heading level 2 when defaultHeadingLevel is invalid", () => {
+    const lines = ["**Summary:**", "Content."];
+    const config = { "no-heading-like-lines": { convertToHeading: true, defaultHeadingLevel: 0 } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].fixInfo.insertText.startsWith("## "), "invalid defaultHeadingLevel falls back to 2");
+  });
+
+  it("skips when file path matches excludePathPatterns (rule-level config)", () => {
+    const lines = ["**Summary:**", "Content."];
+    const config = { "no-heading-like-lines": { excludePathPatterns: ["**"] } };
+    const errors = runRule(rule, lines, config, "any.md");
+    assert.strictEqual(errors.length, 0);
   });
 
   describe("fixInfo (default stripEmphasis)", () => {
@@ -73,6 +131,20 @@ describe("no-heading-like-lines", () => {
       const errors = runRule(rule, lines, {});
       assert.strictEqual(errors.length, 1);
       assert.strictEqual(errors[0].fixInfo.insertText, "Introduction");
+    });
+
+    it("provides fixInfo for **Introduction** (whole line bold) with insertText Introduction", () => {
+      const lines = ["**Introduction**", "Content."];
+      const errors = runRule(rule, lines, {});
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].fixInfo.insertText, "Introduction");
+    });
+
+    it("provides fixInfo for *Note* (whole line italic) with insertText Note", () => {
+      const lines = ["*Note*", "Content."];
+      const errors = runRule(rule, lines, {});
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].fixInfo.insertText, "Note");
     });
   });
 
@@ -101,6 +173,14 @@ describe("no-heading-like-lines", () => {
       const errors = runRule(rule, lines, config);
       assert.strictEqual(errors.length, 1);
       assert.ok(errors[0].fixInfo.insertText.startsWith("## "), "invalid defaultHeadingLevel should fall back to ##");
+    });
+
+    it("valid defaultHeadingLevel 3 suggests ### (getContextLevel branch)", () => {
+      const lines = ["**Title:**", "Content."];
+      const config = { "no-heading-like-lines": { convertToHeading: true, defaultHeadingLevel: 3 } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo.insertText.startsWith("### "), "defaultHeadingLevel 3 should suggest ###");
     });
 
     it("suggests correct level and title when document has numbered headings", () => {

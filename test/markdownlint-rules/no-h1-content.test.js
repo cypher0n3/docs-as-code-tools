@@ -43,6 +43,12 @@ describe("no-h1-content", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("reports no errors for multi-line HTML comment under h1", () => {
+    const lines = ["# Title", "<!--", "  Expect: some note", "-->", "", "## Section"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("reports no errors for badge lines under h1", () => {
     const lines = [
       "# Repo",

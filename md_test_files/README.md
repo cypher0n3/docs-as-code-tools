@@ -37,7 +37,7 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
 - **negative_fenced_code_under_heading.md** - fenced-code-under-heading
   - Fenced blocks (e.g. `go`) not under a heading; excess blocks per heading when maxBlocksPerHeading is set.
 - **negative_heading_like.md** - no-heading-like-lines
-  - Lines that look like headings (e.g. `**Text:**`, `1. **Text**`) but are not ATX headings.
+  - Lines that look like headings (e.g. `**Text:**`, `1. **Text**`, whole-line emphasis `**Introduction**` / `*Note*`) but are not ATX headings.
 - **negative_heading_min_words.md** - heading-min-words
   - Headings with fewer than the required word count (e.g. single-word H2/H4 when minWords is 2).
 - **negative_heading_numbering.md** - heading-numbering

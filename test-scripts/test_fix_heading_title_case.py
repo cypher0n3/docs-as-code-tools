@@ -7,19 +7,14 @@ assert markdownlint reports errors, run --fix, then assert file content matches 
 from __future__ import annotations
 
 import subprocess  # nosec B404
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-# Repo root and verifier helpers
+import verify_markdownlint_fixtures as v
+from markdownlint_config_helper import run_markdownlint_with_config
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_TEST_SCRIPTS = _REPO_ROOT / "test-scripts"
-if str(_TEST_SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(_TEST_SCRIPTS))
-
-import verify_markdownlint_fixtures as v  # noqa: E402
-
 RULE = "heading-title-case"
 
 
@@ -90,3 +85,118 @@ Last word "practice" should be capitalized.
                 actual, content_after,
                 "file content after --fix should match expected",
             )
+
+    def test_fix_heading_with_backticks_and_parentheses(self) -> None:
+        """Heading with inline code (backticks) and parens: fix must target correct words."""
+        content_before = """# Linter suppressions
+
+## Python: `# noqa: E402` (module level import not at top of file)
+
+Text.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_heading_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertNotEqual(proc.returncode, 0, "expected lint errors before fix")
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertIn("`# noqa: E402`", actual, "inline code (backticks) must be preserved")
+            self.assertIn("(Module ", actual, "(module -> (Module at correct position")
+            self.assertIn(" of File)", actual, "file must be fixed to File (last word)")
+            self.assertNotIn("(module ", actual, "(module should have been fixed")
+            self.assertNotIn(" of file)", actual, "file should have been fixed to File")
+
+    def test_fix_filenames_in_parens_get_backticks_not_title_case(self) -> None:
+        """Filenames like (utils.js, allow-custom-anchors.js) get backticks, not Title Case."""
+        content_before = """# Suppressions
+
+## ESLint
+
+Rules and options.
+
+### `security/detect-non-literal-regexp` (utils.js, allow-custom-anchors.js)
+
+Text.
+"""
+        content_after = """# Suppressions
+
+## ESLint
+
+Rules and options.
+
+### `security/detect-non-literal-regexp` (`utils.js`, `allow-custom-anchors.js`)
+
+Text.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_heading_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertNotEqual(proc.returncode, 0, "expected lint errors before fix")
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertEqual(
+                actual, content_after,
+                "filenames in parens get backticks, not title case",
+            )
+
+
+class TestHeadingTitleCaseOptions(unittest.TestCase):
+    """heading-title-case: config options (lowercaseWordsReplaceDefault, excludePathPatterns)."""
+
+    def test_fix_with_lowercase_words_replace_default(self) -> None:
+        content_before = """# T
+
+- [T](#the-and-bar)
+
+## The And Bar
+
+Content.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc = run_markdownlint_with_config(
+                {
+                    "heading-title-case": {
+                        "lowercaseWords": ["and"],
+                        "lowercaseWordsReplaceDefault": True,
+                    },
+                },
+                path,
+                fix=True,
+            )
+            self.assertEqual(proc.returncode, 0)
+            actual = path.read_text(encoding="utf-8")
+            self.assertIn("The and Bar", actual)
+
+    def test_exclude_path_patterns_skips_rule(self) -> None:
+        content = """# T
+
+- [A](#all-lowercase-wrong)
+
+## all lowercase wrong
+
+Content.
+"""
+        tmp = _REPO_ROOT / "tmp"
+        tmp.mkdir(exist_ok=True)
+        path = tmp / "excluded_titlecase_fix.md"
+        rel = "tmp/excluded_titlecase_fix.md"
+        path.write_text(content, encoding="utf-8")
+        try:
+            proc = run_markdownlint_with_config(
+                {
+                    "default": False,
+                    "heading-title-case": {
+                        "excludePathPatterns": ["**", "**/excluded_titlecase_fix.md"],
+                    },
+                },
+                rel,
+            )
+            self.assertEqual(proc.returncode, 0)
+        finally:
+            path.unlink(missing_ok=True)

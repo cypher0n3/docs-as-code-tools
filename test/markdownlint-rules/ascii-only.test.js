@@ -19,6 +19,13 @@ describe("ascii-only", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("skips when file path matches excludePathPatterns", () => {
+    const lines = ["Café"];
+    const config = { excludePathPatterns: ["**/excluded.md"] };
+    const errors = runRule(rule, lines, config, "path/excluded.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("reports error for non-ASCII when path not allowlisted", () => {
     // Arrow → is not in default allowed set; reported when path is not in allowlist.
     const lines = ["Use arrow \u2192 here"];

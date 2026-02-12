@@ -15,6 +15,13 @@ function makeLines(n) {
 }
 
 describe("document-length", () => {
+  it("skips when file path matches excludePathPatterns", () => {
+    const lines = makeLines(1501);
+    const config = { excludePathPatterns: ["**/long.md"] };
+    const errors = runRule(rule, lines, config, "docs/long.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("reports no errors when lines.length <= maximum (default 1500)", () => {
     const lines = makeLines(1500);
     const errors = runRule(rule, lines);
@@ -65,6 +72,29 @@ describe("document-length", () => {
     const errors = runRule(rule, lines, { maximum: "1500" });
     assert.strictEqual(errors.length, 1);
     assert.ok(errors[0].detail.includes("1500"));
+  });
+
+  it("uses top-level maximum when rule block has no maximum", () => {
+    const lines = makeLines(11);
+    const config = { "document-length": {}, maximum: 10 };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].detail.includes("11") && errors[0].detail.includes("10"));
+  });
+
+  it("uses rule-level maximum when config has document-length block", () => {
+    const lines = makeLines(11);
+    const config = { "document-length": { maximum: 10 } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].detail.includes("11") && errors[0].detail.includes("10"));
+  });
+
+  it("skips when params.config is undefined (branch coverage)", () => {
+    const lines = makeLines(1501);
+    const errors = [];
+    rule.function({ lines, config: undefined, name: "x.md" }, (e) => errors.push(e));
+    assert.strictEqual(errors.length, 1, "no excludePathPatterns so rule runs and reports over limit");
   });
 
   it("reports error with empty context when first line is undefined (over limit)", () => {

@@ -98,6 +98,13 @@ describe("no-empty-heading", () => {
     assert.strictEqual(errors[0].lineNumber, 2);
   });
 
+  it("reports error for H2 with only multi-line HTML comment (lines do not count as content)", () => {
+    const lines = ["# Doc", "## Empty", "<!--", "  multi-line comment", "-->", "## Next", "Content."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
+  });
+
   it("reports no error when section has only the suppress comment (no-empty-heading allow)", () => {
     const lines = ["# Doc", "## Empty", "<!-- no-empty-heading allow -->", "## Next", "Content."];
     const errors = runRule(rule, lines);

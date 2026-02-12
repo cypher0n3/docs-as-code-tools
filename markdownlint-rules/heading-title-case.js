@@ -3,8 +3,21 @@
 const {
   extractHeadings,
   parseHeadingNumberPrefix,
+  pathMatchesAny,
   stripInlineCode,
 } = require("./utils.js");
+
+/** Token looks like a file name (e.g. README.md, package.json, Makefile); suggest backticks instead of case change. */
+const RE_FILE_LIKE = /^[^\s`]*[A-Za-z][^\s`]*\.[A-Za-z0-9]+$/;
+const FILENAME_NO_EXT = new Set(["makefile", "dockerfile", "dockerignore", "gitignore", "gitattributes", "npmrc", "editorconfig"]);
+
+function looksLikeFileName(token) {
+  if (!token || typeof token !== "string") return false;
+  const t = token.trim();
+  if (RE_FILE_LIKE.test(t)) return true;
+  const lower = t.toLowerCase();
+  return FILENAME_NO_EXT.has(lower) || FILENAME_NO_EXT.has(lower.replace(/^\./, ""));
+}
 
 /** Default lowercase words for AP-style headings (unless first/last/subphrase-start). */
 const DEFAULT_LOWERCASE_WORDS = new Set([
@@ -305,6 +318,9 @@ function applyTitleCase(titleText, options = {}) {
 
 /**
  * Get 1-based column and length of the i-th word (or segment within it) in the heading line.
+ * Uses the same tokenization as checkTitleCase (stripInlineCode then \S+) so word indices
+ * align when the heading contains inline code (backticks) or parentheses.
+ *
  * @param {string} line - Full source line (e.g. "## 1.2 The quick Brown")
  * @param {string} rawText - Content after ATX prefix (e.g. "1.2 The quick Brown")
  * @param {string} titleText - Content after numbering (e.g. "The quick Brown")
@@ -313,7 +329,8 @@ function applyTitleCase(titleText, options = {}) {
  */
 function getWordRangeInLine(line, rawText, titleText, opts) {
   const { wordIndex, segmentOffset, segmentLength } = opts;
-  const wordMatches = [...titleText.matchAll(/\S+/g)];
+  const withCodeStripped = stripInlineCode(titleText);
+  const wordMatches = [...withCodeStripped.matchAll(/\S+/g)];
   if (wordIndex < 0 || wordIndex >= wordMatches.length) return null;
   const rawTextStart = line.indexOf(rawText);
   if (rawTextStart === -1) return null;
@@ -352,6 +369,76 @@ function reportTitleCaseError(opts) {
   });
 }
 
+function shouldSkipByPath(filePath, options) {
+  const excludePatterns = options.excludePathPatterns;
+  return Array.isArray(excludePatterns) && excludePatterns.length > 0 && pathMatchesAny(filePath, excludePatterns);
+}
+
+function getLowercaseWords(options) {
+  const customLower = options.lowercaseWords;
+  const configSet = Array.isArray(customLower)
+    ? new Set(customLower.map((w) => String(w).toLowerCase().trim()).filter(Boolean))
+    : new Set();
+  const replaceDefault = options.lowercaseWordsReplaceDefault === true;
+  return replaceDefault ? configSet : new Set([...DEFAULT_LOWERCASE_WORDS, ...configSet]);
+}
+
+/**
+ * Return { core, prefix, suffix } so that raw === prefix + core + suffix and core has no leading/trailing punctuation.
+ * @param {string} raw - Word token (e.g. "(utils.js," or "allow-custom-anchors.js)")
+ * @returns {{ core: string, prefix: string, suffix: string }}
+ */
+function splitWordPunctuation(raw) {
+  const core = stripWordPunctuation(raw);
+  const leading = raw.match(/^[^A-Za-z0-9]*/)?.[0] ?? "";
+  const trailing = raw.match(/[^A-Za-z0-9]*$/)?.[0] ?? "";
+  return { core, prefix: leading, suffix: trailing };
+}
+
+function reportFilenameErrors(h, line, titleText, onError) {
+  const words = stripInlineCode(titleText).split(/\s+/).filter((w) => w.length > 0);
+  const fileNameWordIndices = new Set();
+  for (let wi = 0; wi < words.length; wi++) {
+    const raw = words[wi];
+    const { core, prefix, suffix } = splitWordPunctuation(raw);
+    if (!core || !looksLikeFileName(core)) continue;
+    const rangeInfo = getWordRangeInLine(line, h.rawText, titleText, { wordIndex: wi });
+    /* c8 ignore next 1 -- defensive: titleText is always substring of rawText from parseHeadingNumberPrefix */
+    if (!rangeInfo) continue;
+    fileNameWordIndices.add(wi);
+    const insertText = prefix + "`" + core + "`" + suffix;
+    reportTitleCaseError({
+      onError,
+      lineNumber: h.lineNumber,
+      line,
+      detail: `File name "${core}" should be enclosed in backticks.`,
+      rangeInfo,
+      insertText,
+    });
+  }
+  return fileNameWordIndices;
+}
+
+function reportTitleCaseErrors(opts) {
+  const { h, line, titleText, result, fileNameWordIndices, onError } = opts;
+  for (const err of result.errors) {
+    if (fileNameWordIndices.has(err.wordIndex)) continue;
+    const rangeInfo = getWordRangeInLine(line, h.rawText, titleText, {
+      wordIndex: err.wordIndex,
+      segmentOffset: err.segmentOffset,
+      segmentLength: err.segmentLength,
+    });
+    reportTitleCaseError({
+      onError,
+      lineNumber: h.lineNumber,
+      line,
+      detail: err.detail,
+      rangeInfo,
+      insertText: err.insertText,
+    });
+  }
+}
+
 /**
  * markdownlint rule: enforce AP-style heading capitalization.
  * - First and last words must be capitalized.
@@ -363,40 +450,23 @@ function reportTitleCaseError(opts) {
  * @param {function(object): void} onError - Callback to report an error
  */
 function ruleFunction(params, onError) {
-  const options = params.config?.["heading-title-case"] ?? {};
-  const customLower = options.lowercaseWords;
-  const configSet = Array.isArray(customLower)
-    ? new Set(customLower.map((w) => String(w).toLowerCase().trim()).filter(Boolean))
-    : new Set();
-  const replaceDefault = options.lowercaseWordsReplaceDefault === true;
-  const lowercaseWords = replaceDefault
-    ? configSet
-    : new Set([...DEFAULT_LOWERCASE_WORDS, ...configSet]);
+  const filePath = params.name || "";
+  const options = params.config?.["heading-title-case"] ?? params.config ?? {};
+  if (shouldSkipByPath(filePath, options)) return;
 
-    const headings = extractHeadings(params.lines);
-    for (const h of headings) {
-      const { titleText } = parseHeadingNumberPrefix(h.rawText);
-      const result = checkTitleCase(titleText, lowercaseWords);
-      if (!result.valid) {
-        const line = params.lines[h.lineNumber - 1];
-        for (const err of result.errors) {
-          const rangeInfo = getWordRangeInLine(line, h.rawText, titleText, {
-            wordIndex: err.wordIndex,
-            segmentOffset: err.segmentOffset,
-            segmentLength: err.segmentLength,
-          });
-          reportTitleCaseError({
-            onError,
-            lineNumber: h.lineNumber,
-            line,
-            detail: err.detail,
-            rangeInfo,
-            insertText: err.insertText,
-          });
-        }
-      }
+  const lowercaseWords = getLowercaseWords(options);
+  const headings = extractHeadings(params.lines);
+
+  for (const h of headings) {
+    const { titleText } = parseHeadingNumberPrefix(h.rawText);
+    const line = params.lines[h.lineNumber - 1];
+    const fileNameWordIndices = reportFilenameErrors(h, line, titleText, onError);
+    const result = checkTitleCase(titleText, lowercaseWords);
+    if (!result.valid) {
+      reportTitleCaseErrors({ h, line, titleText, result, fileNameWordIndices, onError });
     }
   }
+}
 
 module.exports = {
   names: ["heading-title-case"],

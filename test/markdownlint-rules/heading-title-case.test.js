@@ -20,6 +20,27 @@ describe("heading-title-case", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("skips when file path matches excludePathPatterns", () => {
+    const lines = ["# all lowercase wrong"];
+    const config = { excludePathPatterns: ["**/excluded.md"] };
+    const errors = runRule(rule, lines, config, "path/excluded.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("skips when file path matches excludePathPatterns (rule-level config)", () => {
+    const lines = ["# all wrong"];
+    const config = { "heading-title-case": { excludePathPatterns: ["**"] } };
+    const errors = runRule(rule, lines, config, "any.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports filename error and skips title-case error for same word (continue branch)", () => {
+    const lines = ["# readme.md"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].detail.includes("backticks") || errors[0].detail.includes("File name"));
+  });
+
   it("reports error when middle word should be lowercase", () => {
     // Default lowercase list includes "is" and "and"; "Is" and "And" in the middle are invalid.
     const lines = ["# This Is And Valid"];
@@ -185,6 +206,66 @@ describe("heading-title-case", () => {
       assert.ok(errors[0].fixInfo);
       assert.strictEqual(errors[0].fixInfo.insertText, "Stop", "insertText should capitalize segment 'stop' to 'Stop'");
     });
+
+    it("suggests backticks for file name instead of case change", () => {
+      const lines = ["## See README.md for more"];
+      const errors = runRule(rule, lines);
+      const fileError = errors.find((e) => e.detail && e.detail.includes("backticks"));
+      assert.ok(fileError, "should report file name should be in backticks");
+      assert.ok(fileError.fixInfo);
+      assert.strictEqual(fileError.fixInfo.insertText, "`README.md`");
+      assert.ok(fileError.detail.includes("README.md"));
+    });
+
+    it("suggests backticks for Makefile (no extension)", () => {
+      const lines = ["## Edit the Makefile"];
+      const errors = runRule(rule, lines);
+      const fileError = errors.find((e) => e.detail && e.detail.includes("backticks"));
+      assert.ok(fileError);
+      assert.strictEqual(fileError.fixInfo.insertText, "`Makefile`");
+    });
+
+    it("does not treat numbering like 1.2 or 0.1 as file name", () => {
+      const lines = ["#### 1.3 Skip 1.2 (Expected 1.2)"];
+      const errors = runRule(rule, lines);
+      const backtickErrors = errors.filter((e) => e.detail && e.detail.includes("backticks"));
+      assert.strictEqual(backtickErrors.length, 0, "numbering segments 1.2 etc. should not trigger file-name backticks");
+    });
+
+    it("skips punctuation-only token when checking for filename (core empty)", () => {
+      const lines = ["## See README.md ... and more"];
+      const errors = runRule(rule, lines);
+      const backtickErrors = errors.filter((e) => e.detail && e.detail.includes("backticks"));
+      assert.strictEqual(backtickErrors.length, 1, "only README.md gets backticks; ... is skipped");
+      assert.strictEqual(backtickErrors[0].fixInfo.insertText, "`README.md`");
+    });
+
+    it("suggests backticks for filenames with leading/trailing punctuation (e.g. in parens)", () => {
+      const line = "### `security/detect-non-literal-regexp` (utils.js, allow-custom-anchors.js)";
+      const lines = [line];
+      const errors = runRule(rule, lines);
+      const backtickErrors = errors.filter((e) => e.detail && e.detail.includes("backticks"));
+      assert.strictEqual(backtickErrors.length, 2, "utils.js and allow-custom-anchors.js should get backtick suggestion");
+      const utilsFix = backtickErrors.find((e) => e.fixInfo.insertText.includes("utils.js"));
+      const anchorsFix = backtickErrors.find((e) => e.fixInfo.insertText.includes("allow-custom-anchors.js"));
+      assert.ok(utilsFix, "utils.js fix present");
+      assert.strictEqual(utilsFix.fixInfo.insertText, "(`utils.js`,", "preserve leading ( and trailing ,");
+      assert.ok(anchorsFix, "allow-custom-anchors.js fix present");
+      assert.strictEqual(anchorsFix.fixInfo.insertText, "`allow-custom-anchors.js`)", "preserve trailing )");
+    });
+
+    it("fixInfo targets correct word when heading has backticks and parentheses (inline code)", () => {
+      const line = "## Python: `# noqa: E402` (module level import not at top of file)";
+      const lines = [line];
+      const errors = runRule(rule, lines);
+      assert.ok(errors.length >= 1, "should report at least one title-case error");
+      const moduleError = errors.find((e) => e.fixInfo && e.fixInfo.insertText === "(Module");
+      assert.ok(moduleError, "should report fix for '(module' -> '(Module' (subphrase start after paren)");
+      assert.strictEqual(moduleError.fixInfo.editColumn, 27, "editColumn must point to '(' in '(module' (after ## Python: `# noqa: E402` )");
+      assert.strictEqual(moduleError.fixInfo.deleteCount, 7);
+      const wordInLine = line.slice(moduleError.fixInfo.editColumn - 1, moduleError.fixInfo.editColumn - 1 + moduleError.fixInfo.deleteCount);
+      assert.strictEqual(wordInLine, "(module", "range must span the word (module");
+    });
   });
 
   describe("applyTitleCase (export)", () => {
@@ -208,5 +289,16 @@ describe("heading-title-case", () => {
       });
       assert.strictEqual(result, "A and the B");
     });
+
+    it("returns empty or whitespace as-is (words.length === 0 branch)", () => {
+      assert.strictEqual(rule.applyTitleCase(""), "");
+      assert.strictEqual(rule.applyTitleCase("   "), "   ");
+    });
+  });
+
+  it("runs with config undefined (branch coverage)", () => {
+    const lines = ["# Valid Title Here"];
+    const errors = runRule(rule, lines, undefined);
+    assert.strictEqual(errors.length, 0);
   });
 });

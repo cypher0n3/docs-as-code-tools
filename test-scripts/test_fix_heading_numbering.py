@@ -8,18 +8,11 @@ then assert file content.
 from __future__ import annotations
 
 import subprocess  # nosec B404
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-# Repo root and verifier helpers
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-_TEST_SCRIPTS = _REPO_ROOT / "test-scripts"
-if str(_TEST_SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(_TEST_SCRIPTS))
-
-import verify_markdownlint_fixtures as v  # noqa: E402
+import verify_markdownlint_fixtures as v
 
 RULE = "heading-numbering"
 

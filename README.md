@@ -50,14 +50,15 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
       Only `<!-- no-empty-heading allow -->` on its own line suppresses.
     - Use when: avoiding placeholder sections with no body content.
   - [no-heading-like-lines.js](markdownlint-rules/no-heading-like-lines.js) - no heading-like lines.
-    - Report lines that look like headings but are not (e.g. `**Text:**`, `1. **Text**`); prompt use of real `#` headings.
-      Fixable: default strips emphasis to plain text; optional `convertToHeading` converts to ATX heading (context-aware level; optional AP title case and numbering when heading-title-case and heading-numbering are present).
+    - Report lines that look like headings but are not (e.g. `**Text:**`, `1. **Text**`, whole-line emphasis `**Introduction**` / `*Note*`); default omits colon from sentence punctuation so colon lines are caught (greedier than MD036).
+      Fixable: default strips emphasis; optional `convertToHeading` converts to ATX heading (context-aware level; optional AP title case and numbering when heading-title-case and heading-numbering are present).
     - Use when: ensuring real Markdown headings instead of bold/italic that look like headings.
   - [no-h1-content.js](markdownlint-rules/no-h1-content.js) - no content under h1 except TOC.
     - Under the first h1, allow only table-of-contents content (blank lines, list-of-links, HTML comments).
     - Use when: enforcing that the only content under the doc title is a TOC.
   - [document-length.js](markdownlint-rules/document-length.js) - maximum document length.
     - Disallow documents longer than a configured number of lines (default 1500); reports on line 1 when over the limit.
+      Optional `excludePathPatterns`.
     - Use when: keeping individual docs under a line cap to encourage splitting.
   - [utils.js](markdownlint-rules/utils.js) - shared utilities
     - Heading/content helpers and path/glob matching; used by other rules.
@@ -69,7 +70,7 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
 - **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/` (including security tests for defensive regex handling and ReDoS awareness); run with `make test-rules` or `npm run test:rules`.
   CI runs `make test-rules-coverage` (fails if any rule file is below 90% line/statement coverage).
 - **Python unit tests**: `unittest` tests for [test-scripts/](test-scripts/README.md) in `test-scripts/test_*.py`; run with `make test-python`.
-  Includes functional fix tests (`test_fix_heading_title_case.py`, `test_fix_ascii_only.py`, `test_fix_heading_numbering.py`) that run `markdownlint-cli2 --fix` and assert file content.
+  Includes functional fix tests (`test_fix_heading_title_case.py`, `test_fix_ascii_only.py`, `test_fix_heading_numbering.py`, `test_fix_no_heading_like_lines.py`) and `test_markdownlint_options.py` (rule options via config helper).
 - **Python linting** for repo tooling scripts: `make lint-python` (flake8, pylint, xenon/radon, vulture, bandit).
 
 See **[markdownlint-rules/README.md](markdownlint-rules/README.md)** for rule docs and configuration.

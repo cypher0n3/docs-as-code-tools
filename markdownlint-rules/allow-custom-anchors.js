@@ -1,6 +1,6 @@
 "use strict";
 
-const { stripInlineCode } = require("./utils.js");
+const { pathMatchesAny, stripInlineCode } = require("./utils.js");
 
 /**
  * Safely create a RegExp from a string. Returns null for invalid or empty input.
@@ -344,6 +344,12 @@ function processLine(state) {
  * @param {function(object): void} onError - Callback to report an error
  */
 function ruleFunction(params, onError) {
+    const filePath = params.name || "";
+    const block = params.config?.["allow-custom-anchors"] ?? params.config ?? {};
+    const excludePatterns = block.excludePathPatterns;
+    if (Array.isArray(excludePatterns) && excludePatterns.length > 0 && pathMatchesAny(filePath, excludePatterns)) {
+      return;
+    }
     const { allowedEntries, strictPlacement } = getConfig(params);
     const allowedPatterns = allowedEntries.map((e) => e.pattern);
     const lines = params.lines;

@@ -28,7 +28,7 @@ npm install
 
 Run the Makefile targets below so your PR stays green.
 
-## Checks - Makefile Targets
+## Checks - `Makefile` Targets
 
 These targets mirror the GitHub Actions workflows. Run them locally before pushing.
 

@@ -5,6 +5,7 @@ const {
   getNumberPrefixSpan,
   insertTextForExpectedNumber,
   parseHeadingNumberPrefix,
+  pathMatchesAny,
 } = require("./utils.js");
 
 /**
@@ -347,6 +348,29 @@ function getNumberingOpts(raw) {
   return opts;
 }
 
+function shouldSkipByPath(filePath, block) {
+  const excludePatterns = block.excludePathPatterns;
+  return Array.isArray(excludePatterns) && excludePatterns.length > 0 && pathMatchesAny(filePath, excludePatterns);
+}
+
+function getWithNumbering(headings) {
+  return headings
+    .map((h) => ({ ...h, parsed: parseHeadingNumberPrefix(h.rawText) }))
+    .filter((h) => h.parsed.numbering != null);
+}
+
+function reportErrorsForHeading(h, index, ctx, onError) {
+  const contextLine = ctx.lines[h.lineNumber - 1];
+  for (const err of getHeadingErrors(h, index, {
+    sorted: ctx.sorted,
+    parentIndex: ctx.parentIndex,
+    contextLine,
+    opts: ctx.opts,
+  })) {
+    onError(err);
+  }
+}
+
 /**
  * markdownlint rule: validate numbered headings (segment count, sequence per section, period style).
  * Optional: maxHeadingLevel (disallow deeper headings), maxSegmentValue (cap segment value, with level range).
@@ -355,30 +379,20 @@ function getNumberingOpts(raw) {
  * @param {function(object): void} onError - Callback to report an error
  */
 function ruleFunction(params, onError) {
+  const filePath = params.name || "";
+  const block = params.config?.["heading-numbering"] ?? params.config ?? {};
+  if (shouldSkipByPath(filePath, block)) return;
+
   const lines = params.lines;
   const headings = extractHeadings(lines);
   const opts = getNumberingOpts(params.config || {});
-
-  const withNumbering = headings
-    .map((h) => ({
-      ...h,
-      parsed: parseHeadingNumberPrefix(h.rawText),
-    }))
-    .filter((h) => h.parsed.numbering != null);
-
-  const hasMaxHeadingLevel = typeof opts.maxHeadingLevel === "number";
-  if (withNumbering.length === 0 && !hasMaxHeadingLevel) {
-    return;
-  }
+  const withNumbering = getWithNumbering(headings);
+  if (withNumbering.length === 0 && typeof opts.maxHeadingLevel !== "number") return;
 
   const { sorted, parentIndex } = buildParentIndex(headings);
-
+  const ctx = { lines, sorted, parentIndex, opts };
   for (let i = 0; i < sorted.length; i++) {
-    const h = sorted[i];
-    const contextLine = lines[h.lineNumber - 1];
-    for (const err of getHeadingErrors(h, i, { sorted, parentIndex, contextLine, opts })) {
-      onError(err);
-    }
+    reportErrorsForHeading(sorted[i], i, ctx, onError);
   }
 }
 

@@ -163,6 +163,7 @@ no-heading-like-lines:
   convertToHeading: false   # when true, fix converts to ATX heading instead of stripping emphasis
   defaultHeadingLevel: 2    # level when there is no preceding heading (1-6)
   fixedHeadingLevel: 3     # if set, force this level and ignore context
+  punctuationMarks: ".,;!?"   # for whole-line emphasis, skip when content ends with one of these (default omits : so colon lines are caught)
   excludePathPatterns:      # optional; skip this rule for matching paths
     - "**/README.md"
 ```
@@ -170,11 +171,15 @@ no-heading-like-lines:
 - **`convertToHeading`** (boolean, default `false`): When false, the default fix strips emphasis to plain text (e.g. `**Summary:**` -> `Summary:`). When true, the fix converts the line to an ATX heading with context-aware level (one below the last preceding heading; no prior heading -> `defaultHeadingLevel`).
 - **`defaultHeadingLevel`** (number 1-6, default 2): Used when converting to a heading and there is no preceding heading in the document.
 - **`fixedHeadingLevel`** (number 1-6, optional): When set, the suggested heading uses this level and ignores context.
+- **`punctuationMarks`** (string, default `".,;!?"`): For whole-line emphasis (`**Text**` / `*Text*`), the rule does not report when the emphasized content ends with one of these (treats as sentences).
+  Colon is omitted by default so lines ending in colons are always caught (rule is greedier than MD036).
 - **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped. When the file path matches any pattern, the rule does not report for that file.
 
 **Fixable:** Yes (config-controlled). Default fix strips emphasis to plain text. When `convertToHeading` is true, the fix converts to an ATX heading with context-aware level, adds a blank line after the heading when the next line is non-blank, and when the optional dependency files are present respects numbering (adds the correct number prefix when the section uses numbered headings) and applies AP title case to the heading text (same rules as heading-title-case).
 
-**Behavior:** Reports lines that look like headings but are not (e.g. `**Text:**`, `**Text**:`, `1. **Text**`, and italic variants). When fixInfo is applied, the line is replaced by the stripped text or by the suggested ATX heading.
+**Behavior:** Reports lines that look like headings but are not (e.g. `**Text:**`, `**Text**:`, `1. **Text**`, italic variants, whole-line emphasis).
+Whole-line emphasis ending with a `punctuationMarks` character is not reported; default omits colon so colon lines are always caught (greedier than MD036).
+fixInfo replaces with stripped text or ATX heading. Disable MD036 to avoid duplicates and use this rule's fixInfo for `--fix`.
 
 #### Using Without Heading-Title-Case And/Or Heading-Numbering
 
@@ -254,9 +259,11 @@ Behavior:
 ```yaml
 document-length:
   maximum: 1500 # optional; default 1500
+  # excludePathPatterns: ["**/long-docs/**"]  # optional; skip rule for matching paths
 ```
 
 - **`maximum`** (number, default `1500`): Maximum allowed line count. Must be a positive integer.
+- **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
 
 **Behavior:** When the file has more than `maximum` lines, the rule reports a single error on line 1. The message includes the actual line count and the maximum and suggests splitting into smaller files.
 
@@ -535,14 +542,15 @@ heading-numbering:
 
 ## Shared Helper
 
-**utils.js** is not a rule; it provides utilities used by most rules.
+**utils.js** is not a rule; it provides utilities used by all custom rules in this repo.
 Do not list it in `customRules` in `.markdownlint-cli2.jsonc`.
-When reusing any rule that requires it, copy `utils.js` into your `.markdownlint-rules` (see [Reusing These Rules](#reusing-these-rules)).
+When reusing any rule, copy `utils.js` into your `.markdownlint-rules` (see [Reusing These Rules](#reusing-these-rules)).
 
-**Rules that require utils.js:** allow-custom-anchors, ascii-only, fenced-code-under-heading, heading-min-words, heading-numbering, heading-title-case, no-duplicate-headings-normalized, no-empty-heading, no-heading-like-lines, no-h1-content.
-**Rules with no helper dependency:** document-length.
+**All custom rules in this repo depend on utils.js** (for `pathMatchesAny` and/or other helpers): allow-custom-anchors, ascii-only, document-length, fenced-code-under-heading, heading-min-words, heading-numbering, heading-title-case, no-duplicate-headings-normalized, no-empty-heading, no-heading-like-lines, no-h1-content.
+
+**All custom rules accept `excludePathPatterns`** (optional list of glob patterns). When the file path matches any pattern, the rule is skipped for that file. This uses `pathMatchesAny` from utils.js.
 
 - **Heading and content:** `extractHeadings`, `iterateNonFencedLines`, `stripInlineCode`, `parseHeadingNumberPrefix`, `normalizeHeadingTitleForDup`, `normalizedTitleForDuplicate`, `RE_ATX_HEADING`, `RE_NUMBERING_PREFIX`.
-- **Path/glob matching:** `globToRegExp`, `matchGlob`, `pathMatchesAny` - used for path-pattern options (e.g. ascii-only `allowedPathPatternsUnicode`).
+- **Path/glob matching:** `globToRegExp`, `matchGlob`, `pathMatchesAny` - used for `excludePathPatterns` and other path options (e.g. ascii-only `allowedPathPatternsUnicode`).
   Supports `**` and `*`; paths normalized to forward slashes; relative patterns match path prefix or mid-path.
 - **Fence parsing:** `parseFenceInfo`, `iterateLinesWithFenceInfo` - used to detect fenced code block type (e.g. ascii-only skips content; fenced-code-under-heading finds blocks by language).

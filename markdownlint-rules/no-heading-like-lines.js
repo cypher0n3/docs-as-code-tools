@@ -29,7 +29,7 @@ try {
 }
 /* c8 ignore stop */
 
-/** Patterns: [regex, description]. Order matches EXTRACTORS. */
+/** Patterns: [regex, description]. Order matches EXTRACTORS. Includes MD036-style whole-line emphasis. */
 const PATTERNS = [
   [/^\s*\*\*.*:\*\*\s*$/, "bold with colon inside (**Text:**)"],
   [/^\s*\*\*.*\*\*:\s*$/, "bold with colon outside (**Text**:)"],
@@ -37,6 +37,8 @@ const PATTERNS = [
   [/^\s*\*.*:\*\s*$/, "italic with colon inside (*Text:*)"],
   [/^\s*\*.*\*:\s*$/, "italic with colon outside (*Text*:)"],
   [/^\s*[0-9]+\.\s+\*.*\*\s*$/, "numbered list with italic (1. *Text*)"],
+  [/^\s*\*\*(.+)\*\*\s*$/, "bold only (whole line, **Text**)"],
+  [/^\s*\*([^*]+)\*\s*$/, "italic only (whole line, *Text*)"],
 ];
 
 /** For each pattern index: [regex, formatter(match) -> title]. */
@@ -47,17 +49,22 @@ const EXTRACTORS = [
   [/^\s*\*(.+):\*\s*$/, (m) => m[1] + ":"],
   [/^\s*\*(.+)\*:\s*$/, (m) => m[1] + ":"],
   [/^\s*[0-9]+\.\s+\*(.+)\*\s*$/, (m) => m[1].trim()],
+  [/^\s*\*\*(.+)\*\*\s*$/, (m) => m[1].trim()],
+  [/^\s*\*([^*]+)\*\s*$/, (m) => m[1].trim()],
 ];
+
+/** Pattern indices that are MD036-style (whole-line emphasis); skip when content ends with punctuation. */
+const MD036_STYLE_PATTERN_INDICES = new Set([6, 7]);
 
 /**
  * Extract plain title from a heading-like line given the pattern index that matched.
  * @param {string} trimmedLine - Trimmed line content
- * @param {number} patternIndex - Index into PATTERNS (0-5)
+ * @param {number} patternIndex - Index into PATTERNS (0-7)
  * @returns {string} Extracted title (e.g. "Summary:" or "Introduction")
  */
 function extractTitleFromHeadingLike(trimmedLine, patternIndex) {
   const entry = EXTRACTORS[patternIndex];
-  /* c8 ignore next 1 -- patternIndex always 0-5 from PATTERNS loop */
+  /* c8 ignore next 1 -- patternIndex always 0-7 from PATTERNS loop */
   if (!entry) return trimmedLine;
   const [regex, format] = entry;
   const m = trimmedLine.match(regex);
@@ -87,16 +94,18 @@ function getContextLevel(headings, violationLineNumber, config) {
 
 /**
  * Build insertText when convertToHeading is true (ATX heading line, optional blank after).
- * @param {string[]} lines - Document lines
- * @param {number} index - Index of current line
- * @param {number} lineNumber - 1-based line number
- * @param {{ lineNumber: number, level: number, rawText: string }[]} headings
- * @param {{ defaultHeadingLevel?: number, fixedHeadingLevel?: number }} config
- * @param {object} ruleConfig - Full rule config
- * @param {string} extractedTitle - Extracted title from heading-like line
+ * @param {object} opts
+ * @param {string[]} opts.lines - Document lines
+ * @param {number} opts.index - Index of current line
+ * @param {number} opts.lineNumber - 1-based line number
+ * @param {{ lineNumber: number, level: number, rawText: string }[]} opts.headings
+ * @param {{ defaultHeadingLevel?: number, fixedHeadingLevel?: number }} opts.config
+ * @param {object} opts.ruleConfig - Full rule config
+ * @param {string} opts.extractedTitle - Extracted title from heading-like line
  * @returns {string}
  */
-function buildConvertToHeadingInsertText(lines, index, lineNumber, headings, config, ruleConfig, extractedTitle) {
+function buildConvertToHeadingInsertText(opts) {
+  const { lines, index, lineNumber, headings, config, ruleConfig, extractedTitle } = opts;
   const level = getContextLevel(headings, lineNumber, config);
   let numberPrefix = "";
   /* c8 ignore next 3 -- branch when heading-numbering absent covered by subprocess test */
@@ -110,15 +119,14 @@ function buildConvertToHeadingInsertText(lines, index, lineNumber, headings, con
   let headingLine = "#".repeat(level) + " " + numberPrefix + titleText;
   const nextLine = lines[index + 1];
   const nextNonBlank = nextLine != null && nextLine.trim().length > 0;
-  if (nextNonBlank) {
-    headingLine += "\n";
-  }
+  if (nextNonBlank) headingLine += "\n";
   return headingLine;
 }
 
 /**
  * markdownlint rule: flag lines that look like headings but use bold/italic
- * (e.g. **Section:** or 1. **Item**) so they can be converted to proper ATX headings.
+ * (e.g. **Section:** or 1. **Item**, or MD036-style **Introduction** / *Note*)
+ * so they can be converted to proper ATX headings. Supports fixInfo for --fix.
  *
  * @param {object} params - markdownlint params (lines, name, config)
  * @param {function(object): void} onError - Callback to report an error
@@ -126,7 +134,7 @@ function buildConvertToHeadingInsertText(lines, index, lineNumber, headings, con
 function ruleFunction(params, onError) {
   const lines = params.lines;
   const filePath = params.name || "";
-  const ruleConfig = params.config?.["no-heading-like-lines"] ?? {};
+  const ruleConfig = params.config?.["no-heading-like-lines"] ?? params.config ?? {};
   const excludePathPatterns = ruleConfig.excludePathPatterns;
   if (Array.isArray(excludePathPatterns) && excludePathPatterns.length > 0 && pathMatchesAny(filePath, excludePathPatterns)) {
     return;
@@ -134,6 +142,9 @@ function ruleFunction(params, onError) {
   const convertToHeading = ruleConfig.convertToHeading === true;
   const defaultHeadingLevel = ruleConfig.defaultHeadingLevel;
   const fixedHeadingLevel = ruleConfig.fixedHeadingLevel;
+  const punctuationMarks = typeof ruleConfig.punctuationMarks === "string"
+    ? ruleConfig.punctuationMarks
+    : ".,;!?";
   const config = { defaultHeadingLevel, fixedHeadingLevel };
 
   const headings = convertToHeading ? extractHeadings(lines) : [];
@@ -149,14 +160,18 @@ function ruleFunction(params, onError) {
       if (!pattern.test(trimmedLine)) continue;
 
       const extractedTitle = extractTitleFromHeadingLike(trimmedLine, p);
+      if (MD036_STYLE_PATTERN_INDICES.has(p) && extractedTitle.length > 0) {
+        const lastChar = extractedTitle.slice(-1);
+        if (punctuationMarks.includes(lastChar)) continue;
+      }
       let insertText;
 
       if (!convertToHeading) {
         insertText = extractedTitle;
       } else {
-        insertText = buildConvertToHeadingInsertText(
-          lines, index, lineNumber, headings, config, ruleConfig, extractedTitle
-        );
+        insertText = buildConvertToHeadingInsertText({
+          lines, index, lineNumber, headings, config, ruleConfig, extractedTitle,
+        });
       }
 
       onError({

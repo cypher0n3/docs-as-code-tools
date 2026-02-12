@@ -19,6 +19,13 @@ describe("heading-numbering", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("skips when file path matches excludePathPatterns", () => {
+    const lines = ["# Doc", "## 1. First", "## 4. Skip"];
+    const config = { excludePathPatterns: ["**/skip.md"] };
+    const errors = runRule(rule, lines, config, "docs/skip.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("reports no errors for consistent numbering", () => {
     // Siblings 1., 2.; subsection 2.1. under 2. is valid.
     const lines = ["# Doc", "## 1. First", "## 2. Second", "### 2.1. Sub"];
