@@ -167,7 +167,8 @@ Subsections under a 0-based H3 also use 0-based numbering when the first subhead
 
 #### 2.1. First Subsection
 
-Some content here.
+Duplicate pairs include "1. Overview" with "2. Overview", and "1.1 Scope" with "2.1 Scope".
+The above sentence should not trigger the one-sentence-per-line rule.
 
 #### 2.2. Second Subsection
 

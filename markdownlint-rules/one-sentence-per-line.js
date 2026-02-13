@@ -58,6 +58,13 @@ function updateBracketDepth(ch, inBracket, inParen) {
   return null;
 }
 
+/** Toggle inDoubleQuote on unescaped "; return new state or null to leave unchanged. */
+function updateDoubleQuote(ch, inDoubleQuote, i, scanned) {
+  if (ch !== '"') return null;
+  if (i > 0 && scanned[i - 1] === "\\") return null;
+  return !inDoubleQuote;
+}
+
 function isSentenceEndChar(ch) {
   return ch === "." || ch === "?" || ch === "!";
 }
@@ -88,6 +95,27 @@ function getNextToken(scanned, startIndex) {
     m++;
   }
   return scanned.slice(startIndex, m).replace(/\.+$/, "");
+}
+
+/** Token before position i that may be a number (digits, optional .digits). */
+function getNumberTokenBefore(scanned, i) {
+  let k = i - 1;
+  while (k >= 0 && /[\d.]/.test(scanned[k])) {
+    k--;
+  }
+  return scanned.slice(k + 1, i);
+}
+
+/** True when period at i is part of a numbering label (e.g. "1. Overview", "1.1 Scope") inside quotes. */
+function isNumberingLabel(scanned, i) {
+  if (scanned[i] !== "." || i <= 0 || !/\d/.test(scanned[i - 1])) return false;
+  const spaceStart = skipQuotesThenSpace(scanned, i);
+  if (spaceStart === null) return false;
+  const after = spaceStartAndNextWordPos(scanned, spaceStart);
+  if (!after) return false;
+  const nextToken = getNextToken(scanned, after.j);
+  const numToken = getNumberTokenBefore(scanned, i);
+  return /^\d+(\.\d+)*$/.test(numToken) && /^[A-Z]/.test(nextToken);
 }
 
 function isAbbreviation(scanned, i, j, abbreviations) {
@@ -147,6 +175,14 @@ function getFirstSentenceBoundary(content, opts) {
   return all.length > 0 ? all[0] : null;
 }
 
+/** True when position i should be skipped for sentence-boundary scanning (inside brackets/parens or quoted numbering). */
+function shouldSkipForSentenceBoundary(ctx) {
+  const { ch, scanned, inBracket, inParen, inDoubleQuote } = ctx;
+  if (inBracket > 0 || inParen > 0) return true;
+  if (inDoubleQuote && ch === "." && isNumberingLabel(scanned, ctx.i)) return true;
+  return false;
+}
+
 /**
  * Find all sentence boundary indices (space before each sentence after the first).
  * @param {string} content - Prose content (no list marker)
@@ -160,9 +196,16 @@ function getAllSentenceBoundaries(content, opts) {
   let i = 0;
   let inBracket = 0;
   let inParen = 0;
+  let inDoubleQuote = false;
 
   while (i < scanned.length) {
     const ch = scanned[i];
+    const dq = updateDoubleQuote(ch, inDoubleQuote, i, scanned);
+    if (dq !== null) {
+      inDoubleQuote = dq;
+      i++;
+      continue;
+    }
     const depth = updateBracketDepth(ch, inBracket, inParen);
     if (depth !== null) {
       inBracket = depth.inBracket;
@@ -170,7 +213,7 @@ function getAllSentenceBoundaries(content, opts) {
       i++;
       continue;
     }
-    if (inBracket > 0 || inParen > 0) {
+    if (shouldSkipForSentenceBoundary({ ch, i, scanned, inBracket, inParen, inDoubleQuote })) {
       i++;
       continue;
     }

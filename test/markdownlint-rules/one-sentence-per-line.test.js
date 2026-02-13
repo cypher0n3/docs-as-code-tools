@@ -90,6 +90,14 @@ describe("one-sentence-per-line", () => {
     assert.ok(!errors[0].fixInfo.insertText.includes("filename.txt"), "should not split inside quoted filename");
   });
 
+  it("does not split on periods inside double-quoted numbering examples", () => {
+    const lines = [
+      '  Duplicate pairs include "1. Overview" with "2. Overview", and "1.1 Scope" with "2.1 Scope".',
+    ];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "periods inside double-quoted labels (e.g. 1. Overview) are not sentence boundaries");
+  });
+
   it("splits after quoted sentence when closing quote then space then new sentence", () => {
     const lines = ['"Quoted sentence." This is a new sentence."'];
     const errors = runRule(rule, lines);
