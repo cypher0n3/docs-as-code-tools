@@ -18,6 +18,8 @@
   - [3. Using Tools (In Practice)](#3-using-tools-in-practice)
   - [4. How to Do a Follow-Up](#4-how-to-do-a-follow-up)
   - [5. Summary: The Results](#5-summary-the-results)
+  - [6. Phase A: Fixable Rules and Scripts (One-Time)](#6-phase-a-fixable-rules-and-scripts-one-time)
+  - [7. This Has a Lowercase a in the Title](#7-this-has-a-lowercase-a-in-the-title)
 - [Zero-Indexed Heading Numbering](#zero-indexed-heading-numbering)
   - [0. Introduction (Zero-Indexed)](#0-introduction-zero-indexed)
   - [1. First Topic](#1-first-topic)
@@ -135,6 +137,14 @@ AP style: hyphenated compounds (each segment capitalized); "to" and "a" lowercas
 
 AP style: first word after a colon is capitalized (subphrase start).
 
+### 6. Phase A: Fixable Rules and Scripts (One-Time)
+
+Single letter after "Phase" is treated as a phase label and stays capitalized (not the article "a").
+
+### 7. This Has a Lowercase a in the Title
+
+Should not catch.
+
 ## Zero-Indexed Heading Numbering
 
 When the first numbered heading in a section starts at 0, the rule treats that section as 0-based and does not report errors.
@@ -157,7 +167,8 @@ Subsections under a 0-based H3 also use 0-based numbering when the first subhead
 
 #### 2.1. First Subsection
 
-Some content here.
+Duplicate pairs include "1. Overview" with "2. Overview", and "1.1 Scope" with "2.1 Scope".
+The above sentence should not trigger the one-sentence-per-line rule.
 
 #### 2.2. Second Subsection
 

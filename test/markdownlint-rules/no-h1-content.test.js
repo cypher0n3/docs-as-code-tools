@@ -43,6 +43,12 @@ describe("no-h1-content", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("reports no errors for multi-line HTML comment under h1", () => {
+    const lines = ["# Title", "<!--", "  Expect: some note", "-->", "", "## Section"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("reports no errors for badge lines under h1", () => {
     const lines = [
       "# Repo",
@@ -99,5 +105,26 @@ describe("no-h1-content", () => {
     const config = { excludePathPatterns: ["**/other.md"] };
     const errors = runRule(rule, lines, config, "md_test_files/foo.md");
     assert.strictEqual(errors.length, 1);
+  });
+
+  describe("edge cases", () => {
+    it("TOC link with space before hash [Text]( #anchor ) is not valid TOC item", () => {
+      const lines = ["# Doc", "- [One]( #one)", "## One"];
+      const errors = runRule(rule, lines);
+      assert.ok(errors.length >= 1, "line with space in link may not match RE_TOC_LIST_ITEM");
+    });
+
+    it("H1 as last line (endLine equals lines.length) has no content under it", () => {
+      const lines = ["## First", "Content.", "# Only H1"];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0, "no content under H1 at end");
+    });
+
+    it("fenced code block opening line under H1 is reported as disallowed content", () => {
+      const lines = ["# Title", "```", "code", "```", "## Next"];
+      const errors = runRule(rule, lines);
+      assert.ok(errors.length >= 1);
+      assert.strictEqual(errors[0].lineNumber, 2);
+    });
   });
 });

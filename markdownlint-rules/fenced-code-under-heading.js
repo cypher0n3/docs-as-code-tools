@@ -72,14 +72,15 @@ function processAtxLine(trimmed, lineNumber, opts, headings) {
 }
 
 /**
- * Single pass: find all H2–H6 in range and all opening fence lines for configured languages.
+ * Single pass: find all headings in range, all ATX headings (any level), and opening fence lines.
  *
  * @param {string[]} lines
  * @param {{ minHeadingLevel: number, maxHeadingLevel: number, languages: string[] }} opts
- * @returns {{ headings: { lineNumber: number, level: number }[], blocks: { lineNumber: number, language: string }[] }}
+ * @returns {{ headings: { lineNumber: number, level: number }[], allHeadings: { lineNumber: number, level: number }[], blocks: { lineNumber: number, language: string }[] }}
  */
 function findHeadingsAndBlocks(lines, opts) {
   const headings = [];
+  const allHeadings = [];
   const blocks = [];
   const state = { inFence: false, fenceMarker: null, fenceLen: 0 };
 
@@ -92,10 +93,12 @@ function findHeadingsAndBlocks(lines, opts) {
     }
     if (!state.inFence) {
       processAtxLine(trimmed, lineNumber, opts, headings);
+      const m = trimmed.match(RE_ATX);
+      if (m) allHeadings.push({ lineNumber, level: m[1].length });
     }
   }
 
-  return { headings, blocks };
+  return { headings, allHeadings, blocks };
 }
 
 /**
@@ -136,7 +139,7 @@ function findAllBlocks(lines) {
 }
 
 /**
- * For each block, get the last heading (H2–H6 in range) that appears before the block.
+ * For each block, get the last heading (in range) that appears before the block.
  *
  * @param {{ lineNumber: number, level: number }[]} headings - Sorted by lineNumber
  * @param {number} blockLine
@@ -147,6 +150,22 @@ function precedingHeading(headings, blockLine) {
   for (const h of headings) {
     if (h.lineNumber >= blockLine) break;
     last = h.lineNumber;
+  }
+  return last;
+}
+
+/**
+ * Get the immediately preceding heading (any level) before blockLine.
+ *
+ * @param {{ lineNumber: number, level: number }[]} allHeadings - Sorted by lineNumber
+ * @param {number} blockLine
+ * @returns {{ lineNumber: number, level: number }|null}
+ */
+function precedingHeadingAnyLevel(allHeadings, blockLine) {
+  let last = null;
+  for (const h of allHeadings) {
+    if (h.lineNumber >= blockLine) break;
+    last = h;
   }
   return last;
 }
@@ -162,10 +181,12 @@ function shouldSkipFile(filePath, opts) {
 /* c8 ignore stop */
 
 function reportBlocksWithoutHeading(ctx) {
-  const { blocks, headings, opts, lines, onError } = ctx;
+  const { blocks, allHeadings, opts, lines, onError } = ctx;
   for (const block of blocks) {
-    const headingLine = precedingHeading(headings, block.lineNumber);
-    if (headingLine != null || !opts.requireHeading) continue;
+    const immediate = precedingHeadingAnyLevel(allHeadings, block.lineNumber);
+    if (!opts.requireHeading) continue;
+    const validLevel = immediate != null && immediate.level >= opts.minHeadingLevel && immediate.level <= opts.maxHeadingLevel;
+    if (validLevel) continue;
     onError({
       lineNumber: block.lineNumber,
       detail: `Fenced code block (${block.language}) must have an H${opts.minHeadingLevel}-H${opts.maxHeadingLevel} heading above it.`,
@@ -242,8 +263,8 @@ function ruleFunction(params, onError) {
   if (opts.languages.length === 0 || shouldSkipFile(filePath, opts)) return;
   /* c8 ignore stop */
 
-  const { headings, blocks } = findHeadingsAndBlocks(lines, opts);
-  reportBlocksWithoutHeading({ blocks, headings, opts, lines, onError });
+  const { headings, allHeadings, blocks } = findHeadingsAndBlocks(lines, opts);
+  reportBlocksWithoutHeading({ blocks, allHeadings, opts, lines, onError });
   if (opts.exclusive) {
     const allBlocks = findAllBlocks(lines);
     reportExclusiveViolations({ allBlocks, headings, opts, lines, onError });

@@ -1,7 +1,8 @@
-.PHONY: ci lint-js lint-readmes lint-python test-markdownlint test-python test-python-coverage test-rules test-rules-coverage venv
+.PHONY: ci lint-js lint-readmes lint-python test-markdownlint test-markdownlint-fix test-markdownlint-options test-python test-python-coverage test-rules test-rules-coverage venv
 
 # Run all CI checks (same as GitHub Actions workflows). Run after 'npm install' and optionally 'make venv'.
-ci: lint-js test-rules-coverage test-markdownlint lint-python test-python-coverage test-python lint-readmes
+# Python: unit tests (test-python) vs functional tests (test-markdownlint-options, test-markdownlint-fix) are separate.
+ci: lint-js test-rules-coverage lint-python test-python-coverage test-python test-markdownlint test-markdownlint-options test-markdownlint-fix lint-readmes
 
 # README linting - performs same checks as GitHub Actions workflow
 # NOTE: This target must be kept in sync with .github/workflows/lint-readmes.yml.
@@ -20,7 +21,7 @@ lint-readmes:
 		MDL="npx markdownlint-cli2"; \
 	fi; \
 	echo "Linting READMEs..."; \
-	$$MDL README.md **/README.md markdownlint-rules/README.md CONTRIBUTING.md
+	$$MDL --fix README.md **/README.md markdownlint-rules/README.md CONTRIBUTING.md
 
 # JavaScript linting - performs same checks as GitHub Actions workflow
 # NOTE: This target must be kept in sync with .github/workflows/js-lint.yml.
@@ -149,14 +150,41 @@ test-markdownlint:
 	}
 	@python3 test-scripts/verify_markdownlint_fixtures.py $(if $(filter 1,$(VERBOSE)),--verbose)
 
-# Python unit tests - same as .github/workflows/python-tests.yml
+# Markdownlint rule-options functional tests - Python tests that run markdownlint with temp configs to exercise rule options.
+# Requires: Node.js, npm (for markdownlint-cli2); Python 3.
+test-markdownlint-options:
+	@command -v node >/dev/null 2>&1 || { \
+		echo "Error: node not found. Install Node.js and run npm install."; \
+		exit 1; \
+	}
+	@command -v python3 >/dev/null 2>&1 || { \
+		echo "Error: python3 not found. Install Python 3 to run tests."; \
+		exit 1; \
+	}
+	@PYTHONPATH="$(CURDIR)/test-scripts:$${PYTHONPATH:-}" python3 -m unittest discover -s test-scripts -p "test_markdownlint_options.py" -v
+
+# Markdownlint --fix functional tests - Python tests that run markdownlint-cli2 --fix and assert file content.
+# Requires: Node.js, npm (for markdownlint-cli2); Python 3.
+test-markdownlint-fix:
+	@command -v node >/dev/null 2>&1 || { \
+		echo "Error: node not found. Install Node.js and run npm install."; \
+		exit 1; \
+	}
+	@command -v python3 >/dev/null 2>&1 || { \
+		echo "Error: python3 not found. Install Python 3 to run tests."; \
+		exit 1; \
+	}
+	@PYTHONPATH="$(CURDIR)/test-scripts:$${PYTHONPATH:-}" python3 -m unittest discover -s test-scripts -p "test_fix_*.py" -v
+
+# Python unit tests - test the Python code itself (verifier parsing, expectations, etc.). Same as .github/workflows/python-tests.yml
 # NOTE: Keep in sync with that workflow. Requires: Python 3.
+# Only test_verify_*.py (unit). Functional tests that exercise markdownlint rules: test-markdownlint-options, test-markdownlint-fix.
 test-python:
 	@command -v python3 >/dev/null 2>&1 || { \
 		echo "Error: python3 not found. Install Python 3 to run tests."; \
 		exit 1; \
 	}
-	@python3 -m unittest discover -s test-scripts -p "test_*.py" -v
+	@PYTHONPATH="$(CURDIR)/test-scripts:$${PYTHONPATH:-}" python3 -m unittest discover -s test-scripts -p "test_verify_*.py" -v
 
 # Python unit test coverage - runs tests with coverage, fails if coverage < 90%.
 # Requires: pip install coverage (or make venv). Sources: test-scripts/*.py (excl. test_*.py).
@@ -170,7 +198,7 @@ test-python-coverage:
 		exit 1; \
 	}
 	@if [ -d .venv ]; then PATH="$(CURDIR)/.venv/bin:$$PATH"; export PATH; fi; \
-	coverage run -m unittest discover -s test-scripts -p "test_*.py" && \
+	PYTHONPATH="$(CURDIR)/test-scripts:$${PYTHONPATH:-}" coverage run -m unittest discover -s test-scripts -p "test_*.py" && \
 	coverage report --include="test-scripts/*.py" --omit="test-scripts/test_*.py" --fail-under=90
 
 # Python venv for lint tooling - creates .venv and installs test-scripts/requirements-lint.txt

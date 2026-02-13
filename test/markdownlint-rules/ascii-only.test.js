@@ -19,6 +19,13 @@ describe("ascii-only", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("skips when file path matches excludePathPatterns", () => {
+    const lines = ["Café"];
+    const config = { excludePathPatterns: ["**/excluded.md"] };
+    const errors = runRule(rule, lines, config, "path/excluded.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("reports error for non-ASCII when path not allowlisted", () => {
     // Arrow → is not in default allowed set; reported when path is not in allowlist.
     const lines = ["Use arrow \u2192 here"];
@@ -269,5 +276,53 @@ describe("ascii-only", () => {
       unicodeReplacements: "",
     }, "doc.md");
     assert.ok(errors.length >= 1);
+  });
+
+  describe("fixInfo (auto-fix)", () => {
+    it("reports fixInfo when unicodeReplacements provides a replacement", () => {
+      const lines = ["Arrow \u2192 here"];
+      const errors = runRule(rule, lines, {
+        unicodeReplacements: { "\u2192": "->" },
+      }, "doc.md");
+      const arrowError = errors.find((e) => e.detail && (e.detail.includes("U+2192") || e.detail.includes("→")));
+      assert.ok(arrowError, "error for arrow should be reported");
+      assert.ok(arrowError.fixInfo, "fixable error should include fixInfo when replacement is configured");
+      assert.strictEqual(typeof arrowError.fixInfo.editColumn, "number");
+      assert.strictEqual(typeof arrowError.fixInfo.deleteCount, "number");
+      assert.strictEqual(arrowError.fixInfo.insertText, "->", "insertText should be the configured replacement");
+    });
+
+    it("does not report fixInfo when no replacement is configured", () => {
+      const lines = ["Arrow \u2192"];
+      const errors = runRule(rule, lines, { unicodeReplacements: {} }, "doc.md");
+      assert.ok(errors.length >= 1);
+      assert.ok(!errors[0].fixInfo, "error should not have fixInfo when unicodeReplacements has no replacement for the character");
+    });
+  });
+
+  describe("edge cases", () => {
+    it("line containing only variation selector after allowed emoji is allowed", () => {
+      const lines = ["\u263A\uFE00"];
+      const errors = runRule(rule, lines, {
+        allowedPathPatternsEmoji: ["*.md"],
+        allowedEmoji: ["\u263A"],
+      }, "doc.md");
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("astral character (emoji) reported with code point in detail (4–6 hex digits)", () => {
+      const lines = ["Smile \u{1F600} here"];
+      const errors = runRule(rule, lines, {}, "doc.md");
+      assert.ok(errors.length >= 1);
+      assert.ok(errors.some((e) => /U\+[0-9A-F]{4,6}/i.test(e.detail)), "detail should include code point");
+    });
+
+    it("path matching both unicode and emoji patterns allows unicode when only unicode config set", () => {
+      const lines = ["Café"];
+      const errors = runRule(rule, lines, {
+        allowedPathPatternsUnicode: ["*.md"],
+      }, "doc.md");
+      assert.strictEqual(errors.length, 0);
+    });
   });
 });

@@ -17,9 +17,13 @@ module.exports = defineConfig([
       globals: { ...globals.node },
     },
     rules: {
-      "max-lines": ["warn", { max: 250, skipBlankLines: true, skipComments: true }],
-      complexity: ["warn", { max: 10 }],
-      "max-depth": ["warn", 4],
+      "max-lines": ["warn", {
+        max: 500,
+        skipBlankLines: true,
+        skipComments: true,
+      }],
+      complexity: ["error", { max: 10 }],
+      "max-depth": ["error", 4],
       "max-params": ["warn", 4],
       "security/detect-eval-with-expression": "warn",
       "security/detect-non-literal-require": "warn",

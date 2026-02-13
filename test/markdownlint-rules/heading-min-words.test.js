@@ -117,4 +117,30 @@ describe("heading-min-words", () => {
     assert.strictEqual(errors.length, 1);
     assert.ok(errors[0].detail.includes("word(s)") && errors[0].detail.includes("found"));
   });
+
+  describe("edge cases", () => {
+    it("allowList is case-insensitive (Overview matches overview)", () => {
+      const lines = ["# Doc", "## overview", "Content."];
+      const config = { "heading-min-words": { minWords: 2, applyToLevelsAtOrBelow: 2, allowList: ["Overview"] } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("applyToLevelsAtOrBelow 1 includes H1 in scope", () => {
+      const lines = ["# One", "## Two Words", "Content."];
+      const config = { "heading-min-words": { minWords: 2, applyToLevelsAtOrBelow: 1 } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 1);
+    });
+
+    it("excludePathPatterns skips when path matches exclude even if it matches include", () => {
+      const lines = ["# Doc", "## Foo", "Content."];
+      const config = {
+        "heading-min-words": { minWords: 2, applyToLevelsAtOrBelow: 2, includePaths: ["**/*.md"], excludePaths: ["**/foo.md"] },
+      };
+      const errors = runRule(rule, lines, config, "docs/foo.md");
+      assert.strictEqual(errors.length, 0, "excluded path should skip rule");
+    });
+  });
 });
