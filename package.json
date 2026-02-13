@@ -25,5 +25,8 @@
     "branches": 90,
     "check-coverage": true,
     "per-file": true
+  },
+  "overrides": {
+    "glob": "^13.0.3"
   }
 }
