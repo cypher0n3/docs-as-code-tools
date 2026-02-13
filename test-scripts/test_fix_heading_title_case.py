@@ -108,6 +108,28 @@ Text.
             self.assertNotIn("(module ", actual, "(module should have been fixed")
             self.assertNotIn(" of file)", actual, "file should have been fixed to File")
 
+    def test_phase_a_label_unchanged_by_fix(self) -> None:
+        """Single letter after 'Phase' is a label; --fix must not lowercase it."""
+        content = """# Doc
+
+## Section
+
+Overview.
+
+### Phase A: Fixable Rules and Scripts (One-Time)
+
+Content.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_heading_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertEqual(proc.returncode, 0, f"Phase A heading should pass lint: {proc.stderr}")
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertIn("Phase A:", actual, "Phase A must remain capitalized after --fix")
+
     def test_fix_filenames_in_parens_get_backticks_not_title_case(self) -> None:
         """Filenames like (utils.js, allow-custom-anchors.js) get backticks, not Title Case."""
         content_before = """# Suppressions

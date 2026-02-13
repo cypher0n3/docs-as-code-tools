@@ -94,8 +94,8 @@ Example for a repo that has copied rules into `.markdownlint-rules/`:
     "./.markdownlint-rules/heading-title-case.js",
     "./.markdownlint-rules/no-duplicate-headings-normalized.js",
     "./.markdownlint-rules/no-empty-heading.js",
-    "./.markdownlint-rules/no-heading-like-lines.js",
     "./.markdownlint-rules/no-h1-content.js",
+    "./.markdownlint-rules/no-heading-like-lines.js",
     "./.markdownlint-rules/one-sentence-per-line.js"
   ]
 }
@@ -540,6 +540,7 @@ Content inside inline code (backticks) is ignored.
 
 - **First and last words** of the heading must be capitalized (including the first and last segment of hyphenated compounds).
 - **First word after a colon** (e.g. `Summary: The Results`) and the **first word inside parentheses or brackets** (e.g. `(in Practice)`, `[optional]`) are treated as phrase starts and must be capitalized even if they are in the lowercase list.
+- **Phase labels:** A single letter immediately after the word "Phase" (e.g. `Phase A:`, `Phase B`) is treated as a label and kept capitalized, so the article "a" in the default list does not force lowercase in that context.
 - **Hyphenated compounds** (e.g. `One-Stop`, `Follow-Up`) are split on hyphens; each segment is checked as above (first/last of title or minor word in the middle).
 - **Minor words** (in the default or configured list) must be lowercase when in the middle of the heading; all other words must be capitalized.
 - Leading and trailing punctuation is ignored when evaluating a word (e.g. `(Word)` is evaluated as `Word`).

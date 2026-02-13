@@ -136,6 +136,12 @@ describe("heading-title-case", () => {
     assert.ok(errors[0].detail.includes("the") && errors[0].detail.includes("capitalized"));
   });
 
+  it("allows single letter after 'Phase' as phase label (e.g. Phase A, Phase B)", () => {
+    const lines = ["### Phase A: Fixable Rules and Scripts (One-Time)"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "Phase A should not be flagged; single letter after 'Phase' is a label");
+  });
+
   it("reports no errors for heading that is only inline code (words.length === 0)", () => {
     const lines = ["## `code only`"];
     const errors = runRule(rule, lines);
@@ -288,6 +294,11 @@ describe("heading-title-case", () => {
         lowercaseWordsReplaceDefault: true,
       });
       assert.strictEqual(result, "A and the B");
+    });
+
+    it("preserves single letter after 'Phase' as phase label", () => {
+      const result = rule.applyTitleCase("Phase A: Fixable Rules and Scripts (One-Time)");
+      assert.strictEqual(result, "Phase A: Fixable Rules and Scripts (One-Time)", "Phase A label stays capitalized");
     });
 
     it("returns empty or whitespace as-is (words.length === 0 branch)", () => {
