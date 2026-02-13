@@ -142,6 +142,12 @@ describe("heading-title-case", () => {
     assert.strictEqual(errors.length, 0, "Phase A should not be flagged; single letter after 'Phase' is a label");
   });
 
+  it("allows single letter after other label-parent words (Step B, Appendix A, Type A)", () => {
+    const lines = ["## Step B: Do Something", "## Appendix A: References", "## Type A and Type B"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "single letter after Step/Appendix/Type is a label");
+  });
+
   it("reports no errors for heading that is only inline code (words.length === 0)", () => {
     const lines = ["## `code only`"];
     const errors = runRule(rule, lines);
@@ -299,6 +305,11 @@ describe("heading-title-case", () => {
     it("preserves single letter after 'Phase' as phase label", () => {
       const result = rule.applyTitleCase("Phase A: Fixable Rules and Scripts (One-Time)");
       assert.strictEqual(result, "Phase A: Fixable Rules and Scripts (One-Time)", "Phase A label stays capitalized");
+    });
+
+    it("preserves single letter after other label-parent words (Step A, Appendix A)", () => {
+      assert.strictEqual(rule.applyTitleCase("Step A: Setup"), "Step A: Setup");
+      assert.strictEqual(rule.applyTitleCase("Appendix A: Glossary"), "Appendix A: Glossary");
     });
 
     it("returns empty or whitespace as-is (words.length === 0 branch)", () => {

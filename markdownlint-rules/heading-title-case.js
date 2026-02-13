@@ -37,6 +37,12 @@ const DEFAULT_LOWERCASE_WORDS = new Set([
   "v", "vs",
 ]);
 
+/** Words that commonly precede a single-letter label (e.g. Phase A, Step B, Appendix A, Type A). */
+const LABEL_PARENT_WORDS = new Set([
+  "appendix", "category", "chapter", "class", "grade", "item", "letter", "level", "module",
+  "option", "part", "phase", "section", "stage", "step", "tier", "type", "unit", "version",
+]);
+
 /**
  * Strip leading/trailing punctuation from a word for comparison (e.g. "word," -> "word").
  * @param {string} w
@@ -70,7 +76,7 @@ function isAllLower(w) {
 }
 
 /**
- * True if this position is exempt from lowercase (first/last/subphrase start/hyphen compound start/phase label).
+ * True if this position is exempt from lowercase (first/last/subphrase start/hyphen compound start/single-letter label).
  * @param {{ isFirst: boolean, isLast: boolean, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean, isPhaseLabel?: boolean }} opts
  * @returns {boolean}
  */
@@ -141,14 +147,14 @@ function getSegmentPosition(rawSegments, j) {
 }
 
 /**
- * True when the segment is a single letter immediately after the word "Phase" (phase label).
+ * True when the segment is a single letter immediately after a label-parent word (e.g. Phase A, Step B, Appendix A).
  * @param {number} j - Segment index (must be 0 for first segment of word)
  * @param {string} core - stripWordPunctuation(segment)
  * @param {string} previousWordCore - Previous word core, lowercased
  * @returns {boolean}
  */
 function isPhaseLabelSegment(j, core, previousWordCore) {
-  return j === 0 && core.length === 1 && /^[A-Za-z]$/.test(core) && previousWordCore === "phase";
+  return j === 0 && core.length === 1 && /^[A-Za-z]$/.test(core) && LABEL_PARENT_WORDS.has(previousWordCore);
 }
 
 /**
