@@ -1,7 +1,8 @@
 name: Markdownlint tests
 
 # Positive tests must pass markdownlint; negative tests must fail.
-# Fails if positive fails lint or if any negative passes lint.
+# Also runs markdownlint --fix functional tests (test_fix_*.py).
+# Keep in sync with Makefile targets test-markdownlint and test-markdownlint-fix.
 
 on:
   push:
@@ -10,12 +11,16 @@ on:
       - '.markdownlint.yml'
       - 'markdownlint-rules/**'
       - 'md_test_files/**'
+      - 'test-scripts/test_fix_*.py'
+      - 'test-scripts/markdownlint_config_helper.py'
   pull_request:
     paths:
       - '.markdownlint-cli2.jsonc'
       - '.markdownlint.yml'
       - 'markdownlint-rules/**'
       - 'md_test_files/**'
+      - 'test-scripts/test_fix_*.py'
+      - 'test-scripts/markdownlint_config_helper.py'
 
 jobs:
   markdownlint-tests:
@@ -43,3 +48,6 @@ jobs:
 
       - name: Run markdownlint fixture tests
         run: make test-markdownlint
+
+      - name: Run markdownlint --fix functional tests
+        run: make test-markdownlint-fix
