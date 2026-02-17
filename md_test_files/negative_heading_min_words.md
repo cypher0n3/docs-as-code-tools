@@ -21,3 +21,13 @@ Single-word H4 fails when minWords is 2 and applyToLevelsAtOrBelow is 4.
 #### Two Words OK
 
 This passes.
+
+#### Another Single Wrong Suppress
+
+Placeholder so no-empty-heading does not report this section.
+
+<!-- ascii-only allow -->
+
+#### Foo
+
+Wrong-rule comment above does not suppress; heading-min-words still reports.

@@ -1,7 +1,10 @@
 # Negative Fixture: Heading Numbering
 
 <!-- Lint: `npx markdownlint-cli2 md_test_files/negative_heading_numbering.md` -->
-<!-- Expect: heading-numbering (segment count, sequence, period style, unnumbered sibling, zero-indexed violations). First block is H3/H4 under one H2; second block covers zero-indexed numbering errors. -->
+<!--
+  Expect: heading-numbering (segment count, sequence, period style, unnumbered sibling or child, zero-indexed violations).
+  First block is H3/H4 under one H2; second block covers zero-indexed numbering errors; final block shows parent-has-numbering so first child must be numbered.
+-->
 
 ## Bad Heading Numbering
 
@@ -52,5 +55,15 @@ Content.
 Content.
 
 #### 0.2. Skip 0.1 (Expected 0.1.)
+
+Content.
+
+## Parent Has Numbering; First Child Must Be Numbered
+
+When the parent has a number prefix but no sibling has one, the section still uses numbering (parent or siblings), so the child must get a number prefix.
+
+### 1. Numbered Parent
+
+### Unnumbered Only Child (No Sibling; Must Get 1.1. or 1.1)
 
 Content.

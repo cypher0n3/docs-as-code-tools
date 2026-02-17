@@ -12,3 +12,7 @@
 *Italic with colon outside*:
 
 1. **Numbered list with bold only**
+
+**Introduction**
+
+*Note*
