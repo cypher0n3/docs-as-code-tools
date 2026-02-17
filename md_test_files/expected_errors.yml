@@ -71,6 +71,7 @@ negative_ascii_only.md:
       message_contains: "U+2019"
     - line: 9
       rule: ascii-only
+      column: 41
       message_contains: "U+0142"
     - line: 11
       rule: ascii-only
@@ -128,83 +129,121 @@ negative_heading_like.md:
     - line: 14
       rule: no-heading-like-lines
       message_contains: numbered list with bold
+    - line: 16
+      rule: MD036/no-emphasis-as-heading
+    - line: 16
+      rule: no-heading-like-lines
+      message_contains: bold only
+    - line: 18
+      rule: MD036/no-emphasis-as-heading
+    - line: 18
+      rule: no-heading-like-lines
+      message_contains: italic only
 
 negative_heading_min_words.md:
   errors:
     - line: 17
       rule: heading-min-words
       message_contains: at least 2 word(s)
+    - line: 31
+      rule: heading-min-words
+      message_contains: at least 2 word(s)
 
 negative_heading_numbering.md:
   errors:
-    - line: 6
+    - line: 9
       rule: no-empty-heading
       message_contains: at least one line of content
-    - line: 8
+    - line: 11
       rule: no-empty-heading
       message_contains: at least one line of content
-    - line: 14
+    - line: 17
       rule: heading-numbering
       message_contains: expected "1.2" to match sibling
-    - line: 18
+    - line: 21
       rule: heading-numbering
       message_contains: period style inconsistent
-    - line: 22
+    - line: 25
       rule: heading-numbering
       message_contains: no number prefix
-    - line: 26
+    - line: 29
       rule: heading-numbering
       message_contains: period style inconsistent
-    - line: 26
+    - line: 29
       rule: heading-numbering
       message_contains: expected "3" to match sibling
-    - line: 30
-      rule: no-empty-heading
-      message_contains: at least one line of content
-    - line: 30
+    - line: 33
       rule: heading-numbering
       message_contains: 2 segment(s) in number prefix "1.1"
-    - line: 32
-      rule: heading-numbering
-      message_contains: Too Many Segments for H4
-    - line: 44
-      rule: heading-numbering
-      message_contains: expected "1" to match sibling
-    - line: 48
+    - line: 33
       rule: no-empty-heading
       message_contains: at least one line of content
-    - line: 48
+    - line: 35
+      rule: heading-numbering
+      message_contains: Too Many Segments for H4
+    - line: 41
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 47
+      rule: heading-numbering
+      message_contains: expected "1" to match sibling
+    - line: 51
       rule: heading-numbering
       message_contains: expected "2" to match sibling
-    - line: 54
+    - line: 51
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 57
       rule: heading-numbering
       message_contains: expected "0.1" to match sibling
+    - line: 65
+      rule: no-empty-heading
+      message_contains: at least one line of content
+    - line: 67
+      rule: heading-numbering
+      message_contains: no number prefix
 
 negative_heading_title_case.md:
   errors:
     - line: 6
       rule: heading-title-case
+      column: 4
       message_contains: 'Word "getting" should be capitalized'
+    - line: 6
+      rule: heading-title-case
+      column: 12
+      message_contains: 'Word "started" should be capitalized'
     - line: 10
       rule: heading-title-case
+      column: 12
       message_contains: 'Word "And" should be lowercase'
     - line: 14
       rule: heading-title-case
+      column: 19
       message_contains: 'Word "practice" should be capitalized'
     - line: 18
       rule: heading-title-case
+      column: 16
       message_contains: 'Word "in" should be capitalized'
     - line: 22
       rule: heading-title-case
+      column: 16
       message_contains: 'Word "in" should be capitalized'
+    - line: 22
+      rule: heading-title-case
+      column: 20
+      message_contains: 'Word "practice" should be capitalized'
     - line: 26
       rule: heading-title-case
+      column: 4
       message_contains: 'Word "is" should be capitalized'
     - line: 30
       rule: heading-title-case
+      column: 8
       message_contains: 'Word "stop" should be capitalized'
     - line: 34
       rule: heading-title-case
+      column: 14
       message_contains: 'Word "the" should be capitalized'
 
 negative_no_h1_content.md:
@@ -233,6 +272,24 @@ negative_no_empty_heading.md:
     - line: 51
       rule: no-empty-heading
       message_contains: at least one line of content
+
+negative_one_sentence_per_line.md:
+  errors:
+    - line: 8
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 10
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 12
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 17
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 18
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
 
 negative_inline_html.md:
   errors:

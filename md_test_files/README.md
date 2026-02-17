@@ -11,7 +11,7 @@
 
 - `**positive_general.md**` - Examples that pass all markdown standards, including no-empty-heading:
   section with only `<!-- no-empty-heading allow -->` on its own line, and section with other HTML comments plus that comment on its own line.
-  Lint should report 0 errors.
+  Also line-level HTML comment suppress: a line with non-ASCII (->) preceded by `<!-- ascii-only allow -->` on the previous line; lint reports 0 errors.
 - `**positive_general_index.md**` - Index-style page (filename matches `**/*_index.md`); excluded from no-empty-heading so empty H2 sections are allowed; passes with 0 errors.
 - `**positive_heading_numbering_zero.md**` - 0-indexed H2 numbering (## 0., 1., 2. and subsections); passes with 0 errors.
 - `**negative_*.md**` - One file per failing scenario; lint each to verify the expected custom rule(s) fail.
@@ -37,11 +37,12 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
 - **negative_fenced_code_under_heading.md** - fenced-code-under-heading
   - Fenced blocks (e.g. `go`) not under a heading; excess blocks per heading when maxBlocksPerHeading is set.
 - **negative_heading_like.md** - no-heading-like-lines
-  - Lines that look like headings (e.g. `**Text:**`, `1. **Text**`) but are not ATX headings.
+  - Lines that look like headings (e.g. `**Text:**`, `1. **Text**`, whole-line emphasis `**Introduction**` / `*Note*`) but are not ATX headings.
 - **negative_heading_min_words.md** - heading-min-words
   - Headings with fewer than the required word count (e.g. single-word H2/H4 when minWords is 2).
+  - Wrong-rule comment (`<!-- ascii-only allow -->`) on line before single-word heading does not suppress; heading-min-words still reports.
 - **negative_heading_numbering.md** - heading-numbering
-  - Segment count, sequence, period style, unnumbered sibling, zero-indexed violations; optional maxSegmentValue/maxHeadingLevel.
+  - Segment count, sequence, period style, unnumbered sibling or child (section uses numbering when parent or siblings have numbering), zero-indexed violations; optional maxSegmentValue/maxHeadingLevel.
 - **negative_heading_title_case.md** - heading-title-case
   - AP-style capitalization (lowercase/middle words, hyphenated compounds, etc.).
 - **negative_inline_html.md** - allow-custom-anchors
@@ -51,19 +52,24 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
     By default blank/HTML-comment/HTML-tag lines do not count; code block lines do count (configurable).
 - **negative_no_h1_content.md** - no-h1-content
   - Prose under the first h1 (only TOC-style content allowed there).
+- **negative_one_sentence_per_line.md** - one-sentence-per-line
+  - Prose and list lines with multiple sentences (paragraph, bullet, numbered, nested); line with abbreviation (e.g.) not reported.
 
 Note: some negative fixtures intentionally trigger built-in markdownlint rules in addition to custom rules (e.g. MD031/MD032/MD033), so the test suite can assert multiple errors on specific lines.
 
 ## Expectations
 
-Expected errors are defined in **expected_errors.yml** (one entry per fixture, keyed by filename). Each entry has:
+Expected errors are defined in **expected_errors.yml** (one entry per fixture, keyed by filename).
+Each entry has:
 
-- **errors**: list of expected errors. Each error has:
+- **errors**: list of expected errors.
+  Each error has:
   - **line** (required), **rule** (required)
-  - **column** (optional) - for rules that report at character level (e.g. ascii-only, heading-title-case)
+  - **column** (optional) - for rules that report at character level (e.g. ascii-only, heading-title-case); also used for fixable rules (fixInfo)
   - **message_contains** (optional) - substring that must appear in the rule's message
 
-Total expected count is the length of the errors list. The `make test-markdownlint` target runs `test-scripts/verify_markdownlint_fixtures.py`, which lints each fixture and validates output against this file.
+Total expected count is the length of the errors list.
+The `make test-markdownlint` target runs `test-scripts/verify_markdownlint_fixtures.py`, which lints each fixture and validates output against this file.
 
 ## Linting
 
@@ -74,5 +80,8 @@ Total expected count is the length of the errors list. The `make test-markdownli
 - Run the full fixture suite:
 
   `make test-markdownlint`
+
+- Some rules (heading-title-case, ascii-only, heading-numbering, one-sentence-per-line) are fixable; use `markdownlint-cli2 --fix <file>.md` to apply fixes.
+  Functional fix tests in [test-scripts/](../test-scripts/README.md) verify fix behavior.
 
 See **expected_errors.yml** for the expected errors per fixture.
