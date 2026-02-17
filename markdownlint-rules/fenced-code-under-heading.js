@@ -1,6 +1,6 @@
 "use strict";
 
-const { parseFenceInfo, pathMatchesAny } = require("./utils.js");
+const { isRuleSuppressedByComment, parseFenceInfo, pathMatchesAny } = require("./utils.js");
 
 const DEFAULT_MIN_HEADING_LEVEL = 2;
 const DEFAULT_MAX_HEADING_LEVEL = 6;
@@ -72,14 +72,15 @@ function processAtxLine(trimmed, lineNumber, opts, headings) {
 }
 
 /**
- * Single pass: find all H2–H6 in range and all opening fence lines for configured languages.
+ * Single pass: find all headings in range, all ATX headings (any level), and opening fence lines.
  *
  * @param {string[]} lines
  * @param {{ minHeadingLevel: number, maxHeadingLevel: number, languages: string[] }} opts
- * @returns {{ headings: { lineNumber: number, level: number }[], blocks: { lineNumber: number, language: string }[] }}
+ * @returns {{ headings: { lineNumber: number, level: number }[], allHeadings: { lineNumber: number, level: number }[], blocks: { lineNumber: number, language: string }[] }}
  */
 function findHeadingsAndBlocks(lines, opts) {
   const headings = [];
+  const allHeadings = [];
   const blocks = [];
   const state = { inFence: false, fenceMarker: null, fenceLen: 0 };
 
@@ -92,10 +93,12 @@ function findHeadingsAndBlocks(lines, opts) {
     }
     if (!state.inFence) {
       processAtxLine(trimmed, lineNumber, opts, headings);
+      const m = trimmed.match(RE_ATX);
+      if (m) allHeadings.push({ lineNumber, level: m[1].length });
     }
   }
 
-  return { headings, blocks };
+  return { headings, allHeadings, blocks };
 }
 
 /**
@@ -136,7 +139,7 @@ function findAllBlocks(lines) {
 }
 
 /**
- * For each block, get the last heading (H2–H6 in range) that appears before the block.
+ * For each block, get the last heading (in range) that appears before the block.
  *
  * @param {{ lineNumber: number, level: number }[]} headings - Sorted by lineNumber
  * @param {number} blockLine
@@ -147,6 +150,22 @@ function precedingHeading(headings, blockLine) {
   for (const h of headings) {
     if (h.lineNumber >= blockLine) break;
     last = h.lineNumber;
+  }
+  return last;
+}
+
+/**
+ * Get the immediately preceding heading (any level) before blockLine.
+ *
+ * @param {{ lineNumber: number, level: number }[]} allHeadings - Sorted by lineNumber
+ * @param {number} blockLine
+ * @returns {{ lineNumber: number, level: number }|null}
+ */
+function precedingHeadingAnyLevel(allHeadings, blockLine) {
+  let last = null;
+  for (const h of allHeadings) {
+    if (h.lineNumber >= blockLine) break;
+    last = h;
   }
   return last;
 }
@@ -162,10 +181,13 @@ function shouldSkipFile(filePath, opts) {
 /* c8 ignore stop */
 
 function reportBlocksWithoutHeading(ctx) {
-  const { blocks, headings, opts, lines, onError } = ctx;
+  const { blocks, allHeadings, opts, lines, onError } = ctx;
   for (const block of blocks) {
-    const headingLine = precedingHeading(headings, block.lineNumber);
-    if (headingLine != null || !opts.requireHeading) continue;
+    const immediate = precedingHeadingAnyLevel(allHeadings, block.lineNumber);
+    if (!opts.requireHeading) continue;
+    const validLevel = immediate != null && immediate.level >= opts.minHeadingLevel && immediate.level <= opts.maxHeadingLevel;
+    if (validLevel) continue;
+    if (isRuleSuppressedByComment(lines, block.lineNumber, "fenced-code-under-heading")) continue;
     onError({
       lineNumber: block.lineNumber,
       detail: `Fenced code block (${block.language}) must have an H${opts.minHeadingLevel}-H${opts.maxHeadingLevel} heading above it.`,
@@ -185,6 +207,7 @@ function reportExcessBlocksPerHeading(ctx) {
   for (const lineNumbers of blocksByHeading.values()) {
     for (let i = opts.maxBlocksPerHeading; i < lineNumbers.length; i++) {
       const lineNumber = lineNumbers[i];
+      if (isRuleSuppressedByComment(lines, lineNumber, "fenced-code-under-heading")) continue;
       onError({
         lineNumber,
         detail: `At most ${opts.maxBlocksPerHeading} fenced code block(s) of the configured language(s) per heading (found ${lineNumbers.length} under same heading).`,
@@ -194,27 +217,24 @@ function reportExcessBlocksPerHeading(ctx) {
   }
 }
 
-function reportExclusiveViolations(ctx) {
-  const { allBlocks, headings, opts, lines, onError } = ctx;
-  const blocksByHeading = new Map();
-  for (const block of allBlocks) {
-    const key = precedingHeading(headings, block.lineNumber) ?? 0;
-    if (!blocksByHeading.has(key)) blocksByHeading.set(key, []);
-    blocksByHeading.get(key).push(block);
-  }
+function reportExclusiveBlockErrors(blockList, ctx) {
+  const { opts, lines, onError } = ctx;
   const langList = opts.languages.join(", ");
-  for (const blockList of blocksByHeading.values()) {
-    if (blockList.length > 1) {
-      for (let i = 1; i < blockList.length; i++) {
-        const { lineNumber } = blockList[i];
-        onError({
-          lineNumber,
-          detail: `Only one fenced code block allowed per heading when exclusive is enabled (found ${blockList.length}).`,
-          context: lines[lineNumber - 1],
-        });
-      }
-    } else if (blockList.length === 1 && !opts.languages.includes(blockList[0].language)) {
-      const { lineNumber, language } = blockList[0];
+  if (blockList.length > 1) {
+    for (let i = 1; i < blockList.length; i++) {
+      const { lineNumber } = blockList[i];
+      if (isRuleSuppressedByComment(lines, lineNumber, "fenced-code-under-heading")) continue;
+      onError({
+        lineNumber,
+        detail: `Only one fenced code block allowed per heading when exclusive is enabled (found ${blockList.length}).`,
+        context: lines[lineNumber - 1],
+      });
+    }
+    return;
+  }
+  if (blockList.length === 1 && !opts.languages.includes(blockList[0].language)) {
+    const { lineNumber, language } = blockList[0];
+    if (!isRuleSuppressedByComment(lines, lineNumber, "fenced-code-under-heading")) {
       const displayLang = language || "(no language)";
       onError({
         lineNumber,
@@ -222,6 +242,20 @@ function reportExclusiveViolations(ctx) {
         context: lines[lineNumber - 1],
       });
     }
+  }
+}
+
+function reportExclusiveViolations(ctx) {
+  const { allBlocks, headings, lines, onError, opts } = ctx;
+  const blocksByHeading = new Map();
+  for (const block of allBlocks) {
+    const key = precedingHeading(headings, block.lineNumber) ?? 0;
+    if (!blocksByHeading.has(key)) blocksByHeading.set(key, []);
+    blocksByHeading.get(key).push(block);
+  }
+  const reportCtx = { opts, lines, onError };
+  for (const blockList of blocksByHeading.values()) {
+    reportExclusiveBlockErrors(blockList, reportCtx);
   }
 }
 
@@ -242,8 +276,8 @@ function ruleFunction(params, onError) {
   if (opts.languages.length === 0 || shouldSkipFile(filePath, opts)) return;
   /* c8 ignore stop */
 
-  const { headings, blocks } = findHeadingsAndBlocks(lines, opts);
-  reportBlocksWithoutHeading({ blocks, headings, opts, lines, onError });
+  const { headings, allHeadings, blocks } = findHeadingsAndBlocks(lines, opts);
+  reportBlocksWithoutHeading({ blocks, allHeadings, opts, lines, onError });
   if (opts.exclusive) {
     const allBlocks = findAllBlocks(lines);
     reportExclusiveViolations({ allBlocks, headings, opts, lines, onError });

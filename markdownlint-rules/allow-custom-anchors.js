@@ -1,6 +1,6 @@
 "use strict";
 
-const { stripInlineCode } = require("./utils.js");
+const { isRuleSuppressedByComment, pathMatchesAny, stripInlineCode } = require("./utils.js");
 
 /**
  * Safely create a RegExp from a string. Returns null for invalid or empty input.
@@ -302,14 +302,17 @@ function applyAnchorLine(state) {
   const line = lines[index];
   const scanLine = stripInlineCode(line);
   const basicErr = getBasicAnchorError(scanLine, line, lineNumber, allowedPatterns);
-  if (basicErr) { onError(basicErr); return; }
+  if (basicErr) {
+    if (!isRuleSuppressedByComment(lines, lineNumber, "allow-custom-anchors")) onError(basicErr);
+    return;
+  }
   const id = scanLine.match(ANCHOR_TAG_RE)[1];
   const matchIndex = allowedEntries.findIndex((e) => e.pattern.test(id));
   const rule = allowedEntries[matchIndex].placement;
   const placementErr = strictPlacement && rule
     ? getPlacementError({ lineNumber, line, trimmed: line.trim(), id, matchIndex, index, rule, sectionStack: state.sectionStack, sectionAnchorCount: state.sectionAnchorCount, lines })
     : null;
-  if (placementErr) onError(placementErr);
+  if (placementErr && !isRuleSuppressedByComment(lines, lineNumber, "allow-custom-anchors")) onError(placementErr);
 }
 
 /**
@@ -344,6 +347,12 @@ function processLine(state) {
  * @param {function(object): void} onError - Callback to report an error
  */
 function ruleFunction(params, onError) {
+    const filePath = params.name || "";
+    const block = params.config?.["allow-custom-anchors"] ?? params.config ?? {};
+    const excludePatterns = block.excludePathPatterns;
+    if (Array.isArray(excludePatterns) && excludePatterns.length > 0 && pathMatchesAny(filePath, excludePatterns)) {
+      return;
+    }
     const { allowedEntries, strictPlacement } = getConfig(params);
     const allowedPatterns = allowedEntries.map((e) => e.pattern);
     const lines = params.lines;
