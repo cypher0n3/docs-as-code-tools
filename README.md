@@ -20,12 +20,14 @@
 
 Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAnson/markdownlint) rules (JavaScript).
 
-- **Custom markdownlint rules** in [markdownlint-rules/](markdownlint-rules/README.md) (intended to be **copied directly** into whatever repo wishes to use them; no need to depend on this repo):
+- **Custom markdownlint rules** in [markdownlint-rules/](markdownlint-rules/README.md) (intended to be **copied directly** into whatever repo wishes to use them; no need to depend on this repo).
+  Some rules support auto-fix.
   - [allow-custom-anchors.js](markdownlint-rules/allow-custom-anchors.js) - Custom anchor validation.
     - Only allow `<a id="..."></a>` whose ids match configured regex patterns; optional placement (heading match, line match, require-after, max per section).
     - Use when: enforcing stable fragment links (e.g. spec/algo docs) and consistent anchor placement.
   - [ascii-only.js](markdownlint-rules/ascii-only.js) - ASCII-only with path/emoji allowlists.
     - Disallow non-ASCII except in paths matching globs; allow Unicode or emoji-only in specific paths; optional replacement suggestions in errors.
+      Fixable when a replacement is configured (default map includes arrows, quotes, em dash).
     - Use when: keeping most docs ASCII while allowing Unicode/emoji only in chosen files (e.g. i18n or release notes).
   - [fenced-code-under-heading.js](markdownlint-rules/fenced-code-under-heading.js) - fenced code under heading.
     - For specified languages (e.g. `go`), every fenced block must sit under an H2-H6 heading; optional max blocks per heading and path filters.
@@ -36,9 +38,11 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
   - [heading-numbering.js](markdownlint-rules/heading-numbering.js) - heading numbering.
     - Enforce segment count by numbering root, sequential numbering per section, consistent period style (e.g. `1. Title` vs `1 Title`), optional `maxSegmentValue` and `maxHeadingLevel`.
       Default is 1-based (1., 2., 3.); if the first numbered heading in a section starts at 0 (e.g. `0.`, `0.0.`), that section is treated as 0-based and no error is reported.
+    Fixable for wrong sequence, missing prefix, wrong segment count, period style.
     - Use when: docs use numbered headings (e.g. `### 1.2.3 Title` or 0-based `### 0. Introduction`) and you want structure and style consistent.
   - [heading-title-case.js](markdownlint-rules/heading-title-case.js) - heading title case.
     - Enforce title case for headings; words in backticks ignored; configurable lowercase words (e.g. vs, and, the).
+      Fixable: corrects each violating word to AP title case.
     - Use when: you want consistent capitalization of headings (first/last and major words capped; small words lowercase in the middle).
   - [no-duplicate-headings-normalized.js](markdownlint-rules/no-duplicate-headings-normalized.js) - duplicate-heading checks.
     - Disallow duplicate heading titles after stripping numeric prefixes and normalizing case/whitespace; first occurrence is reference.
@@ -49,13 +53,19 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
       Only `<!-- no-empty-heading allow -->` on its own line suppresses.
     - Use when: avoiding placeholder sections with no body content.
   - [no-heading-like-lines.js](markdownlint-rules/no-heading-like-lines.js) - no heading-like lines.
-    - Report lines that look like headings but are not (e.g. `**Text:**`, `1. **Text**`); prompt use of real `#` headings.
+    - Report lines that look like headings but are not (e.g. `**Text:**`, `1. **Text**`, whole-line emphasis `**Introduction**` / `*Note*`); default omits colon from sentence punctuation so colon lines are caught (greedier than MD036).
+      Fixable: default strips emphasis; optional `convertToHeading` converts to ATX heading (context-aware level; optional AP title case and numbering when heading-title-case and heading-numbering are present).
     - Use when: ensuring real Markdown headings instead of bold/italic that look like headings.
   - [no-h1-content.js](markdownlint-rules/no-h1-content.js) - no content under h1 except TOC.
     - Under the first h1, allow only table-of-contents content (blank lines, list-of-links, HTML comments).
     - Use when: enforcing that the only content under the doc title is a TOC.
+  - [one-sentence-per-line.js](markdownlint-rules/one-sentence-per-line.js) - one sentence per line.
+    - Enforce one sentence per line in prose and list content; skips decimals, abbreviations, inline code, filenames (period with no space after).
+      Fixable: splits all sentences on the line in one pass with configurable continuation indent.
+    - Use when: keeping prose and list items to one sentence per line for readability and diffs.
   - [document-length.js](markdownlint-rules/document-length.js) - maximum document length.
     - Disallow documents longer than a configured number of lines (default 1500); reports on line 1 when over the limit.
+      Optional `excludePathPatterns`.
     - Use when: keeping individual docs under a line cap to encourage splitting.
   - [utils.js](markdownlint-rules/utils.js) - shared utilities
     - Heading/content helpers and path/glob matching; used by other rules.
@@ -63,17 +73,18 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Use when: copying the rule files; required by several of the rules above.
 
 - **JS linting** for the rule code: ESLint (recommended + complexity/max-lines + eslint-plugin-security), aligned with the GitHub Actions workflow.
-- **Markdownlint fixture tests**: [md_test_files/](md_test_files/README.md) includes positive_*.md and negative_*.md fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
+- **Markdownlint fixture tests**: [md_test_files/](md_test_files/README.md) includes `positive_*.md` and `negative_*.md` fixtures with explicit expected errors, verified by `test-scripts/verify_markdownlint_fixtures.py`.
 - **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/` (including security tests for defensive regex handling and ReDoS awareness); run with `make test-rules` or `npm run test:rules`.
   CI runs `make test-rules-coverage` (fails if any rule file is below 90% line/statement coverage).
 - **Python unit tests**: `unittest` tests for [test-scripts/](test-scripts/README.md) in `test-scripts/test_*.py`; run with `make test-python`.
+  Includes functional fix tests (`test_fix_heading_title_case.py`, `test_fix_ascii_only.py`, `test_fix_heading_numbering.py`, `test_fix_no_heading_like_lines.py`, `test_fix_one_sentence_per_line.py`) and `test_markdownlint_options.py` (rule options via config helper).
 - **Python linting** for repo tooling scripts: `make lint-python` (flake8, pylint, xenon/radon, vulture, bandit).
 
 See **[markdownlint-rules/README.md](markdownlint-rules/README.md)** for rule docs and configuration.
 
 ## Requirements
 
-- Node.js and npm (for JS linting)
+- `Node.js` and npm (for JS linting)
 - Python 3 (for repo test scripts and `make lint-python`)
 - [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) and config (`.markdownlint-cli2.jsonc`, `.markdownlint.yml`) when using the custom rules in another repo
 
@@ -132,6 +143,7 @@ npm install
 
 - **Use the custom rules**: Copy the `markdownlint-rules/*.js` files (and optionally the rule [README](markdownlint-rules/README.md) and config) into your docs repo, then point markdownlint-cli2 at that directory and your `.markdownlint.yml` / `.markdownlint-cli2.jsonc`.
   For VS Code (and forks like Cursor), see [markdownlint-rules/README.md](markdownlint-rules/README.md#using-in-vs-code-and-its-forks).
+  To auto-fix fixable violations (e.g. heading title case, ascii-only replacements, heading numbering), run `markdownlint-cli2 --fix <paths>` or use the editor "Fix all supported markdownlint violations".
 
 ## Repository Layout
 
@@ -160,8 +172,10 @@ npm install
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute, run tests (`make test-markdownlint`, `make test-rules`, `make test-python`), and run linting (`make lint-js`, `make lint-readmes`). Use `make ci` to run all CI checks locally.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute, run tests (`make test-markdownlint`, `make test-rules`, `make test-python`), and run linting (`make lint-js`, `make lint-readmes`).
+Use `make ci` to run all CI checks locally.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT.
+See [LICENSE](LICENSE).
