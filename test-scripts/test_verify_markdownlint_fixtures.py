@@ -9,19 +9,13 @@ integration-style tests (skipped when unavailable).
 
 from __future__ import annotations
 
-import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-# Repo root (parent of test-scripts). Add test-scripts to path so we can import the verifier.
+import verify_markdownlint_fixtures as v
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_TEST_SCRIPTS = _REPO_ROOT / "test-scripts"
-if str(_TEST_SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(_TEST_SCRIPTS))
-
-import verify_markdownlint_fixtures as v  # noqa: E402
-
 _MD_DIR = _REPO_ROOT / "md_test_files"
 _EXPECT_PATH = _MD_DIR / "expected_errors.yml"
 
