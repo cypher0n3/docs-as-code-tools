@@ -98,6 +98,13 @@ describe("no-empty-heading", () => {
     assert.strictEqual(errors[0].lineNumber, 2);
   });
 
+  it("reports error for H2 with only multi-line HTML comment (lines do not count as content)", () => {
+    const lines = ["# Doc", "## Empty", "<!--", "  multi-line comment", "-->", "## Next", "Content."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
+  });
+
   it("reports no error when section has only the suppress comment (no-empty-heading allow)", () => {
     const lines = ["# Doc", "## Empty", "<!-- no-empty-heading allow -->", "## Next", "Content."];
     const errors = runRule(rule, lines);
@@ -125,6 +132,12 @@ describe("no-empty-heading", () => {
       "## Next",
       "Content.",
     ];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports no error when suppress comment on line before empty heading (line-level override)", () => {
+    const lines = ["# Doc", "<!-- no-empty-heading allow -->", "## Empty", "## Next", "Content."];
     const errors = runRule(rule, lines);
     assert.strictEqual(errors.length, 0);
   });
@@ -295,5 +308,29 @@ describe("no-empty-heading", () => {
     const config = { minimumContentLines: 2, countBlankLinesAsContent: true };
     const errors = runRule(rule, lines, config);
     assert.strictEqual(errors.length, 0);
+  });
+
+  describe("edge cases", () => {
+    it("unclosed multi-line HTML comment at end of section does not count as content", () => {
+      const lines = ["# Doc", "## Empty", "<!--", "  unclosed", "## Next", "Content."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 2);
+    });
+
+    it("minimumContentLines 2 with countBlankLinesAsContent and only one blank reports error", () => {
+      const lines = ["# Doc", "## Section", "", "## Next", "Content."];
+      const config = { minimumContentLines: 2, countBlankLinesAsContent: true };
+      const errors = runRule(rule, lines, config);
+      assert.ok(errors.length >= 1, "section(s) with only 1 content line when 2 required");
+      assert.ok(errors.some((e) => e.detail.includes("at least 2 lines")));
+    });
+
+    it("section with only self-closing HTML tag when countHtmlLinesAsContent false reports empty", () => {
+      const lines = ["# Doc", "## Section", "<br />", "## Next", "Content."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 2);
+    });
   });
 });
