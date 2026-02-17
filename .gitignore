@@ -1,9 +1,10 @@
 # Directories
-.vscode/
 .cursor/
 .venv/
-node_modules/
+.vscode/
 Abacus.ai*/
+dev_docs/
+node_modules/
 tmp/
 
 # File Patterns
