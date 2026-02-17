@@ -28,9 +28,10 @@ npm install
 
 Run the Makefile targets below so your PR stays green.
 
-## Checks - Makefile Targets
+## Checks - `Makefile` Targets
 
-These targets mirror the GitHub Actions workflows. Run them locally before pushing.
+These targets mirror the GitHub Actions workflows.
+Run them locally before pushing.
 
 ### Lint Rule JavaScript (`make lint-js`)
 
@@ -57,7 +58,8 @@ These targets mirror the GitHub Actions workflows. Run them locally before pushi
   make test-markdownlint
   ```
 
-  When adding or changing a custom rule, add or update a `negative_*.md` fixture so the intended violation is covered. See [md_test_files/README.md](md_test_files/README.md) for which file exercises which rule.
+  When adding or changing a custom rule, add or update a `negative_*.md` fixture so the intended violation is covered.
+    See [md_test_files/README.md](md_test_files/README.md) for which file exercises which rule.
 
 ### Rule Unit Tests (`make test-rules`)
 
@@ -109,8 +111,10 @@ Or run individual targets: `make lint-js && make test-rules && make test-markdow
 
 ## Custom Rules
 
-- Rule code lives in [markdownlint-rules/](markdownlint-rules/). Do not register `utils.js` as a rule; it is a shared helper.
-- Config for custom rules is in [.markdownlint.yml](.markdownlint.yml). Rule docs and reuse instructions are in [markdownlint-rules/README.md](markdownlint-rules/README.md).
+- Rule code lives in [markdownlint-rules/](markdownlint-rules/).
+  Do not register `utils.js` as a rule; it is a shared helper.
+- Config for custom rules is in [.markdownlint.yml](.markdownlint.yml).
+  Rule docs and reuse instructions are in [markdownlint-rules/README.md](markdownlint-rules/README.md).
 
 ## Sync Notes
 
