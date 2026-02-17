@@ -15,6 +15,13 @@ function makeLines(n) {
 }
 
 describe("document-length", () => {
+  it("skips when file path matches excludePathPatterns", () => {
+    const lines = makeLines(1501);
+    const config = { excludePathPatterns: ["**/long.md"] };
+    const errors = runRule(rule, lines, config, "docs/long.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("reports no errors when lines.length <= maximum (default 1500)", () => {
     const lines = makeLines(1500);
     const errors = runRule(rule, lines);
@@ -67,11 +74,78 @@ describe("document-length", () => {
     assert.ok(errors[0].detail.includes("1500"));
   });
 
+  it("uses top-level maximum when rule block has no maximum", () => {
+    const lines = makeLines(11);
+    const config = { "document-length": {}, maximum: 10 };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].detail.includes("11") && errors[0].detail.includes("10"));
+  });
+
+  it("uses rule-level maximum when config has document-length block", () => {
+    const lines = makeLines(11);
+    const config = { "document-length": { maximum: 10 } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].detail.includes("11") && errors[0].detail.includes("10"));
+  });
+
+  it("skips when params.config is undefined (branch coverage)", () => {
+    const lines = makeLines(1501);
+    const errors = [];
+    rule.function({ lines, config: undefined, name: "x.md" }, (e) => errors.push(e));
+    assert.strictEqual(errors.length, 1, "no excludePathPatterns so rule runs and reports over limit");
+  });
+
   it("reports error with empty context when first line is undefined (over limit)", () => {
     const lines = Array(2);
     lines[1] = "second";
     const errors = runRule(rule, lines, { maximum: 1 });
     assert.strictEqual(errors.length, 1);
     assert.strictEqual(errors[0].context, "");
+  });
+
+  describe("HTML comment suppress", () => {
+    it("reports no error when line 1 is solely the suppress comment (over limit)", () => {
+      const lines = ["<!-- document-length allow -->", "second line"];
+      const config = { "document-length": { maximum: 1 } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("reports no error when line 1 ends with the suppress comment (over limit)", () => {
+      const lines = ["# Title <!-- document-length allow -->", "second line"];
+      const config = { "document-length": { maximum: 1 } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("reports error when over limit and no suppress comment", () => {
+      const lines = ["# Title", "second line"];
+      const config = { "document-length": { maximum: 1 } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+    });
+  });
+
+  describe("edge cases", () => {
+    it("maximum 0 uses default maximum (1500)", () => {
+      const lines = makeLines(10);
+      const errors = runRule(rule, lines, { maximum: 0 });
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("maximum negative uses default maximum", () => {
+      const lines = makeLines(10);
+      const errors = runRule(rule, lines, { maximum: -1 });
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("rule-level config block with empty object uses top-level maximum", () => {
+      const lines = makeLines(1501);
+      const config = { "document-length": {}, maximum: 1500 };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+    });
   });
 });

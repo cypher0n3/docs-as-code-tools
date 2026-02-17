@@ -213,4 +213,53 @@ describe("fenced-code-under-heading", () => {
     const errors = runRule(rule, lines, config);
     assert.strictEqual(errors.length, 0);
   });
+
+  describe("edge cases", () => {
+    it("minHeadingLevel 3 means H2 does not count as heading above block", () => {
+      const lines = ["# Doc", "## Section", "```go", "x", "```"];
+      const config = { "fenced-code-under-heading": { languages: ["go"], minHeadingLevel: 3 } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 3);
+      assert.ok(errors[0].detail.includes("H3"));
+    });
+
+    it("fenced block at line 1 with no heading reports error", () => {
+      const lines = ["```go", "x", "```"];
+      const config = { "fenced-code-under-heading": { languages: ["go"] } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 1);
+    });
+
+    it("exclusive: three blocks under one heading report two errors (2nd and 3rd block)", () => {
+      const lines = [
+        "# Doc",
+        "## Section",
+        "```go",
+        "a",
+        "```",
+        "```bash",
+        "b",
+        "```",
+        "```text",
+        "c",
+        "```",
+      ];
+      const config = { "fenced-code-under-heading": { languages: ["go"], exclusive: true } };
+      const errors = runRule(rule, lines, config);
+      assert.ok(errors.length >= 2, "second and third blocks should be reported");
+      const lineNumbers = errors.map((e) => e.lineNumber).sort((a, b) => a - b);
+      assert.ok(lineNumbers.includes(6));
+      assert.ok(lineNumbers.includes(9));
+    });
+
+    it("maxHeadingLevel 2 excludes H3 so block under H3 has no valid heading", () => {
+      const lines = ["# Doc", "## A", "### B", "```go", "x", "```"];
+      const config = { "fenced-code-under-heading": { languages: ["go"], maxHeadingLevel: 2 } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 4);
+    });
+  });
 });
