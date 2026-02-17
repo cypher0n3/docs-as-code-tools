@@ -1,6 +1,6 @@
 "use strict";
 
-const { extractHeadings, parseHeadingNumberPrefix, pathMatchesAny } = require("./utils.js");
+const { extractHeadings, isRuleSuppressedByComment, parseHeadingNumberPrefix, pathMatchesAny } = require("./utils.js");
 
 /**
  * Normalize config: minWords required; optional applyToLevelsAtOrBelow, minLevel/maxLevel,
@@ -94,13 +94,35 @@ function isAllowedSingleWord(title, allowList) {
 }
 
 /**
+ * Report error if a single heading violates min-words (or allowList for single-word).
+ *
+ * @param {{ lineNumber: number, level: number, rawText: string }} h - Heading
+ * @param {object} opts - Normalized config
+ * @param {string[]} lines - Document lines
+ * @param {function(object): void} onError - Callback to report an error
+ */
+function checkHeading(h, opts, lines, onError) {
+  if (!levelInScope(h.level, opts)) return;
+  const title = getTitleForWordCount(h.rawText, opts.stripNumbering);
+  const count = wordCount(title);
+  /* c8 ignore next 2 -- branch: allow by minWords or allowList */
+  const allowed = count >= opts.minWords || (count === 1 && isAllowedSingleWord(title, opts.allowList));
+  if (allowed) return;
+  if (isRuleSuppressedByComment(lines, h.lineNumber, "heading-min-words")) return;
+  onError({
+    lineNumber: h.lineNumber,
+    detail: `Heading at or below this level must have at least ${opts.minWords} word(s) in the title (found ${count}).`,
+    context: lines[h.lineNumber - 1],
+  });
+}
+
+/**
  * markdownlint rule: headings at or below a configurable level must have at least N words
  * in the title (after optional numbering strip). Optional allowList for single-word titles.
  *
  * @param {object} params - markdownlint params (lines, config, name)
  * @param {function(object): void} onError - Callback to report an error
  */
-// eslint-disable-next-line complexity -- path/config/level/word/allowList branches
 function ruleFunction(params, onError) {
   const lines = params.lines;
   const filePath = params.name || "";
@@ -111,17 +133,7 @@ function ruleFunction(params, onError) {
 
   const headings = extractHeadings(lines);
   for (const h of headings) {
-    if (!levelInScope(h.level, opts)) continue;
-    const title = getTitleForWordCount(h.rawText, opts.stripNumbering);
-    const count = wordCount(title);
-    /* c8 ignore next 2 -- branch: allow by minWords or allowList */
-    const allowed = count >= opts.minWords || (count === 1 && isAllowedSingleWord(title, opts.allowList));
-    if (allowed) continue;
-    onError({
-      lineNumber: h.lineNumber,
-      detail: `Heading at or below this level must have at least ${opts.minWords} word(s) in the title (found ${count}).`,
-      context: lines[h.lineNumber - 1],
-    });
+    checkHeading(h, opts, lines, onError);
   }
 }
 

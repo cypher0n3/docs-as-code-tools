@@ -1,9 +1,10 @@
 "use strict";
 
-const { extractHeadings, pathMatchesAny } = require("./utils.js");
+const { extractHeadings, isRuleSuppressedByComment, pathMatchesAny } = require("./utils.js");
 
 /** Match HTML comment line (single line). */
 const RE_HTML_COMMENT = /^\s*<!--.*-->\s*$/;
+
 
 /** Match the exact suppress comment: <!-- no-empty-heading allow --> (optional whitespace). */
 const RE_SUPPRESS_COMMENT_RAW = /^\s*<!--\s*no-empty-heading\s+allow\s*-->\s*$/;
@@ -46,21 +47,47 @@ function isHtmlTagLine(trimmed) {
 }
 
 /**
+ * Return true if the trimmed line is inside or part of a multi-line HTML comment (<!-- ... -->).
+ * Used to treat such lines like single-line HTML comments for content counting.
+ *
+ * @param {string} trimmed - Trimmed line
+ * @param {{ inMultilineComment: boolean }} state - Current multi-line comment state
+ * @returns {{ isCommentLine: boolean, inMultilineComment: boolean }} - Whether this line counts as comment; new state for next line
+ */
+function updateMultilineCommentState(trimmed, state) {
+  const wasIn = state.inMultilineComment;
+  if (wasIn) {
+    const closes = /-->\s*$/.test(trimmed);
+    return { isCommentLine: true, inMultilineComment: !closes };
+  }
+  if (RE_HTML_COMMENT.test(trimmed)) {
+    return { isCommentLine: true, inMultilineComment: false };
+  }
+  const opens = /^\s*<!--/.test(trimmed) && !/-->\s*$/.test(trimmed);
+  return { isCommentLine: opens, inMultilineComment: opens };
+}
+
+/**
  * Return true if the trimmed line counts as content under the given config.
  * Prose (non-blank, not only HTML comment/tag) always counts; blank, HTML-comment,
  * and HTML-tag lines count only when the corresponding config option is true.
+ * Single-line and multi-line HTML comments are treated alike.
  * The suppress comment never counts as content (it only suppresses the rule for that section).
  *
  * @param {string} trimmed - Trimmed line
  * @param {{ countBlankLinesAsContent: boolean, countHTMLCommentsAsContent: boolean, countHtmlLinesAsContent: boolean }} opts
+ * @param {{ isCommentLine: boolean }} multilineContext - Optional; when isCommentLine is true, line is treated as HTML comment
  * @returns {boolean}
  */
-function isContentLine(trimmed, opts) {
+function isContentLine(trimmed, opts, multilineContext) {
   if (trimmed === "") {
     return opts.countBlankLinesAsContent;
   }
   if (isSuppressComment(trimmed)) {
     return false;
+  }
+  if (multilineContext && multilineContext.isCommentLine) {
+    return opts.countHTMLCommentsAsContent;
   }
   if (RE_HTML_COMMENT.test(trimmed)) {
     return opts.countHTMLCommentsAsContent;
@@ -122,16 +149,22 @@ function sectionContentLineCount(ctx) {
   const { lines, heading, endLine, headingLineNumbers, contentOpts } = ctx;
   let count = 0;
   let fenceState = { inFence: false, fenceMarker: null };
+  let multilineCommentState = { inMultilineComment: false };
   const lastLine = Math.min(endLine, lines.length);
   for (let lineNumber = heading.lineNumber + 1; lineNumber <= lastLine; lineNumber++) {
     if (headingLineNumbers.has(lineNumber)) break;
     const trimmed = lines[lineNumber - 1].trim();
+    const { isCommentLine, inMultilineComment } = updateMultilineCommentState(
+      trimmed,
+      multilineCommentState
+    );
+    multilineCommentState = { inMultilineComment };
     const nextFence = updateFenceState(trimmed, fenceState);
     fenceState = nextFence;
     if (!contentOpts.countCodeBlockLinesAsContent && (nextFence.isFenceLine || nextFence.inFence)) {
       continue;
     }
-    if (isContentLine(trimmed, contentOpts)) count += 1;
+    if (isContentLine(trimmed, contentOpts, { isCommentLine })) count += 1;
   }
   return count;
 }
@@ -211,6 +244,40 @@ function buildDetailMessage(minimumContentLines, contentOpts) {
 }
 
 /**
+ * Return true if this H2+ heading has too little content (violation).
+ *
+ * @param {object} ctx - { heading, headings, lines, headingLineNumbers, minimumContentLines, contentOpts }
+ * @returns {boolean}
+ */
+function headingHasTooLittleContent(ctx) {
+  const { heading, headings, lines, headingLineNumbers, minimumContentLines, contentOpts } = ctx;
+  const nextSameOrHigher = headings.find(
+    (h) => h.lineNumber > heading.lineNumber && h.level <= heading.level
+  );
+  const endLine = nextSameOrHigher ? nextSameOrHigher.lineNumber - 1 : lines.length;
+  if (sectionHasSuppressComment(lines, heading, endLine, headingLineNumbers)) {
+    return false;
+  }
+  const count = sectionContentLineCount({ lines, heading, endLine, headingLineNumbers, contentOpts });
+  return count < minimumContentLines;
+}
+
+function reportEmptyHeading(heading, ctx) {
+  const { headings, lines, headingLineNumbers, minimumContentLines, contentOpts, onError } = ctx;
+  if (!headingHasTooLittleContent({
+    heading, headings, lines, headingLineNumbers, minimumContentLines, contentOpts,
+  })) {
+    return;
+  }
+  if (isRuleSuppressedByComment(lines, heading.lineNumber, "no-empty-heading")) return;
+  onError({
+    lineNumber: heading.lineNumber,
+    detail: buildDetailMessage(minimumContentLines, contentOpts),
+    context: lines[heading.lineNumber - 1],
+  });
+}
+
+/**
  * markdownlint rule: every H2+ heading must have at least one line of content
  * directly under it (before any subheading). Content under subheadings does not
  * count. Blank lines and HTML-comment-only lines do not count as content. The
@@ -222,36 +289,20 @@ function buildDetailMessage(minimumContentLines, contentOpts) {
 function ruleFunction(params, onError) {
   const lines = params.lines;
   const filePath = params.name || "";
-  const config = params.config || {};
-  const excludePatterns = config.excludePathPatterns;
+  const block = params.config?.["no-empty-heading"] ?? params.config ?? {};
+  const excludePatterns = block.excludePathPatterns;
   if (Array.isArray(excludePatterns) && excludePatterns.length > 0 && pathMatchesAny(filePath, excludePatterns)) {
     return;
   }
 
-  const { minimumContentLines, contentOpts } = normalizeConfig(config);
+  const { minimumContentLines, contentOpts } = normalizeConfig(block);
   const headings = extractHeadings(lines);
   const h2Plus = headings.filter((h) => h.level >= 2);
   const headingLineNumbers = new Set(headings.map((h) => h.lineNumber));
+  const ctx = { headings, lines, headingLineNumbers, minimumContentLines, contentOpts, onError };
 
   for (const heading of h2Plus) {
-    const nextSameOrHigher = headings.find(
-      (h) => h.lineNumber > heading.lineNumber && h.level <= heading.level
-    );
-    const endLine = nextSameOrHigher ? nextSameOrHigher.lineNumber - 1 : lines.length;
-
-    if (sectionHasSuppressComment(lines, heading, endLine, headingLineNumbers)) {
-      continue;
-    }
-    const count = sectionContentLineCount({ lines, heading, endLine, headingLineNumbers, contentOpts });
-    if (count >= minimumContentLines) {
-      continue;
-    }
-
-    onError({
-      lineNumber: heading.lineNumber,
-      detail: buildDetailMessage(minimumContentLines, contentOpts),
-      context: lines[heading.lineNumber - 1],
-    });
+    reportEmptyHeading(heading, ctx);
   }
 }
 

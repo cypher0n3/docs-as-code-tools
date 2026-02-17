@@ -1,6 +1,7 @@
 "use strict";
 
 const {
+  isRuleSuppressedByComment,
   iterateLinesWithFenceInfo,
   iterateNonFencedLines,
   pathMatchesAny,
@@ -23,6 +24,8 @@ const DEFAULT_UNICODE_REPLACEMENTS = {
   "\u201D": "\"",
   "\u2019": "'",
   "\u2018": "'",
+  "\u2013": "-",  // en dash
+  "\u2014": "-",  // em dash
 };
 
 /**
@@ -267,6 +270,33 @@ function shouldCheckFencedLine(inFencedBlock, blockType, disallowTypes) {
   return disallowTypes.has(blockType);
 }
 
+function shouldSkipByPath(filePath, block) {
+  const excludePatterns = block.excludePathPatterns;
+  return Array.isArray(excludePatterns) && excludePatterns.length > 0 && pathMatchesAny(filePath, excludePatterns);
+}
+
+function reportDisallowedOccurrences(lineNumber, line, ctx, onError) {
+  const scan = stripInlineCode(line);
+  if (!hasNonAscii(scan)) return;
+  if (ctx.allowUnicode) return;
+  if (ctx.allowEmojiOnly && onlyAllowedEmoji(scan, ctx.allowedEmojiSet)) return;
+
+  for (const { startIndex, char, length } of getDisallowedOccurrences(
+    scan, ctx.allowEmojiOnly, ctx.allowedUnicodeSet, ctx.allowedEmojiSet,
+  )) {
+    if (isRuleSuppressedByComment(ctx.lines, lineNumber, "ascii-only")) return;
+    const column = startIndex + 1;
+    const replacement = ctx.config.unicodeReplacements.get(char);
+    onError({
+      lineNumber,
+      detail: buildOccurrenceDetail(char, replacement, ctx.allowEmojiOnly, ctx.config),
+      context: line,
+      range: [column, length],
+      ...(replacement != null && replacement !== "" && { fixInfo: { editColumn: column, deleteCount: length, insertText: replacement } }),
+    });
+  }
+}
+
 /**
  * markdownlint rule: disallow non-ASCII except in configured paths; optional
  * replacement suggestions via unicodeReplacements. Paths can allow full Unicode
@@ -279,42 +309,30 @@ function shouldCheckFencedLine(inFencedBlock, blockType, disallowTypes) {
  */
 function ruleFunction(params, onError) {
   const filePath = params.name || "";
-  const config = getConfig(params);
-  const allowUnicode = pathMatchesAny(filePath, config.allowedPathPatternsUnicode);
-  const allowEmojiOnly = pathMatchesAny(filePath, config.allowedPathPatternsEmoji);
-  const allowedEmojiSet = toCharSet(config.allowedEmoji);
-  const allowedUnicodeSet = config.allowedUnicode;
+  const block = params.config?.["ascii-only"] ?? params.config ?? {};
+  if (shouldSkipByPath(filePath, block)) return;
 
-  const checkLine = (lineNumber, line) => {
-    const scan = stripInlineCode(line);
-    if (!hasNonAscii(scan)) return;
-    if (allowUnicode) return;
-    if (allowEmojiOnly && onlyAllowedEmoji(scan, allowedEmojiSet)) return;
-
-    for (const { startIndex, char, length } of getDisallowedOccurrences(
-      scan, allowEmojiOnly, allowedUnicodeSet, allowedEmojiSet,
-    )) {
-      const column = startIndex + 1;
-      const replacement = config.unicodeReplacements.get(char);
-      onError({
-        lineNumber,
-        detail: buildOccurrenceDetail(char, replacement, allowEmojiOnly, config),
-        context: line,
-        range: [column, length],
-      });
-    }
+  const config = getConfig({ config: block });
+  const lines = params.lines;
+  const ctx = {
+    config,
+    lines,
+    allowUnicode: pathMatchesAny(filePath, config.allowedPathPatternsUnicode),
+    allowEmojiOnly: pathMatchesAny(filePath, config.allowedPathPatternsEmoji),
+    allowedEmojiSet: toCharSet(config.allowedEmoji),
+    allowedUnicodeSet: config.allowedUnicode,
   };
 
   if (config.allowUnicodeInCodeBlocks) {
     for (const { lineNumber, line } of iterateNonFencedLines(params.lines)) {
-      checkLine(lineNumber, line);
+      reportDisallowedOccurrences(lineNumber, line, ctx, onError);
     }
     return;
   }
 
   for (const { lineNumber, line, inFencedBlock, blockType } of iterateLinesWithFenceInfo(params.lines)) {
     if (!shouldCheckFencedLine(inFencedBlock, blockType, config.disallowUnicodeInCodeBlockTypes)) continue;
-    checkLine(lineNumber, line);
+    reportDisallowedOccurrences(lineNumber, line, ctx, onError);
   }
 }
 
