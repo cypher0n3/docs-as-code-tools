@@ -10,6 +10,17 @@ const {
 
 /** Token looks like a file name (e.g. README.md, package.json, Makefile); suggest backticks instead of case change. */
 const RE_FILE_LIKE = /^[^\s`]*[A-Za-z][^\s`]*\.[A-Za-z0-9]+$/;
+
+/** Match HTML/XML entity (e.g. &rArr; &#8230; &#x2192;) so we skip title-case checks (ASCII-safe special chars). */
+const RE_HTML_ENTITY = /^[^A-Za-z0-9]*&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);[^A-Za-z0-9]*$/;
+
+/** Placeholder sentinels for inline code in applyTitleCase (private-use Unicode, not control chars). */
+const PLACEHOLDER_START = "\uE000";
+const PLACEHOLDER_END = "\uE001";
+
+function isHtmlEntity(segment) {
+  return typeof segment === "string" && RE_HTML_ENTITY.test(segment.trim());
+}
 const FILENAME_NO_EXT = new Set(["makefile", "dockerfile", "dockerignore", "gitignore", "gitattributes", "npmrc", "editorconfig"]);
 
 function looksLikeFileName(token) {
@@ -166,6 +177,7 @@ function isPhaseLabelSegment(j, core, previousWordCore) {
 function checkOneSegment(opts) {
   const { words, rawSegments, i, j, wordIsSubphraseStart, lowercaseWords, previousWordCore } = opts;
   const rawSeg = rawSegments[j];
+  if (isHtmlEntity(rawSeg)) return null;
   const core = stripWordPunctuation(rawSeg);
   if (!core || !/[a-zA-Z]/.test(core)) return null;
 
@@ -306,6 +318,10 @@ function processWordForTitleCase(raw, i, words, lowercaseWords) {
   const segmentParts = [];
   for (let j = 0; j < rawSegments.length; j++) {
     const rawSeg = rawSegments[j];
+    if (isHtmlEntity(rawSeg)) {
+      segmentParts.push(rawSeg);
+      continue;
+    }
     const core = stripWordPunctuation(rawSeg);
     if (!core || !/[a-zA-Z]/.test(core)) {
       segmentParts.push(rawSeg);
@@ -325,8 +341,65 @@ function processWordForTitleCase(raw, i, words, lowercaseWords) {
 }
 
 /**
+ * Replace inline code spans with placeholders so applyTitleCase can preserve them.
+ * @param {string} line - Raw line
+ * @returns {{ text: string, spans: string[] }}
+ */
+function replaceInlineCodeWithPlaceholders(line) {
+  const spans = [];
+  let out = "";
+  let inCode = false;
+  let fence = "";
+  let spanStart = -1;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch !== "`") {
+      if (!inCode) out += ch;
+      continue;
+    }
+
+    let j = i;
+    while (j < line.length && line[j] === "`") {
+      j++;
+    }
+    const run = line.slice(i, j);
+
+    if (!inCode) {
+      inCode = true;
+      fence = run;
+      spanStart = i;
+      i = j - 1;
+      continue;
+    }
+    if (run === fence) {
+      const span = line.slice(spanStart, j);
+      spans.push(span);
+      out += PLACEHOLDER_START + (spans.length - 1) + PLACEHOLDER_END;
+      inCode = false;
+      fence = "";
+      i = j - 1;
+    }
+  }
+
+  return { text: out, spans };
+}
+
+/**
+ * Restore inline code spans from placeholders in applyTitleCase output.
+ * @param {string} text - Text with \u0000N\u0000 placeholders
+ * @param {string[]} spans - Original inline code spans
+ * @returns {string}
+ */
+function restoreInlineCodePlaceholders(text, spans) {
+  if (spans.length === 0) return text;
+  return text.replace(/\uE000(\d+)\uE001/g, (_, n) => spans[Number(n)] ?? "");
+}
+
+/**
  * Apply AP title case to a title string and return the full corrected title.
- * Uses the same word/segment logic and getCorrectedSegment as the rule.
+ * Preserves inline code (backtick spans) unchanged. Uses the same word/segment
+ * logic and getCorrectedSegment as the rule.
  *
  * @param {string} titleText - Raw title (e.g. "the quick Brown" or "getting started")
  * @param {{ lowercaseWords?: string[]|Set<string>, lowercaseWordsReplaceDefault?: boolean }} [options] - Optional config; defaults to DEFAULT_LOWERCASE_WORDS when not provided
@@ -334,13 +407,14 @@ function processWordForTitleCase(raw, i, words, lowercaseWords) {
  */
 function applyTitleCase(titleText, options = {}) {
   const lowercaseWords = getLowercaseWordsFromOptions(options);
-  const withCodeStripped = stripInlineCode(titleText);
-  const words = withCodeStripped.split(/\s+/).filter((w) => w.length > 0);
+  const { text: withPlaceholders, spans } = replaceInlineCodeWithPlaceholders(titleText);
+  const words = withPlaceholders.split(/\s+/).filter((w) => w.length > 0);
   if (words.length === 0) return titleText;
   const resultParts = words.map((raw, i) =>
     processWordForTitleCase(raw, i, words, lowercaseWords)
   );
-  return resultParts.join(" ");
+  const joined = resultParts.join(" ");
+  return restoreInlineCodePlaceholders(joined, spans);
 }
 
 /**

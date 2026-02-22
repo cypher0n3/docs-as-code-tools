@@ -146,6 +146,35 @@ Content.
             actual = path.read_text(encoding="utf-8")
             self.assertIn("### Summary", actual)
 
+    def test_fix_convert_to_heading_preserves_backticks(self) -> None:
+        """With convertToHeading: true, text inside backticks in heading-like line is preserved."""
+        content_before = """# Doc
+
+## Section
+
+**Use `# noqa: E402` here:**
+Content.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_no_heading_like_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            overrides = {
+                "default": False,
+                "no-heading-like-lines": {
+                    "convertToHeading": True,
+                    "defaultHeadingLevel": 2,
+                },
+            }
+            proc = _run_markdownlint(path, fix=False, config_overrides=overrides)
+            self.assertNotEqual(proc.returncode, 0, "expected lint errors before fix")
+            proc_fix = _run_markdownlint(path, fix=True, config_overrides=overrides)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertIn(
+                "`# noqa: E402`", actual,
+                "inline code in heading-like line preserved when converted to heading",
+            )
+
     def test_exclude_path_patterns_skips_rule(self) -> None:
         """With excludePathPatterns matching file, no error and fix not needed."""
         content = """# Doc

@@ -154,6 +154,12 @@ describe("heading-title-case", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("reports no errors for heading containing HTML entity (e.g. &rArr;), not flagged as lowercase", () => {
+    const lines = ["## Step A &rArr; Step B"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "&rArr; should be ignored for title-case (ASCII-safe special char)");
+  });
+
   it("reports no errors for word with bracket prefix (firstAlphaIdx > 0)", () => {
     const lines = ["## (Optional) Section Title"];
     const errors = runRule(rule, lines);
@@ -315,6 +321,11 @@ describe("heading-title-case", () => {
     it("returns empty or whitespace as-is (words.length === 0 branch)", () => {
       assert.strictEqual(rule.applyTitleCase(""), "");
       assert.strictEqual(rule.applyTitleCase("   "), "   ");
+      assert.strictEqual(
+        rule.applyTitleCase("Use `# noqa: E402` here"),
+        "Use `# noqa: E402` Here",
+        "inline code (backticks) must be preserved; surrounding words get title case"
+      );
     });
   });
 
