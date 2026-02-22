@@ -574,7 +574,8 @@ class TestMain(unittest.TestCase):
                 with patch.object(v, "list_fixture_files", return_value=fixture_list[:1]):
                     with patch.object(v, "load_expected_errors", return_value=expectations):
                         with patch.object(v, "verify_file", side_effect=AssertionError("fail")):
-                            result = v.main()
+                            with patch("sys.stderr"):
+                                result = v.main()
         self.assertEqual(result, 1)
 
     def test_main_verbose_writes_per_fixture(self):
