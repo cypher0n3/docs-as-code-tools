@@ -48,6 +48,12 @@ describe("no-heading-like-lines", () => {
     assert.ok(errors[0].detail.includes("numbered") || errors[0].detail.includes("bold"), "detail should describe the matched pattern");
   });
 
+  it("does not report numbered list when bold content ends with sentence punctuation", () => {
+    const lines = ["3. **This should not be flagged.**", "Content."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "1. **Sentence.** should not be flagged as heading-like");
+  });
+
   it("reports error for MD036-style **Introduction** (whole line bold)", () => {
     const lines = ["**Introduction**", "Content here."];
     const errors = runRule(rule, lines);

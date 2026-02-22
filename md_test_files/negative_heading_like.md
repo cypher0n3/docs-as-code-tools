@@ -13,6 +13,8 @@
 
 1. **Numbered list with bold only**
 
+2. **This should not be flagged.**
+
 **Introduction**
 
 *Note*

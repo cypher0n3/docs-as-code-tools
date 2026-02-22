@@ -129,14 +129,14 @@ negative_heading_like.md:
     - line: 14
       rule: no-heading-like-lines
       message_contains: numbered list with bold
-    - line: 16
+    - line: 18
       rule: MD036/no-emphasis-as-heading
-    - line: 16
+    - line: 18
       rule: no-heading-like-lines
       message_contains: bold only
-    - line: 18
+    - line: 20
       rule: MD036/no-emphasis-as-heading
-    - line: 18
+    - line: 20
       rule: no-heading-like-lines
       message_contains: italic only
 

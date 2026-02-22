@@ -56,6 +56,9 @@ const EXTRACTORS = [
 /** Pattern indices that are MD036-style (whole-line emphasis); skip when content ends with punctuation. */
 const MD036_STYLE_PATTERN_INDICES = new Set([6, 7]);
 
+/** Pattern indices for numbered-list bold/italic; skip when content ends with sentence punctuation (e.g. "1. **Sentence.**"). */
+const NUMBERED_LIST_EMPHASIS_PATTERN_INDICES = new Set([2, 5]);
+
 /**
  * Extract plain title from a heading-like line given the pattern index that matched.
  * @param {string} trimmedLine - Trimmed line content
@@ -143,6 +146,10 @@ function findHeadingLikeMatch(trimmedLine, punctuationMarks) {
     if (MD036_STYLE_PATTERN_INDICES.has(p) && extractedTitle.length > 0) {
       const lastChar = extractedTitle.slice(-1);
       if (punctuationMarks.includes(lastChar)) continue;
+    }
+    if (NUMBERED_LIST_EMPHASIS_PATTERN_INDICES.has(p) && extractedTitle.length > 0) {
+      const lastChar = extractedTitle.slice(-1);
+      if (punctuationMarks.includes(lastChar)) return null;
     }
     return { p, description, extractedTitle };
   }
