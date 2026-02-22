@@ -84,6 +84,14 @@ document-length:
 #   # fixedHeadingLevel: 3
 #   # excludePathPatterns: ["**/README.md"]
 
+# no-tables: disallow GFM tables; when convert-to is "list", suggest converting each table to a list.
+# Options (all optional):
+#   convert-to: string (default "none"); "none" = short message only, "list" = show suggested list format in detail
+#   excludePathPatterns: list of globs; skip this rule for matching file paths
+no-tables:
+  convert-to: list
+#   # excludePathPatterns: ["**/README.md"]
+
 # no-h1-content: under first h1 allow only TOC (blank lines, list-of-links, badges, HTML comments including multi-line).
 # Options:
 #   excludePathPatterns: list of globs; skip this rule for matching file paths

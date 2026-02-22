@@ -545,7 +545,7 @@ class TestMain(unittest.TestCase):
                 with patch.object(v, "list_fixture_files", return_value=fixture_list):
                     with patch.object(v, "load_expected_errors", return_value=expectations):
                         with patch.object(v, "verify_file"):
-                            result = v.main()
+                            result = v.main(quiet=True)
         self.assertEqual(result, 0)
 
     def test_main_prints_success_message(self):
@@ -575,7 +575,7 @@ class TestMain(unittest.TestCase):
                     with patch.object(v, "load_expected_errors", return_value=expectations):
                         with patch.object(v, "verify_file", side_effect=AssertionError("fail")):
                             with patch("sys.stderr"):
-                                result = v.main()
+                                result = v.main(quiet=True)
         self.assertEqual(result, 1)
 
     def test_main_verbose_writes_per_fixture(self):
@@ -589,7 +589,7 @@ class TestMain(unittest.TestCase):
                     with patch.object(v, "verify_file"):
                         with patch("sys.argv", ["prog", "--verbose"]):
                             with patch("sys.stderr") as mock_stderr:
-                                v.main()
+                                v.main(quiet=True)
                         self.assertGreater(mock_stderr.write.call_count, 0)
                         calls = "".join(c[0][0] for c in mock_stderr.write.call_args_list)
                         self.assertIn("Verifying", calls)

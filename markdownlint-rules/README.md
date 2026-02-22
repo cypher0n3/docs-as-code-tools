@@ -6,6 +6,7 @@
 - [Rules](#rules)
   - [`allow-custom-anchors`](#allow-custom-anchors)
   - [`no-heading-like-lines`](#no-heading-like-lines)
+  - [`no-tables`](#no-tables)
   - [`no-h1-content`](#no-h1-content)
   - [`no-empty-heading`](#no-empty-heading)
   - [`document-length`](#document-length)
@@ -24,7 +25,7 @@ This directory contains custom rules for [markdownlint-cli2](https://github.com/
 In this repo they are registered in [.markdownlint-cli2.jsonc](../.markdownlint-cli2.jsonc) and configured in [.markdownlint.yml](../.markdownlint.yml).
 A reference config with all rules and options (commented) is [.markdownlint.clean.yml](.markdownlint.clean.yml).
 You can reuse any of them in your own project; see [Reusing These Rules](#reusing-these-rules) below.
-Some rules are **fixable** (heading-title-case, ascii-only, heading-numbering, no-heading-like-lines, one-sentence-per-line): they report `fixInfo` so `markdownlint-cli2 --fix` and the editor "Fix all" can apply corrections automatically.
+Some rules are **fixable** (heading-title-case, ascii-only, heading-numbering, no-heading-like-lines, no-tables with `convert-to: list`, one-sentence-per-line): they report `fixInfo` so `markdownlint-cli2 --fix` and the editor "Fix all" can apply corrections automatically.
 
 - **Requirements:** `Node.js` and [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) (or the [markdownlint](https://github.com/DavidAnson/markdownlint) core with custom rule support).
   When reusing rules, copy any helper files they depend on; see [Shared Helper](#shared-helper) for which rules require `utils.js`.
@@ -218,6 +219,34 @@ For `convertToHeading: true`:
 
 To get full convertToHeading behavior (AP title case and numbering), copy `heading-title-case.js` and `heading-numbering.js` into the same directory as `no-heading-like-lines.js`.
 The rule degrades gracefully when those files are absent.
+
+### `no-tables`
+
+**File:** `no-tables.js`
+
+**Description:** Disallow GFM tables.
+When `convert-to` is `"list"`, the rule suggests converting each table to a list (first column as **Header:**, remaining columns as indented `- header: cell`).
+When `convert-to` is `"none"` (default), only a short message is reported and the suggestion is suppressed.
+
+**Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `no-tables`:
+
+```yaml
+no-tables:
+  convert-to: none   # optional; "none" (default) or "list"
+  # excludePathPatterns:
+  #   - "**/README.md"
+```
+
+- **`convert-to`** (string, default `"none"`): `"none"` = report violation with short message only (no suggested list). `"list"` = include suggested list format in the error detail.
+  Only `"list"` and `"none"` are valid; invalid values are treated as `"none"`.
+- **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
+
+**Behavior:** Reports every GFM table (outside fenced code blocks).
+When `convert-to` is `"none"`, one error per table at the table's first line.
+When `convert-to` is `"list"`, one error per table line (so `--fix` can replace the first line with the list and delete the rest).
+Suppress per table: put `<!-- no-tables allow -->` on the line before the table's first line, or at the end of that line.
+
+**Fixable:** When `convert-to` is `"list"`, the rule reports `fixInfo` so `--fix` converts each table to the list format.
 
 ### `no-h1-content`
 
@@ -642,7 +671,7 @@ one-sentence-per-line:
 Do not list it in `customRules` in `.markdownlint-cli2.jsonc`.
 When reusing any rule, copy `utils.js` into your `.markdownlint-rules` (see [Reusing These Rules](#reusing-these-rules)).
 
-**All custom rules in this repo depend on `utils.js`** (for `pathMatchesAny` and/or other helpers): allow-custom-anchors, ascii-only, document-length, fenced-code-under-heading, heading-min-words, heading-numbering, heading-title-case, no-duplicate-headings-normalized, no-empty-heading, no-heading-like-lines, no-h1-content, one-sentence-per-line.
+**All custom rules in this repo depend on `utils.js`** (for `pathMatchesAny` and/or other helpers): allow-custom-anchors, ascii-only, document-length, fenced-code-under-heading, heading-min-words, heading-numbering, heading-title-case, no-duplicate-headings-normalized, no-empty-heading, no-heading-like-lines, no-tables, no-h1-content, one-sentence-per-line.
 
 **All custom rules accept `excludePathPatterns`** (optional list of glob patterns).
 When the file path matches any pattern, the rule is skipped for that file.

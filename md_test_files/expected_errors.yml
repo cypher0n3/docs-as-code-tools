@@ -290,6 +290,33 @@ negative_one_sentence_per_line.md:
     - line: 18
       rule: one-sentence-per-line
       message_contains: one sentence per line
+    - line: 20
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+
+negative_no_tables.md:
+  errors:
+    - line: 8
+      rule: no-tables
+      message_contains: Suggested list format
+    - line: 9
+      rule: no-tables
+      message_contains: Tables are not allowed
+    - line: 10
+      rule: no-tables
+      message_contains: Tables are not allowed
+    - line: 11
+      rule: no-tables
+      message_contains: Tables are not allowed
+    - line: 12
+      rule: no-tables
+      message_contains: Tables are not allowed
+    - line: 13
+      rule: no-tables
+      message_contains: Tables are not allowed
+    - line: 14
+      rule: no-tables
+      message_contains: Tables are not allowed
 
 negative_inline_html.md:
   errors:

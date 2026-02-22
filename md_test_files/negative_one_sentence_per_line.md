@@ -16,3 +16,5 @@ This should not catch; e.g.: here is some text.
 - Bullet 1.
   - Sub-bullet that has multiple sentences. This is a second sentence on the same line.
     - Nested 3 deep now. Another sentence.
+
+- **No command or path allowlists inside the container.** The sandbox agent runs in an already-sandboxed environment (the container).

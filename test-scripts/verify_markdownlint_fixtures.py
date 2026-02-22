@@ -302,11 +302,12 @@ def verify_file(
     _assert_message_contains(exp_errors, act_errors, file_label, combined)
 
 
-def main() -> int:
+def main(quiet: bool = False) -> int:
     """
     Verify all markdownlint fixture files; print success or failure messages to stderr.
 
     Returns 0 if all pass, 1 if any fail.
+    When quiet is True, the success message is not printed (e.g. when called from tests).
     """
     parser = argparse.ArgumentParser(description="Verify markdownlint fixture expectations.")
     parser.add_argument(
@@ -352,7 +353,8 @@ def main() -> int:
             sys.stderr.write(msg.rstrip() + "\n\n")
         return 1
 
-    print("All markdownlint fixture expectations matched.")
+    if not quiet:
+        print("All markdownlint fixture expectations matched.")
     return 0
 
 

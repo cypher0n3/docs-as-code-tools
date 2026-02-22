@@ -245,6 +245,23 @@ describe("one-sentence-per-line", () => {
   });
 
   describe("edge cases (sentence boundary)", () => {
+    it("splits after bolded sentence and suggests break (fixInfo) after **...**", () => {
+      const lines = ["**Important sentence.** Additional context. Other stuff"];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo, "fixable rule should provide fixInfo");
+      assert.ok(errors[0].fixInfo.insertText.includes("Additional context."), "insertText should break after bolded sentence");
+      assert.ok(errors[0].fixInfo.insertText.includes("Other stuff"), "insertText should include third sentence");
+    });
+
+    it("splits after bolded sentence when no space after closing ** (.**The)", () => {
+      const lines = ["- **No command or path allowlists inside the container.**The sandbox agent runs in an already-sandboxed environment (the container)."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo, "fixable rule should provide fixInfo");
+      assert.ok(errors[0].fixInfo.insertText.includes("The sandbox agent runs"), "insertText should break after bold when no space after **");
+    });
+
     it("does not split on Dr. abbreviation (Dr in default list)", () => {
       const lines = ["See Dr. Smith for details."];
       const errors = runRule(rule, lines);

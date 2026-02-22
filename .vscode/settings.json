@@ -11,6 +11,7 @@
     "./markdownlint-rules/no-empty-heading.js",
     "./markdownlint-rules/no-h1-content.js",
     "./markdownlint-rules/no-heading-like-lines.js",
+    "./markdownlint-rules/no-tables.js",
     "./markdownlint-rules/one-sentence-per-line.js"
   ]
 }

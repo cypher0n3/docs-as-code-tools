@@ -52,6 +52,8 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
     By default blank/HTML-comment/HTML-tag lines do not count; code block lines do count (configurable).
 - **negative_no_h1_content.md** - no-h1-content
   - Prose under the first h1 (only TOC-style content allowed there).
+- **negative_no_tables.md** - no-tables
+  - GFM table reported; with default config (convert-to none) short message only; suppress via `<!-- no-tables allow -->`.
 - **negative_one_sentence_per_line.md** - one-sentence-per-line
   - Prose and list lines with multiple sentences (paragraph, bullet, numbered, nested); line with abbreviation (e.g.) not reported.
 
