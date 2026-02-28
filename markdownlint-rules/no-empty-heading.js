@@ -1,6 +1,11 @@
 "use strict";
 
-const { extractHeadings, isRuleSuppressedByComment, pathMatchesAny } = require("./utils.js");
+const {
+  extractHeadings,
+  isRuleSuppressedByComment,
+  parseHeadingNumberPrefix,
+  pathMatchesAny,
+} = require("./utils.js");
 
 /** Match HTML comment line (single line). */
 const RE_HTML_COMMENT = /^\s*<!--.*-->\s*$/;
@@ -170,9 +175,35 @@ function sectionContentLineCount(ctx) {
 }
 
 /**
+ * Get heading title for allowList match: raw text, optionally with leading numbering stripped.
+ * @param {string} rawText - Full heading text after #
+ * @param {boolean} stripNumbering - Whether to strip leading numbering (e.g. 1.2.3)
+ * @returns {string}
+ */
+function getTitleForAllowList(rawText, stripNumbering) {
+  if (stripNumbering) {
+    const { titleText } = parseHeadingNumberPrefix(rawText);
+    return titleText;
+  }
+  return rawText.trim();
+}
+
+/**
+ * Return true if the heading title is in the allowList (case-insensitive, trimmed).
+ * @param {string} title - Heading title (from getTitleForAllowList)
+ * @param {string[]} allowList - Allowed titles
+ * @returns {boolean}
+ */
+function isAllowedEmptyHeading(title, allowList) {
+  if (!Array.isArray(allowList) || allowList.length === 0) return false;
+  const key = title.trim().toLowerCase();
+  return allowList.some((a) => String(a).trim().toLowerCase() === key);
+}
+
+/**
  * Normalize rule config to validated values.
  * @param {object} config - Raw config
- * @returns {{ minimumContentLines: number, contentOpts: { countBlankLinesAsContent: boolean, countHTMLCommentsAsContent: boolean, countHtmlLinesAsContent: boolean, countCodeBlockLinesAsContent: boolean } }}
+ * @returns {{ minimumContentLines: number, contentOpts: object, allowList: string[], stripNumberingForAllowList: boolean }}
  */
 function normalizeConfig(config) {
   const minimumContentLines = typeof config.minimumContentLines === "number" && config.minimumContentLines >= 1
@@ -190,6 +221,8 @@ function normalizeConfig(config) {
   const countCodeBlockLinesAsContent = typeof config.countCodeBlockLinesAsContent === "boolean"
     ? config.countCodeBlockLinesAsContent
     : DEFAULT_CONFIG.countCodeBlockLinesAsContent;
+  const allowList = Array.isArray(config.allowList) ? config.allowList.map(String) : [];
+  const stripNumberingForAllowList = config.stripNumberingForAllowList !== false;
   return {
     minimumContentLines,
     contentOpts: {
@@ -198,6 +231,8 @@ function normalizeConfig(config) {
       countHtmlLinesAsContent,
       countCodeBlockLinesAsContent,
     },
+    allowList,
+    stripNumberingForAllowList,
   };
 }
 
@@ -263,7 +298,16 @@ function headingHasTooLittleContent(ctx) {
 }
 
 function reportEmptyHeading(heading, ctx) {
-  const { headings, lines, headingLineNumbers, minimumContentLines, contentOpts, onError } = ctx;
+  const {
+    headings, lines, headingLineNumbers, minimumContentLines, contentOpts,
+    allowList, stripNumberingForAllowList, onError,
+  } = ctx;
+  if (isAllowedEmptyHeading(
+    getTitleForAllowList(heading.rawText, stripNumberingForAllowList),
+    allowList
+  )) {
+    return;
+  }
   if (!headingHasTooLittleContent({
     heading, headings, lines, headingLineNumbers, minimumContentLines, contentOpts,
   })) {
@@ -280,8 +324,10 @@ function reportEmptyHeading(heading, ctx) {
 /**
  * markdownlint rule: every H2+ heading must have at least one line of content
  * directly under it (before any subheading). Content under subheadings does not
- * count. Blank lines and HTML-comment-only lines do not count as content. The
- * exact comment "<!-- no-empty-heading allow -->" on its own line suppresses the error.
+ * count. Blank lines and HTML-comment-only lines do not count as content.
+ * Optional allowList: headings whose title (after optional numbering strip) matches
+ * an entry are allowed to be empty. The exact comment "<!-- no-empty-heading allow -->"
+ * on its own line suppresses the error for that section.
  *
  * @param {object} params - markdownlint params (lines, name, config)
  * @param {function(object): void} onError - Callback to report an error
@@ -295,11 +341,14 @@ function ruleFunction(params, onError) {
     return;
   }
 
-  const { minimumContentLines, contentOpts } = normalizeConfig(block);
+  const { minimumContentLines, contentOpts, allowList, stripNumberingForAllowList } = normalizeConfig(block);
   const headings = extractHeadings(lines);
   const h2Plus = headings.filter((h) => h.level >= 2);
   const headingLineNumbers = new Set(headings.map((h) => h.lineNumber));
-  const ctx = { headings, lines, headingLineNumbers, minimumContentLines, contentOpts, onError };
+  const ctx = {
+    headings, lines, headingLineNumbers, minimumContentLines, contentOpts,
+    allowList, stripNumberingForAllowList, onError,
+  };
 
   for (const heading of h2Plus) {
     reportEmptyHeading(heading, ctx);

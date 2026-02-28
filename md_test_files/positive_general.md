@@ -22,6 +22,7 @@
   - [5. Summary: The Results](#5-summary-the-results)
   - [6. Phase A: Fixable Rules and Scripts (One-Time)](#6-phase-a-fixable-rules-and-scripts-one-time)
   - [7. This Has a Lowercase a in the Title](#7-this-has-a-lowercase-a-in-the-title)
+  - [8. Using 5e in Experiments](#8-using-5e-in-experiments)
 - [Zero-Indexed Heading Numbering](#zero-indexed-heading-numbering)
   - [0. Introduction (Zero-Indexed)](#0-introduction-zero-indexed)
   - [1. First Topic](#1-first-topic)
@@ -146,6 +147,10 @@ Single letter after "Phase" is treated as a phase label and stays capitalized (n
 ### 7. This Has a Lowercase a in the Title
 
 Should not catch.
+
+### 8. Using 5e in Experiments
+
+Scientific notation (e.g. 5e, 1e6) in headings is not title-cased; the "e" is left as-is.
 
 ## Zero-Indexed Heading Numbering
 

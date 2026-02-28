@@ -154,6 +154,12 @@ describe("heading-title-case", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("reports no errors for scientific notation in heading (e.g. 5e), e not flagged for capitalization", () => {
+    const lines = ["## Using 5e in Experiments"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "5e should be treated as scientific notation, not title-cased");
+  });
+
   it("reports no errors for heading containing HTML entity (e.g. &rArr;), not flagged as lowercase", () => {
     const lines = ["## Step A &rArr; Step B"];
     const errors = runRule(rule, lines);

@@ -108,6 +108,29 @@ Text.
             self.assertNotIn("(module ", actual, "(module should have been fixed")
             self.assertNotIn(" of file)", actual, "file should have been fixed to File")
 
+    def test_scientific_notation_5e_and_hyphen_compound_unchanged(self) -> None:
+        """5e and Follow-Up in headings pass lint and are unchanged by --fix."""
+        content = """# Doc
+
+## Using 5e in Experiments
+
+Scientific notation 5e is not title-cased.
+
+## How to Do a Follow-Up
+
+Hyphenated compound: each segment capitalized.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_heading_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertEqual(proc.returncode, 0, f"5e and Follow-Up should pass: {proc.stderr}")
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertIn("5e", actual, "5e must be preserved (scientific notation)")
+            self.assertIn("Follow-Up", actual, "Follow-Up must stay capitalized (hyphen compound)")
+
     def test_phase_a_label_unchanged_by_fix(self) -> None:
         """Single letter after 'Phase' is a label; --fix must not lowercase it."""
         content = """# Doc

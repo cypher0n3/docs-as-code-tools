@@ -293,6 +293,9 @@ negative_one_sentence_per_line.md:
     - line: 20
       rule: one-sentence-per-line
       message_contains: one sentence per line
+    - line: 22
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
 
 negative_no_tables.md:
   errors:

@@ -1,4 +1,4 @@
-# Docs-as-Code Tools
+# Docs-As-Code Tools
 
 [![CI](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/js-lint.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/js-lint.yml)
 [![Lint READMEs](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/lint-readmes.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/lint-readmes.yml)

@@ -29,6 +29,12 @@ MD013:
 MD033:
   allowed_elements: ["a"]
 
+# MD046/code-block-style - enforce fenced code block style (``` or ~~~).
+# Options:
+#   style: string (default "fenced"); "fenced" = fenced code block, "indented" = indented code block
+MD046:
+  style: fenced
+
 # ascii-only: disallow non-ASCII except in configured paths; inline code (backticks) always stripped. Fixable when replacement in unicodeReplacements.
 # Options (all optional):
 #   allowedEmoji: list of chars/emoji allowed in paths matching allowedPathPatternsEmoji (multi-codepoint OK)

@@ -200,6 +200,42 @@ describe("no-empty-heading", () => {
     assert.strictEqual(errors.length, 1);
   });
 
+  it("reports no error when empty heading title is in allowList", () => {
+    const lines = ["# Doc", "## Overview", "", "## Next", "Content."];
+    const config = { "no-empty-heading": { allowList: ["Overview"] } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports no error when empty heading title is in allowList (case-insensitive)", () => {
+    const lines = ["# Doc", "## SUMMARY", "", "## Next", "Content."];
+    const config = { "no-empty-heading": { allowList: ["Summary"] } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports no error when numbered heading title matches allowList after strip", () => {
+    const lines = ["# Doc", "## 1. Overview", "", "## Next", "Content."];
+    const config = { "no-empty-heading": { allowList: ["Overview"] } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports error when empty heading title is not in allowList", () => {
+    const lines = ["# Doc", "## Other", "", "## Next", "Content."];
+    const config = { "no-empty-heading": { allowList: ["Overview", "Summary"] } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
+  });
+
+  it("stripNumberingForAllowList: false requires full title in allowList", () => {
+    const lines = ["# Doc", "## 1. Overview", "", "## Next", "Content."];
+    const config = { "no-empty-heading": { allowList: ["1. Overview"], stripNumberingForAllowList: false } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("skips when file path matches excludePathPatterns **/*_index.md", () => {
     const lines = ["# Index", "## Empty", "", "## Next", "Content."];
     const config = { excludePathPatterns: ["**/*_index.md"] };

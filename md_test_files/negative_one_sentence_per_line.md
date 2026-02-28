@@ -18,3 +18,5 @@ This should not catch; e.g.: here is some text.
     - Nested 3 deep now. Another sentence.
 
 - **No command or path allowlists inside the container.** The sandbox agent runs in an already-sandboxed environment (the container).
+
+This is the first sentence. **Bolded text** rest of the sentence.

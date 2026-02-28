@@ -287,6 +287,10 @@ no-empty-heading:
   countHTMLCommentsAsContent: false # optional; default false
   countHtmlLinesAsContent: false    # optional; default false
   countCodeBlockLinesAsContent: true # optional; default true
+  allowList:                        # optional; headings with these titles may be empty
+    - "Overview"
+    - "Summary"
+  stripNumberingForAllowList: true  # optional; default true; strip numbering before allowList match
   excludePathPatterns:
     - "**/*_index.md"               # optional; skip rule for these paths
 ```
@@ -299,6 +303,10 @@ no-empty-heading:
 - **`countHtmlLinesAsContent`** (boolean, default `false`): If `true`, lines that are only an HTML tag (e.g. `<br>`, `<div>...</div>`) count toward the minimum.
 - **`countCodeBlockLinesAsContent`** (boolean, default `true`): If `false`, lines inside fenced code blocks (` ``` `or `~~~`) do not count toward the minimum.
   When `true`, they do (default).
+- **`allowList`** (array of strings, optional): Exact heading titles (after optional numbering strip) that are allowed to have no direct content.
+  Match is case-insensitive and trimmed.
+  Same idea as `heading-min-words` allowList.
+- **`stripNumberingForAllowList`** (boolean, default `true`): When `true`, leading numbering (e.g. `1.2.3`) is stripped from the heading text before comparing to `allowList`.
 - **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
 
 Behavior:
@@ -306,6 +314,7 @@ Behavior:
 - For each H2-H6 heading, only _direct_ content counts: lines that appear **before** the next heading (any level).
   Content under subheadings does **not** count for the parent heading.
   Which line types count is controlled by the options above (by default: prose and code block lines; blank, HTML-comment, and HTML-tag lines do not).
+- **Allow by title:** If `allowList` is set, any H2+ heading whose title (after optional numbering strip) matches an entry (case-insensitive) is allowed to be empty.
 - **Suppress per section:** A section is allowed without meeting the minimum if it contains a line that is solely the comment `<!-- no-empty-heading allow -->` (optional whitespace around or inside the comment).
   The comment must be on its own line.
     No other HTML comment format suppresses the rule.

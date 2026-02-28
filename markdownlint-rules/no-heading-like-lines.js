@@ -160,11 +160,12 @@ function findHeadingLikeMatch(trimmedLine, punctuationMarks) {
 function reportHeadingLikeError(line, index, match, ctx) {
   const { lines, headings, config, ruleConfig, convertToHeading, onError } = ctx;
   const { description, extractedTitle } = match;
+  const titleForFix = extractedTitle.replace(/:+$/, "").trim();
   const lineNumber = index + 1;
   const insertText = !convertToHeading
-    ? extractedTitle
+    ? titleForFix
     : buildConvertToHeadingInsertText({
-      lines, index, lineNumber, headings, config, ruleConfig, extractedTitle,
+      lines, index, lineNumber, headings, config, ruleConfig, extractedTitle: titleForFix,
     });
   if (isRuleSuppressedByComment(lines, lineNumber, "no-heading-like-lines")) return;
   onError({

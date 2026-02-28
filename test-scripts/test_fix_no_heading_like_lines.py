@@ -46,7 +46,7 @@ class TestFixNoHeadingLikeLines(unittest.TestCase):
     def test_fix_strip_emphasis_and_file_updated(self) -> None:
         # Minimal TOC under first h1; content under ## so no-h1-content and no-empty-heading pass.
         # Single blank lines only to avoid MD012.
-        # Default fix strips emphasis (e.g. **Summary:** -> Summary:, 1. **Intro** -> Intro).
+        # Default fix strips emphasis and trailing colons (**Summary:** -> Summary, etc.).
         content_before = """# Test
 
 - [Section](#section)
@@ -65,7 +65,7 @@ More content.
 
 ## Section
 
-Summary:
+Summary
 Content here.
 
 Introduction
@@ -119,6 +119,27 @@ Content.
             # Fix either strips to "Summary:" or converts to "## Summary:"; both remove **
             self.assertIn("Summary", actual)
             self.assertNotIn("**Summary**", actual)
+
+    def test_fix_strips_trailing_colon_from_line(self) -> None:
+        """fixInfo strips trailing colons so the fixed line does not end with a colon."""
+        content_before = """# Doc
+
+## Section
+
+**Summary:**
+Content.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_no_heading_like_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertIn("Summary\n", actual, "fixed line is Summary with no trailing colon")
+            self.assertNotRegex(
+                actual, r"Summary:\s*\nContent",
+                "fixed line must not end with colon",
+            )
 
     def test_fixed_heading_level_option(self) -> None:
         """With fixedHeadingLevel: 3, suggested heading uses H3."""

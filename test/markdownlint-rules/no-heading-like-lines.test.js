@@ -135,7 +135,7 @@ describe("no-heading-like-lines", () => {
       assert.strictEqual(errors.length, 1);
       assert.strictEqual(errors[0].fixInfo.editColumn, 1);
       assert.strictEqual(errors[0].fixInfo.deleteCount, "**Summary:**".length);
-      assert.strictEqual(errors[0].fixInfo.insertText, "Summary:");
+      assert.strictEqual(errors[0].fixInfo.insertText, "Summary");
     });
 
     it("provides fixInfo for 1. **Introduction** with insertText Introduction", () => {
@@ -290,7 +290,7 @@ describe("no-heading-like-lines", () => {
       const errors = runRule(rule, lines);
       assert.strictEqual(errors.length, 1);
       assert.strictEqual(errors[0].lineNumber, 1);
-      assert.strictEqual(errors[0].fixInfo.insertText, "Summary:");
+      assert.strictEqual(errors[0].fixInfo.insertText, "Summary");
     });
 
     it("bold colon only **:** does not match **.*:** (needs content)", () => {
@@ -324,7 +324,7 @@ describe("no-heading-like-lines", () => {
         assert.strictEqual(result.status, 0, result.stderr || result.error);
         const fixInfo = JSON.parse(result.stdout.trim());
         assert.ok(fixInfo, "should report one error with fixInfo");
-        assert.strictEqual(fixInfo.insertText, "Hi:", "stripEmphasis when optional deps missing");
+        assert.strictEqual(fixInfo.insertText, "Hi", "stripEmphasis and trailing colon when optional deps missing");
       } finally {
         try {
           fs.rmSync(tmpDir, { recursive: true });

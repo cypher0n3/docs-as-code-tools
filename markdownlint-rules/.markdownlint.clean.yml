@@ -17,6 +17,28 @@
 # because allowing <a> is required for custom anchor ids. All options are
 # commented; uncomment a rule block and the options you need to override.
 #
+# -----------------------------------------------------------------------------
+# One-off suppression (allow a single line or section to bypass a rule)
+# -----------------------------------------------------------------------------
+# Custom rules support an HTML comment to suppress the rule for one line:
+#   • Put "<!-- rule-name allow -->" on the previous line (its own line), or
+#   • Put "<!-- rule-name allow -->" at the end of the violating line.
+# Examples:
+#   <!-- no-empty-heading allow -->
+#   ## Intentionally Empty
+#
+#   ## Another Empty <!-- no-empty-heading allow -->
+#
+#   <!-- heading-min-words allow -->
+#   ## Overview
+#
+#   First. Second. <!-- one-sentence-per-line allow -->
+#
+#   <!-- ascii-only allow -->
+#   Use arrow → here.
+#
+# Use the exact rule id (e.g. no-empty-heading, heading-min-words, one-sentence-per-line).
+#
 # =============================================================================
 
 default: true
@@ -254,13 +276,17 @@ default: true
 # -----------------------------------------------------------------------------
 # no-empty-heading (custom)
 # -----------------------------------------------------------------------------
-# To override: Uncomment the block and set minimumContentLines, count* options, and/or excludePathPatterns. H2+ must have content before any subheading. Per-section suppress: "<!-- no-empty-heading allow -->".
+# To override: Uncomment the block and set minimumContentLines, count* options,
+# allowList, and/or excludePathPatterns. H2+ must have content before any subheading.
+# One-off: put "<!-- no-empty-heading allow -->" on the previous line or at end of heading line.
 # Options (all optional):
 #   minimumContentLines: number (default 1); minimum lines that count as content under each H2+
 #   countBlankLinesAsContent: bool (default false); count blank lines toward minimum
 #   countHTMLCommentsAsContent: bool (default false); count HTML-comment-only lines
 #   countHtmlLinesAsContent: bool (default false); count HTML-tag-only lines (e.g. <br>)
 #   countCodeBlockLinesAsContent: bool (default true); count lines inside ```/~~~ blocks
+#   allowList: list of exact heading titles (after optional numbering strip) that may be empty
+#   stripNumberingForAllowList: bool (default true); strip leading numbering before allowList match
 #   excludePathPatterns: list of globs; skip this rule for matching file paths
 # ---
 # no-empty-heading:
@@ -269,6 +295,10 @@ default: true
 #   # countHTMLCommentsAsContent: false
 #   # countHtmlLinesAsContent: false
 #   # countCodeBlockLinesAsContent: true
+#   # allowList:
+#   #   - "Overview"
+#   #   - "Summary"
+#   # stripNumberingForAllowList: true
 #   # excludePathPatterns:
 #   #   - "**/*_index.md"
 

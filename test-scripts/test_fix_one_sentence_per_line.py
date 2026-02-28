@@ -127,6 +127,35 @@ Three.
             actual = path.read_text(encoding="utf-8")
             self.assertEqual(actual, content_after)
 
+    def test_fix_splits_after_period_before_bold(self) -> None:
+        """Sentence break after period then **bold** is detected; fix splits and preserves bold."""
+        content_before = """# Doc
+
+## Section
+
+This is the first sentence. **Bolded text** rest of the sentence.
+"""
+        content_after = """# Doc
+
+## Section
+
+This is the first sentence.
+**Bolded text** rest of the sentence.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_one_sentence_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertNotEqual(proc.returncode, 0, "expected lint error before fix")
+            self.assertIn(RULE, (proc.stdout or "") + (proc.stderr or ""))
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertEqual(
+                actual, content_after,
+                "fix should split at period and preserve bold",
+            )
+
     def test_no_split_within_filenames(self) -> None:
         """Period in filenames (no space after) does not trigger split."""
         content = """# Doc

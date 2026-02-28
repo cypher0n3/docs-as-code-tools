@@ -163,9 +163,22 @@ function spaceStartAndNextWordPos(scanned, spaceStart) {
   while (pos < scanned.length && scanned[pos] === " ") {
     pos++;
   }
-  const j = pos;
-  if (j >= scanned.length || scanned[j] === "\n" || !/[a-zA-Z0-9]/.test(scanned[j])) return null;
+  const j = nextWordPosAfterEmphasis(scanned, pos);
+  if (j === null) return null;
   return { spaceStart, j };
+}
+
+/** After position start, skip * and _, then ' and ", then return position of first [a-zA-Z0-9] or null. */
+function nextWordPosAfterEmphasis(scanned, start) {
+  let pos = start;
+  while (pos < scanned.length && (scanned[pos] === "*" || scanned[pos] === "_")) {
+    pos++;
+  }
+  while (pos < scanned.length && (scanned[pos] === "'" || scanned[pos] === '"')) {
+    pos++;
+  }
+  if (pos >= scanned.length || scanned[pos] === "\n" || !/[a-zA-Z0-9]/.test(scanned[pos])) return null;
+  return pos;
 }
 
 /**

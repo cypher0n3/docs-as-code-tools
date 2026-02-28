@@ -14,6 +14,9 @@ const RE_FILE_LIKE = /^[^\s`]*[A-Za-z][^\s`]*\.[A-Za-z0-9]+$/;
 /** Match HTML/XML entity (e.g. &rArr; &#8230; &#x2192;) so we skip title-case checks (ASCII-safe special chars). */
 const RE_HTML_ENTITY = /^[^A-Za-z0-9]*&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);[^A-Za-z0-9]*$/;
 
+/** Scientific notation (e.g. 5e, 1e6, 2.5e-10); skip so "e" is not flagged for capitalization. */
+const RE_SCIENTIFIC = /^\d+(?:\.\d+)?[eE][+-]?\d*$/;
+
 /** Placeholder sentinels for inline code in applyTitleCase (private-use Unicode, not control chars). */
 const PLACEHOLDER_START = "\uE000";
 const PLACEHOLDER_END = "\uE001";
@@ -88,13 +91,13 @@ function isAllLower(w) {
 }
 
 /**
- * True if this position is exempt from lowercase (first/last/subphrase start/hyphen compound start/single-letter label).
- * @param {{ isFirst: boolean, isLast: boolean, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean, isPhaseLabel?: boolean }} opts
+ * True if this position is exempt from lowercase (first/last/subphrase start/hyphen compound segment/single-letter label).
+ * @param {{ isFirst: boolean, isLast: boolean, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean, isHyphenCompoundSegment?: boolean, isPhaseLabel?: boolean }} opts
  * @returns {boolean}
  */
 function isExemptFromLowercase(opts) {
-  const { isFirst, isLast, isSubphraseStart, isHyphenCompoundStart, isPhaseLabel } = opts;
-  return Boolean(isFirst || isLast || isSubphraseStart || isHyphenCompoundStart || isPhaseLabel);
+  const { isFirst, isLast, isSubphraseStart, isHyphenCompoundStart, isHyphenCompoundSegment, isPhaseLabel } = opts;
+  return Boolean(isFirst || isLast || isSubphraseStart || isHyphenCompoundStart || isHyphenCompoundSegment || isPhaseLabel);
 }
 
 /**
@@ -111,7 +114,7 @@ function getCapitalizationKind(opts) {
 
 /**
  * Validate one word for title case; returns error detail string or null if valid.
- * @param {{ raw: string, core: string, isFirst: boolean, isLast: boolean, lowercaseWords: Set<string>, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean, isPhaseLabel?: boolean }} opts
+ * @param {{ raw: string, core: string, isFirst: boolean, isLast: boolean, lowercaseWords: Set<string>, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean, isHyphenCompoundSegment?: boolean, isPhaseLabel?: boolean }} opts
  * @returns {string|null}
  */
 function checkWord(opts) {
@@ -129,7 +132,7 @@ function checkWord(opts) {
  * Return the corrected segment text for fixInfo: lowercase or capitalize per AP rules, preserving punctuation.
  * @param {string} rawSeg - Segment as in source (e.g. "And", "(in", "practice)")
  * @param {string} core - stripWordPunctuation(rawSeg)
- * @param {{ isFirst: boolean, isLast: boolean, lowercaseWords: Set<string>, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean, isPhaseLabel?: boolean }} opts
+ * @param {{ isFirst: boolean, isLast: boolean, lowercaseWords: Set<string>, isSubphraseStart?: boolean, isHyphenCompoundStart?: boolean, isHyphenCompoundSegment?: boolean, isPhaseLabel?: boolean }} opts
  * @returns {string}
  */
 function getCorrectedSegment(rawSeg, core, opts) {
@@ -169,6 +172,13 @@ function isPhaseLabelSegment(j, core, previousWordCore) {
   return j === 0 && core.length === 1 && /^[A-Za-z]$/.test(core) && LABEL_PARENT_WORDS.has(previousWordCore);
 }
 
+/** True if this segment should be skipped for title-case (entity, empty, non-alpha, or scientific notation). */
+function shouldSkipSegmentForTitleCase(rawSeg, core) {
+  return isHtmlEntity(rawSeg)
+    || !core || !/[a-zA-Z]/.test(core)
+    || RE_SCIENTIFIC.test(core);
+}
+
 /**
  * Check one segment of a word for title-case; returns error result or null.
  * @param {{ words: string[], rawSegments: string[], i: number, j: number, wordIsSubphraseStart: boolean, lowercaseWords: Set<string>, previousWordCore?: string }} opts
@@ -177,14 +187,14 @@ function isPhaseLabelSegment(j, core, previousWordCore) {
 function checkOneSegment(opts) {
   const { words, rawSegments, i, j, wordIsSubphraseStart, lowercaseWords, previousWordCore } = opts;
   const rawSeg = rawSegments[j];
-  if (isHtmlEntity(rawSeg)) return null;
   const core = stripWordPunctuation(rawSeg);
-  if (!core || !/[a-zA-Z]/.test(core)) return null;
+  if (shouldSkipSegmentForTitleCase(rawSeg, core)) return null;
 
   const isFirst = i === 0 && j === 0;
   const isLast = i === words.length - 1 && j === rawSegments.length - 1;
   const isSubphraseStart = j === 0 && wordIsSubphraseStart;
   const isHyphenCompoundStart = rawSegments.length > 1 && j === 0;
+  const isHyphenCompoundSegment = rawSegments.length > 1;
   const isPhaseLabel = isPhaseLabelSegment(j, core, previousWordCore);
 
   const detail = checkWord({
@@ -195,6 +205,7 @@ function checkOneSegment(opts) {
     lowercaseWords,
     isSubphraseStart,
     isHyphenCompoundStart,
+    isHyphenCompoundSegment,
     isPhaseLabel,
   });
   if (!detail) return null;
@@ -205,6 +216,7 @@ function checkOneSegment(opts) {
     lowercaseWords,
     isSubphraseStart,
     isHyphenCompoundStart,
+    isHyphenCompoundSegment,
     isPhaseLabel,
   });
   const seg = getSegmentPosition(rawSegments, j);
@@ -289,6 +301,7 @@ function correctSegmentForTitleCase(rawSeg, core, ctx) {
   const isLast = i === words.length - 1 && j === rawSegments.length - 1;
   const isSubphraseStart = j === 0 && wordIsSubphraseStart;
   const isHyphenCompoundStart = rawSegments.length > 1 && j === 0;
+  const isHyphenCompoundSegment = rawSegments.length > 1;
   const isPhaseLabel = isPhaseLabelSegment(j, core, previousWordCore);
   return getCorrectedSegment(rawSeg, core, {
     isFirst,
@@ -296,6 +309,7 @@ function correctSegmentForTitleCase(rawSeg, core, ctx) {
     lowercaseWords,
     isSubphraseStart,
     isHyphenCompoundStart,
+    isHyphenCompoundSegment,
     isPhaseLabel,
   });
 }
@@ -318,12 +332,8 @@ function processWordForTitleCase(raw, i, words, lowercaseWords) {
   const segmentParts = [];
   for (let j = 0; j < rawSegments.length; j++) {
     const rawSeg = rawSegments[j];
-    if (isHtmlEntity(rawSeg)) {
-      segmentParts.push(rawSeg);
-      continue;
-    }
     const core = stripWordPunctuation(rawSeg);
-    if (!core || !/[a-zA-Z]/.test(core)) {
+    if (shouldSkipSegmentForTitleCase(rawSeg, core)) {
       segmentParts.push(rawSeg);
       continue;
     }

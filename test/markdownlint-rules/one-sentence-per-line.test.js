@@ -254,6 +254,14 @@ describe("one-sentence-per-line", () => {
       assert.ok(errors[0].fixInfo.insertText.includes("Other stuff"), "insertText should include third sentence");
     });
 
+    it("splits when sentence ends with period then space then bold (.**Bolded text** rest)", () => {
+      const lines = ["This is the first sentence. **Bolded text** rest of the sentence"];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo);
+      assert.ok(errors[0].fixInfo.insertText.includes("**Bolded text** rest of the sentence"));
+    });
+
     it("splits after bolded sentence when no space after closing ** (.**The)", () => {
       const lines = ["- **No command or path allowlists inside the container.**The sandbox agent runs in an already-sandboxed environment (the container)."];
       const errors = runRule(rule, lines);
