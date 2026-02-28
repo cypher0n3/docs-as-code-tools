@@ -51,3 +51,13 @@ Valid content.
 ## Empty With Wrong-Format Suppress
 
 <!-- no-empty-heading: allow -->
+
+<!-- no-empty-heading disable -->
+
+## In Disable Block 1
+
+## In Disable Block 2
+
+<!-- no-empty-heading enable -->
+
+## Empty After Enable

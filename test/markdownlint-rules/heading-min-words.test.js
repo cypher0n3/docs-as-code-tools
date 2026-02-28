@@ -142,6 +142,38 @@ describe("heading-min-words", () => {
     });
   });
 
+  describe("disable/enable block", () => {
+    const config = { "heading-min-words": { minWords: 2, applyToLevelsAtOrBelow: 2 } };
+
+    it("suppresses single-word headings between disable and enable; reports after enable", () => {
+      const lines = [
+        "# Doc",
+        "<!-- heading-min-words disable -->",
+        "## Foo",
+        "## Bar",
+        "<!-- heading-min-words enable -->",
+        "## Baz",
+        "Content.",
+      ];
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1, "only ## Baz after enable should error");
+      assert.strictEqual(errors[0].lineNumber, 6);
+    });
+
+    it("disable only (no enable): all single-word headings after disable are suppressed", () => {
+      const lines = [
+        "# Doc",
+        "## Two Words",
+        "Content.",
+        "<!-- heading-min-words disable -->",
+        "## One",
+        "## More",
+      ];
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 0, "no errors when disable has no enable");
+    });
+  });
+
   describe("edge cases", () => {
     it("allowList is case-insensitive (Overview matches overview)", () => {
       const lines = ["# Doc", "## overview", "Content."];

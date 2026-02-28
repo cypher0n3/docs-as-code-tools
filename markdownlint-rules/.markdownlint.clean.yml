@@ -18,12 +18,20 @@
 # commented; uncomment a rule block and the options you need to override.
 #
 # -----------------------------------------------------------------------------
-# One-off suppression (allow a single line or section to bypass a rule)
+# One-off and block suppression (allow a line or a block to bypass a rule)
 # -----------------------------------------------------------------------------
-# Custom rules support an HTML comment to suppress the rule for one line:
+# Custom rules support HTML comments to suppress the rule:
+#
+# One-off (single line):
 #   • Put "<!-- rule-name allow -->" on the previous line (its own line), or
 #   • Put "<!-- rule-name allow -->" at the end of the violating line.
-# Examples:
+#
+# Block (disable then enable):
+#   • Put "<!-- rule-name disable -->" on its own line to turn the rule off.
+#   • Put "<!-- rule-name enable -->" on its own line to turn the rule back on.
+#   All lines between disable and enable (and after disable if no enable) are suppressed.
+#
+# Examples (one-off):
 #   <!-- no-empty-heading allow -->
 #   ## Intentionally Empty
 #
@@ -36,6 +44,15 @@
 #
 #   <!-- ascii-only allow -->
 #   Use arrow → here.
+#
+# Example (block disable/enable):
+#   <!-- no-empty-heading disable -->
+#   ## 1. Empty Heading 1
+#   ## 2. Empty Heading 2
+#   ## 3. Empty Heading 3
+#   <!-- no-empty-heading enable -->
+#   <!-- Following should error -->
+#   ## 4. Empty Heading 4
 #
 # Use the exact rule id (e.g. no-empty-heading, heading-min-words, one-sentence-per-line).
 #

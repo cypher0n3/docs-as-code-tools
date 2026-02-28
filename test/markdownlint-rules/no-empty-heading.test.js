@@ -346,6 +346,43 @@ describe("no-empty-heading", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  describe("disable/enable block", () => {
+    it("suppresses empty headings between disable and enable; reports after enable", () => {
+      const lines = [
+        "# Doc",
+        "<!-- no-empty-heading disable -->",
+        "## 1. Empty One",
+        "",
+        "## 2. Empty Two",
+        "<!-- no-empty-heading enable -->",
+        "",
+        "## 3. Empty After Enable",
+        "",
+        "## Next",
+        "Content.",
+      ];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1, "only ## 3. Empty After Enable should error");
+      assert.strictEqual(errors[0].lineNumber, 8);
+    });
+
+    it("disable only (no enable): all empty headings after disable are suppressed", () => {
+      const lines = [
+        "# Doc",
+        "## With Content",
+        "Text.",
+        "<!-- no-empty-heading disable -->",
+        "## Empty After Disable",
+        "",
+        "## Also Empty",
+        "",
+        "## End",
+      ];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0, "no errors when disable has no enable (rest of file suppressed)");
+    });
+  });
+
   describe("edge cases", () => {
     it("unclosed multi-line HTML comment at end of section does not count as content", () => {
       const lines = ["# Doc", "## Empty", "<!--", "  unclosed", "## Next", "Content."];

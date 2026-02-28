@@ -35,6 +35,33 @@ describe("one-sentence-per-line", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  describe("disable/enable block", () => {
+    it("suppresses multi-sentence lines between disable and enable; reports after enable", () => {
+      const lines = [
+        "# Doc",
+        "<!-- one-sentence-per-line disable -->",
+        "First. Second.",
+        "One. Two. Three.",
+        "<!-- one-sentence-per-line enable -->",
+        "Alpha. Beta.",
+      ];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1, "only line after enable should error");
+      assert.strictEqual(errors[0].lineNumber, 6);
+    });
+
+    it("disable only (no enable): all multi-sentence lines after disable are suppressed", () => {
+      const lines = [
+        "Single.",
+        "<!-- one-sentence-per-line disable -->",
+        "First. Second.",
+        "A. B. C.",
+      ];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0, "no errors when disable has no enable");
+    });
+  });
+
   it("reports error for two sentences in numbered list item", () => {
     const lines = ["1. First sentence. Second sentence."];
     const errors = runRule(rule, lines);

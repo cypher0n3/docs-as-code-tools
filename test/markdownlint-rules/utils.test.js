@@ -65,5 +65,75 @@ describe("utils", () => {
       const lines = ["Use arrow → here. <!-- .......... ..... -->"];
       assert.strictEqual(isRuleSuppressedByComment(lines, 1, "ascii-only"), true);
     });
+
+    it("returns true when line is inside disable block (between disable and enable)", () => {
+      const lines = [
+        "<!-- no-empty-heading disable -->",
+        "## 1. Empty Heading 1",
+        "",
+        "## 2. Empty Heading 2",
+        "",
+        "## 3. Empty Heading 3",
+        "<!-- no-empty-heading enable -->",
+        "",
+        "## 4. Empty Heading 4",
+      ];
+      assert.strictEqual(isRuleSuppressedByComment(lines, 2, "no-empty-heading"), true);
+      assert.strictEqual(isRuleSuppressedByComment(lines, 4, "no-empty-heading"), true);
+      assert.strictEqual(isRuleSuppressedByComment(lines, 6, "no-empty-heading"), true);
+      assert.strictEqual(isRuleSuppressedByComment(lines, 9, "no-empty-heading"), false);
+    });
+
+    it("returns false when enable turns rule back on (line after enable is not suppressed)", () => {
+      const lines = [
+        "<!-- no-empty-heading disable -->",
+        "## Empty",
+        "<!-- no-empty-heading enable -->",
+        "## Empty Again",
+      ];
+      assert.strictEqual(isRuleSuppressedByComment(lines, 2, "no-empty-heading"), true);
+      assert.strictEqual(isRuleSuppressedByComment(lines, 4, "no-empty-heading"), false);
+    });
+
+    it("returns true when disable has no matching enable (rest of file suppressed)", () => {
+      const lines = [
+        "## OK",
+        "Content.",
+        "<!-- no-empty-heading disable -->",
+        "## Empty",
+        "## Also Empty",
+      ];
+      assert.strictEqual(isRuleSuppressedByComment(lines, 1, "no-empty-heading"), false);
+      assert.strictEqual(isRuleSuppressedByComment(lines, 4, "no-empty-heading"), true);
+      assert.strictEqual(isRuleSuppressedByComment(lines, 5, "no-empty-heading"), true);
+    });
+
+    it("disable/enable: wrong rule name in comment does not affect state", () => {
+      const lines = [
+        "<!-- no-empty-heading disable -->",
+        "## Empty",
+        "<!-- other-rule enable -->",
+        "## Still Empty",
+      ];
+      assert.strictEqual(isRuleSuppressedByComment(lines, 2, "no-empty-heading"), true);
+      assert.strictEqual(isRuleSuppressedByComment(lines, 4, "no-empty-heading"), true);
+    });
+
+    it("disable/enable: allow optional whitespace in comment", () => {
+      const lines = ["  <!--  no-empty-heading  disable  -->  ", "## Empty"];
+      assert.strictEqual(isRuleSuppressedByComment(lines, 2, "no-empty-heading"), true);
+    });
+
+    it("disable only (no enable): ascii-only stays suppressed for rest of file", () => {
+      const lines = [
+        "ASCII line.",
+        "<!-- ascii-only disable -->",
+        "Use → here.",
+        "And café here.",
+      ];
+      assert.strictEqual(isRuleSuppressedByComment(lines, 1, "ascii-only"), false);
+      assert.strictEqual(isRuleSuppressedByComment(lines, 3, "ascii-only"), true);
+      assert.strictEqual(isRuleSuppressedByComment(lines, 4, "ascii-only"), true);
+    });
   });
 });

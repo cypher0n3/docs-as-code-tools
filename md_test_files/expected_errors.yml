@@ -272,6 +272,9 @@ negative_no_empty_heading.md:
     - line: 51
       rule: no-empty-heading
       message_contains: at least one line of content
+    - line: 63
+      rule: no-empty-heading
+      message_contains: at least one line of content
 
 negative_one_sentence_per_line.md:
   errors:

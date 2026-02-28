@@ -50,6 +50,33 @@ describe("ascii-only", () => {
     assert.ok(errors.some((e) => e.detail.includes("ASCII") || e.detail.includes("U+")));
   });
 
+  describe("disable/enable block", () => {
+    it("suppresses non-ASCII between disable and enable; reports after enable", () => {
+      const lines = [
+        "ASCII only here.",
+        "<!-- ascii-only disable -->",
+        "Arrow \u2192 here.",
+        "Café.",
+        "<!-- ascii-only enable -->",
+        "Another → line.",
+      ];
+      const errors = runRule(rule, lines, {}, "doc.md");
+      assert.strictEqual(errors.length, 1, "only line after enable should error");
+      assert.strictEqual(errors[0].lineNumber, 6);
+    });
+
+    it("disable only (no enable): all non-ASCII after disable is suppressed", () => {
+      const lines = [
+        "ASCII.",
+        "<!-- ascii-only disable -->",
+        "Use → and café.",
+        "More \u2192 text.",
+      ];
+      const errors = runRule(rule, lines, {}, "doc.md");
+      assert.strictEqual(errors.length, 0, "no errors when disable has no enable");
+    });
+  });
+
   it("reports no errors when path matches allowedPathPatternsUnicode", () => {
     // Glob "*.md" matches "doc.md"; non-ASCII is allowed in that file.
     const lines = ["Café"];

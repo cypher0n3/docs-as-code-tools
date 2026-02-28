@@ -35,9 +35,12 @@ Some rules are **fixable** (heading-title-case, ascii-only, heading-numbering, n
   For a single file listing every rule and option in this package, see [.markdownlint.clean.yml](.markdownlint.clean.yml).
   Only rules that accept options are documented with a config section below.
   **Regex patterns in YAML:** use single quotes so backslashes are not interpreted by YAML (e.g. `'\s'` instead of `"\\s"`), avoiding unnecessary double escapes.
-- **Suppressing a rule for a line:** Every custom rule supports an HTML comment override.
-  Put `<!-- rule-name allow -->` on its own line immediately before the line to suppress, or at the end of the violating line.
-  Example: `<!-- no-empty-heading allow -->` on the previous line (or at end of the heading line) suppresses that heading's empty-section violation.
+- **Suppressing a rule:** Every custom rule supports HTML comment overrides.
+  - **One-off:** Put `<!-- rule-name allow -->` on its own line immediately before the line to suppress, or at the end of the violating line.
+  - **Block:** Put `<!-- rule-name disable -->` on its own line to turn the rule off; put `<!-- rule-name enable -->` on its own line to turn it back on.
+    All lines between disable and enable (and after disable if there is no enable) are suppressed.
+  Example: `<!-- no-empty-heading allow -->` on the previous line suppresses that heading's empty-section violation.
+    Example block: `<!-- ................ ....... -->` then several empty headings, then `<!-- ................ ...... -->` so the next empty heading errors again.
 
 ## Reusing These Rules
 
@@ -686,7 +689,7 @@ When reusing any rule, copy `utils.js` into your `.markdownlint-rules` (see [Reu
 When the file path matches any pattern, the rule is skipped for that file.
 This uses `pathMatchesAny` from `utils.js`.
 
-- **HTML comment suppress:** `isRuleSuppressedByComment(lines, lineNumber, ruleName)` - returns true when the line or the previous line contains `<!-- ruleName allow -->` (used by all rules for per-line override).
+- **HTML comment suppress:** `isRuleSuppressedByComment(lines, lineNumber, ruleName)` - returns true when (1) the line or the previous line contains `<!-- ruleName allow -->`, or (2) the line is inside a block between `<!-- ruleName disable -->` and `<!-- ruleName enable -->` (used by all rules for per-line and block override).
   Also accepts markdownlint's cleared form (comment body replaced with dots).
 
 - **Heading and content:** `extractHeadings`, `iterateNonFencedLines`, `iterateProseLines`, `stripInlineCode`, `parseHeadingNumberPrefix`, `normalizeHeadingTitleForDup`, `normalizedTitleForDuplicate`, `RE_ATX_HEADING`, `RE_NUMBERING_PREFIX`.

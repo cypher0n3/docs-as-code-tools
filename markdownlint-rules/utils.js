@@ -250,12 +250,69 @@ function isValidSuppressArgs(lines, lineNumber, ruleName) {
     && typeof ruleName === "string" && ruleName.length > 0;
 }
 
+/** "disable" length for cleared-form regex. */
+const DISABLE_LEN = 7;
+/** "enable" length for cleared-form regex. */
+const ENABLE_LEN = 6;
+
+/**
+ * Return true if the trimmed line is solely "<!-- ruleName disable -->" (whole-line only; optional whitespace).
+ * Also matches markdownlint-cleared form: <!-- .{n} .{7} --> (dots replace rule name and "disable").
+ * @param {string} trimmed - Trimmed line
+ * @param {string} ruleName - Rule name
+ * @returns {boolean}
+ */
+function trimmedLineMatchesDisable(trimmed, ruleName) {
+  const escaped = ruleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const n = ruleName.length;
+  /* eslint-disable-next-line security/detect-non-literal-regexp -- ruleName escaped; used for disable comment */
+  const re = new RegExp(`^\\s*<!--\\s*${escaped}\\s+disable\\s*-->\\s*$`);
+  const clearedRe = new RegExp(`^\\s*<!--\\s*\\.{${n}}\\s+\\.{${DISABLE_LEN}}\\s*-->\\s*$`);
+  return re.test(trimmed) || clearedRe.test(trimmed);
+}
+
+/**
+ * Return true if the trimmed line is solely "<!-- ruleName enable -->" (whole-line only; optional whitespace).
+ * Also matches markdownlint-cleared form: <!-- .{n} .{6} --> (dots replace rule name and "enable").
+ * @param {string} trimmed - Trimmed line
+ * @param {string} ruleName - Rule name
+ * @returns {boolean}
+ */
+function trimmedLineMatchesEnable(trimmed, ruleName) {
+  const escaped = ruleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const n = ruleName.length;
+  /* eslint-disable-next-line security/detect-non-literal-regexp -- ruleName escaped; used for enable comment */
+  const re = new RegExp(`^\\s*<!--\\s*${escaped}\\s+enable\\s*-->\\s*$`);
+  const clearedRe = new RegExp(`^\\s*<!--\\s*\\.{${n}}\\s+\\.{${ENABLE_LEN}}\\s*-->\\s*$`);
+  return re.test(trimmed) || clearedRe.test(trimmed);
+}
+
+/**
+ * Return true if the rule is in a disabled block at the given line.
+ * Scans from line 1 to lineNumber: a line that is solely "<!-- ruleName disable -->" turns the rule off;
+ * a line that is solely "<!-- ruleName enable -->" turns it back on.
+ * @param {string[]} lines - All document lines
+ * @param {number} lineNumber - 1-based line number
+ * @param {string} ruleName - Rule name
+ * @returns {boolean}
+ */
+function isRuleDisabledAtLine(lines, lineNumber, ruleName) {
+  if (!isValidSuppressArgs(lines, lineNumber, ruleName)) return false;
+  let enabled = true;
+  for (let i = 0; i < lineNumber; i++) {
+    const trimmed = String(lines[i] ?? "").trim();
+    if (trimmedLineMatchesDisable(trimmed, ruleName)) enabled = false;
+    else if (trimmedLineMatchesEnable(trimmed, ruleName)) enabled = true;
+  }
+  return !enabled;
+}
+
 /**
  * Return true if a violation at the given line is suppressed by an HTML comment.
  * Suppression: (1) the line immediately before lineNumber is solely
  * `<!-- ruleName allow -->` (optional whitespace), or (2) the line at lineNumber
- * ends with that comment (e.g. inline at end of line).
- * Example: `<!-- no-empty-heading allow -->` on the previous line or at end of line.
+ * ends with that comment (e.g. inline at end of line), or (3) the line is inside
+ * a disable block (between `<!-- ruleName disable -->` and `<!-- ruleName enable -->`).
  *
  * @param {string[]} lines - All document lines (1-based index: line at lines[lineNumber - 1])
  * @param {number} lineNumber - 1-based line number of the violation
@@ -264,6 +321,7 @@ function isValidSuppressArgs(lines, lineNumber, ruleName) {
  */
 function isRuleSuppressedByComment(lines, lineNumber, ruleName) {
   if (!isValidSuppressArgs(lines, lineNumber, ruleName)) return false;
+  if (isRuleDisabledAtLine(lines, lineNumber, ruleName)) return true;
   const currentLine = lines[lineNumber - 1];
   if (currentLine == null) return false;
   if (trimmedLineMatchesSuppress(String(currentLine).trim(), ruleName)) return true;
