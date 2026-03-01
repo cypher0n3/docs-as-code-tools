@@ -138,14 +138,7 @@ function isAbbreviation(scanned, i, j, abbreviations) {
     || abbreviations.has(wordWithNext) || abbreviations.has(wordWithNextLower);
 }
 
-/** True when char at pos is space or sentence-start (uppercase letter). */
-function isSpaceOrSentenceStart(scanned, pos) {
-  if (pos >= scanned.length || scanned[pos] === "\n") return false;
-  const ch = scanned[pos];
-  return ch === " " || (ch >= "A" && ch <= "Z");
-}
-
-/** Skip optional emphasis (* _), then optional quotes after position i; return position of space or of next sentence start (uppercase letter), or null. */
+/** Skip optional emphasis (* _), then optional quotes after position i; return position of first space, or null. Period only counts as sentence end when followed by space (not e.g. CYNAI.PROJCT or file.name). */
 function skipQuotesThenSpace(scanned, i) {
   let pos = i + 1;
   while (pos < scanned.length && (scanned[pos] === "*" || scanned[pos] === "_")) {
@@ -154,7 +147,8 @@ function skipQuotesThenSpace(scanned, i) {
   while (pos < scanned.length && (scanned[pos] === "'" || scanned[pos] === '"')) {
     pos++;
   }
-  return isSpaceOrSentenceStart(scanned, pos) ? pos : null;
+  if (pos >= scanned.length || scanned[pos] !== " ") return null;
+  return pos;
 }
 
 /** From start of spaces, skip spaces and return { spaceStart, j } or null if no word char follows. */

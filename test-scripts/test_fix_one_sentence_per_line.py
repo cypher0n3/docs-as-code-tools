@@ -173,6 +173,22 @@ Edit utils.js or README.md.
             msg = f"no one-sentence-per-line errors expected: {proc.stderr}"
             self.assertEqual(proc.returncode, 0, msg)
 
+    def test_no_split_on_identifiers_with_periods(self) -> None:
+        """Periods in identifiers (e.g. CYNAI.PROJCT) with no space after do not trigger split."""
+        content = """# Doc
+
+## Section
+
+- CYNAI.PROJCT.ProjectGitRepos: Model (many repos per project, uniqueness per project).
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_one_sentence_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content, encoding="utf-8")
+            overrides = {"default": False, RULE: True}
+            proc = _run_markdownlint(path, fix=False, config_overrides=overrides)
+            msg = f"no {RULE} errors expected: {proc.stderr}"
+            self.assertEqual(proc.returncode, 0, msg)
+
     def test_exclude_path_patterns_skips_rule(self) -> None:
         """With excludePathPatterns matching file, no error and fix not needed."""
         content = """# Doc

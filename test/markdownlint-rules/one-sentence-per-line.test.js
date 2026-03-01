@@ -108,6 +108,14 @@ describe("one-sentence-per-line", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("does not split on periods in identifiers (e.g. CYNAI.PROJCT.ProjectGitRepos)", () => {
+    const lines = [
+      "  - CYNAI.PROJCT.ProjectGitRepos: Model (many repos per project, uniqueness per project).",
+    ];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "periods in identifier with no space after are not sentence boundaries");
+  });
+
   it("splits when period is followed by space even with filename elsewhere", () => {
     const lines = ["Open file.txt. Then save and close."];
     const errors = runRule(rule, lines);
@@ -289,12 +297,10 @@ describe("one-sentence-per-line", () => {
       assert.ok(errors[0].fixInfo.insertText.includes("**Bolded text** rest of the sentence"));
     });
 
-    it("splits after bolded sentence when no space after closing ** (.**The)", () => {
+    it("does not split when no space after period (e.g. .**The or word.Word)", () => {
       const lines = ["- **No command or path allowlists inside the container.**The sandbox agent runs in an already-sandboxed environment (the container)."];
       const errors = runRule(rule, lines);
-      assert.strictEqual(errors.length, 1);
-      assert.ok(errors[0].fixInfo, "fixable rule should provide fixInfo");
-      assert.ok(errors[0].fixInfo.insertText.includes("The sandbox agent runs"), "insertText should break after bold when no space after **");
+      assert.strictEqual(errors.length, 0, "period with no space after (.**The) is not a sentence boundary");
     });
 
     it("does not split on Dr. abbreviation (Dr in default list)", () => {
