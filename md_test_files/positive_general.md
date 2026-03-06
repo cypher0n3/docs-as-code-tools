@@ -39,6 +39,7 @@ It is intended to be linted explicitly via `npx markdownlint-cli2 md_test_files/
 
 This paragraph has one sentence.
 This is another sentence on its own line.
+Configuration options... are supplied by the orchestrator in the **start bundle**.
 
 ## Lists
 

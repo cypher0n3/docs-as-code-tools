@@ -173,6 +173,21 @@ Edit utils.js or README.md.
             msg = f"no one-sentence-per-line errors expected: {proc.stderr}"
             self.assertEqual(proc.returncode, 0, msg)
 
+    def test_no_split_on_ellipsis_in_sentence(self) -> None:
+        """Ellipsis (...) in the middle of a sentence does not trigger one-sentence-per-line."""
+        content = """# Doc
+
+Inference connectivity configuration... supplied by the orchestrator in the \
+**PMA managed service start bundle**.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_one_sentence_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content, encoding="utf-8")
+            overrides = {"default": False, RULE: True}
+            proc = _run_markdownlint(path, fix=False, config_overrides=overrides)
+            msg = f"no {RULE} errors expected for ellipsis in sentence: {proc.stderr}"
+            self.assertEqual(proc.returncode, 0, msg)
+
     def test_no_split_on_identifiers_with_periods(self) -> None:
         """Periods in identifiers (e.g. CYNAI.PROJCT) with no space after do not trigger split."""
         content = """# Doc

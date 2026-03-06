@@ -309,6 +309,12 @@ describe("one-sentence-per-line", () => {
       assert.strictEqual(errors.length, 0);
     });
 
+    it("does not split on ellipsis within a single sentence", () => {
+      const lines = ["Inference connectivity configuration... supplied by the orchestrator in the **PMA managed service start bundle**."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0, "ellipsis in middle of sentence should not trigger");
+    });
+
     it("splits when ellipsis is not sentence end and real sentence end follows", () => {
       const lines = ["First... Then the next sentence."];
       const errors = runRule(rule, lines);
@@ -337,6 +343,12 @@ describe("one-sentence-per-line", () => {
       const lines = ["   ", "One sentence."];
       const errors = runRule(rule, lines);
       assert.strictEqual(errors.length, 0);
+    });
+
+    it("does not split when period is followed only by trailing space (no next word)", () => {
+      const lines = ["First. "];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0, "trailing space after period with no second sentence");
     });
 
     it("version number 1. not treated as sentence end", () => {

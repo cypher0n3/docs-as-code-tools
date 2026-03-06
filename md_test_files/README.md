@@ -55,7 +55,8 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
 - **negative_no_tables.md** - no-tables
   - GFM table reported; with default config (convert-to none) short message only; suppress via `<!-- no-tables allow -->`.
 - **negative_one_sentence_per_line.md** - one-sentence-per-line
-  - Prose and list lines with multiple sentences (paragraph, bullet, numbered, nested); line with abbreviation (e.g.) not reported.
+  - Prose and list lines with multiple sentences (paragraph, bullet, numbered, nested); line with abbreviation (e.g.) not reported; ellipsis then new sentence (First... Then) reported.
+  - **positive_general.md** has a line with ellipsis in the middle of one sentence (not reported).
 
 Note: some negative fixtures intentionally trigger built-in markdownlint rules in addition to custom rules (e.g. MD031/MD032/MD033), so the test suite can assert multiple errors on specific lines.
 

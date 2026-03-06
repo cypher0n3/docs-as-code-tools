@@ -70,6 +70,28 @@ function isSentenceEndChar(ch) {
   return ch === "." || ch === "?" || ch === "!";
 }
 
+/** True when the period at i is part of an ellipsis (two or more consecutive dots). */
+function isPartOfEllipsis(scanned, i) {
+  if (scanned[i] !== ".") return false;
+  return (i > 0 && scanned[i - 1] === ".") || (i + 1 < scanned.length && scanned[i + 1] === ".");
+}
+
+/** Index of the last character of a run of dots starting at i (i is a dot). */
+function endOfEllipsisRun(scanned, i) {
+  let end = i;
+  while (end < scanned.length && scanned[end] === ".") end++;
+  return end;
+}
+
+/** True when the content after the ellipsis (after optional space) starts with an uppercase letter. */
+function capitalAfterEllipsis(scanned, lastDotIndex) {
+  const spaceStart = skipQuotesThenSpace(scanned, lastDotIndex);
+  if (spaceStart === null) return false;
+  const after = spaceStartAndNextWordPos(scanned, spaceStart);
+  if (!after) return false;
+  return /[A-Z]/.test(scanned[after.j]);
+}
+
 function skipQuotesAndSpaces(scanned, j) {
   let pos = j;
   while (pos < scanned.length && (scanned[pos] === "*" || scanned[pos] === "_")) {
@@ -204,6 +226,33 @@ function shouldSkipForSentenceBoundary(ctx) {
 }
 
 /**
+ * Process a potential sentence-end at i; return next index and optional boundary.
+ * @returns {{ nextI: number, boundary: number|null }}
+ */
+function processSentenceEnd(scanned, i, abbreviations) {
+  const ch = scanned[i];
+  if (!isSentenceEndChar(ch)) return { nextI: i, boundary: null };
+  if (ch === "." && isPartOfEllipsis(scanned, i)) {
+    const end = endOfEllipsisRun(scanned, i);
+    const lastDotIndex = end - 1;
+    if (capitalAfterEllipsis(scanned, lastDotIndex)) {
+      const boundary = trySentenceBoundary(scanned, lastDotIndex, abbreviations);
+      if (boundary !== null) {
+        const { nextPos: j } = skipQuotesAndSpaces(scanned, lastDotIndex + 1);
+        return { nextI: j - 1, boundary };
+      }
+    }
+    return { nextI: end - 1, boundary: null };
+  }
+  const boundary = trySentenceBoundary(scanned, i, abbreviations);
+  if (boundary !== null) {
+    const { nextPos: j } = skipQuotesAndSpaces(scanned, i + 1);
+    return { nextI: j - 1, boundary };
+  }
+  return { nextI: i, boundary: null };
+}
+
+/**
  * Find all sentence boundary indices (space before each sentence after the first).
  * @param {string} content - Prose content (no list marker)
  * @param {{ abbreviations?: Set<string> }} opts - Optional abbreviations set
@@ -237,17 +286,9 @@ function getAllSentenceBoundaries(content, opts) {
       i++;
       continue;
     }
-    if (!isSentenceEndChar(ch)) {
-      i++;
-      continue;
-    }
-    const boundary = trySentenceBoundary(scanned, i, abbreviations);
-    if (boundary !== null) {
-      boundaries.push(boundary);
-      const { nextPos: j } = skipQuotesAndSpaces(scanned, i + 1);
-      i = j - 1;
-    }
-    i++;
+    const { nextI, boundary } = processSentenceEnd(scanned, i, abbreviations);
+    if (boundary !== null) boundaries.push(boundary);
+    i = nextI + 1;
   }
   return boundaries;
 }
