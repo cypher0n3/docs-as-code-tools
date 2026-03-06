@@ -172,11 +172,17 @@ function isPhaseLabelSegment(j, core, previousWordCore) {
   return j === 0 && core.length === 1 && /^[A-Za-z]$/.test(core) && LABEL_PARENT_WORDS.has(previousWordCore);
 }
 
-/** True if this segment should be skipped for title-case (entity, empty, non-alpha, or scientific notation). */
+/** Alphanumeric identifier (e.g. 4a, v2, 2b); skip so "4a" is not flagged for capitalization. */
+function isAlphanumericIdentifier(core) {
+  return /[0-9]/.test(core) && /[a-zA-Z]/.test(core);
+}
+
+/** True if this segment should be skipped for title-case (entity, empty, non-alpha, scientific notation, or alphanumeric identifier). */
 function shouldSkipSegmentForTitleCase(rawSeg, core) {
   return isHtmlEntity(rawSeg)
     || !core || !/[a-zA-Z]/.test(core)
-    || RE_SCIENTIFIC.test(core);
+    || RE_SCIENTIFIC.test(core)
+    || isAlphanumericIdentifier(core);
 }
 
 /**

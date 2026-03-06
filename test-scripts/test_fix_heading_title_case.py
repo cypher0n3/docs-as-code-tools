@@ -131,6 +131,24 @@ Hyphenated compound: each segment capitalized.
             self.assertIn("5e", actual, "5e must be preserved (scientific notation)")
             self.assertIn("Follow-Up", actual, "Follow-Up must stay capitalized (hyphen compound)")
 
+    def test_alphanumeric_identifier_4a_unchanged_by_fix(self) -> None:
+        """Alphanumeric identifiers (e.g. 4a) in headings pass lint and are unchanged by --fix."""
+        content = """# Doc
+
+## Section 4a and Results
+
+Alphanumeric 4a is not title-cased.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_heading_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertEqual(proc.returncode, 0, f"4a heading should pass: {proc.stderr}")
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertIn("4a", actual, "4a must be preserved (alphanumeric identifier)")
+
     def test_phase_a_label_unchanged_by_fix(self) -> None:
         """Single letter after 'Phase' is a label; --fix must not lowercase it."""
         content = """# Doc

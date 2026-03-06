@@ -160,6 +160,18 @@ describe("heading-title-case", () => {
     assert.strictEqual(errors.length, 0, "5e should be treated as scientific notation, not title-cased");
   });
 
+  it("reports no errors for alphanumeric identifier in heading (e.g. 4a), not flagged for capitalization", () => {
+    const lines = ["## Section 4a and Results"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "4a should be treated as alphanumeric identifier, not title-cased");
+  });
+
+  it("reports no errors for other alphanumeric identifiers (e.g. v2, 2b) in heading", () => {
+    const lines = ["## API v2 and Step 2b"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "v2 and 2b should be treated as alphanumeric identifiers, not title-cased");
+  });
+
   it("reports no errors for heading containing HTML entity (e.g. &rArr;), not flagged as lowercase", () => {
     const lines = ["## Step A &rArr; Step B"];
     const errors = runRule(rule, lines);

@@ -154,6 +154,10 @@ Should not catch.
 
 Scientific notation (e.g. 5e, 1e6) in headings is not title-cased; the "e" is left as-is.
 
+### 9. Section 4a and Results
+
+Alphanumeric identifiers (e.g. 4a, v2, 2b) in headings are not title-cased; they are left as-is.
+
 ## Zero-Indexed Heading Numbering
 
 When the first numbered heading in a section starts at 0, the rule treats that section as 0-based and does not report errors.
