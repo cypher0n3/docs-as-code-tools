@@ -130,8 +130,8 @@ test-rules:
 	}
 	@node --test test/markdownlint-rules/*.test.js
 
-# Unit test coverage for markdownlint-rules/*.js (fails if any file < 90% lines/statements).
-# Requires: Node.js, npm; run 'npm install' first. Use Node 20 or 22 for coverage (c8 fails on Node 25).
+# Unit test coverage for markdownlint-rules/*.js (Node built-in; 90% lines/branches/functions overall).
+# Requires: Node.js, npm; run 'npm install' first.
 test-rules-coverage:
 	@command -v node >/dev/null 2>&1 || { \
 		echo "Error: node not found. Install Node.js and run npm install."; \

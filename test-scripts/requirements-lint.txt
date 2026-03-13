@@ -3,6 +3,7 @@ coverage
 flake8
 pylint
 radon
+urllib3>=2.0
 xenon
 vulture
 bandit

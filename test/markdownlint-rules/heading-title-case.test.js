@@ -235,6 +235,14 @@ describe("heading-title-case", () => {
       assert.strictEqual(gettingError.fixInfo.insertText, "Getting", "insertText should capitalize 'getting' to 'Getting'");
     });
 
+    it("suggests backticks for identifier-like words (contain underscore, e.g. sba_result)", () => {
+      const lines = ["## sba_result"];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].detail.includes("Identifier") && errors[0].detail.includes("backticks"));
+      assert.strictEqual(errors[0].fixInfo.insertText, "`sba_result`", "identifier should be enclosed in backticks");
+    });
+
     it("reports fixInfo for hyphenated segment (correct segment only)", () => {
       const lines = ["# One-stop Shop"];
       const errors = runRule(rule, lines);

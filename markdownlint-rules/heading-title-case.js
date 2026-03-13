@@ -34,6 +34,13 @@ function looksLikeFileName(token) {
   return FILENAME_NO_EXT.has(lower) || FILENAME_NO_EXT.has(lower.replace(/^\./, ""));
 }
 
+/** Word contains underscore and looks like an identifier (e.g. sba_result, my_var); suggest backticks. */
+function looksLikeIdentifier(token) {
+  if (!token || typeof token !== "string") return false;
+  const core = stripWordPunctuation(token);
+  return core.length > 0 && /_/.test(core) && /^[A-Za-z0-9_]+$/.test(core);
+}
+
 /** Default lowercase words for AP-style headings (unless first/last/subphrase-start). */
 const DEFAULT_LOWERCASE_WORDS = new Set([
   // Articles
@@ -143,8 +150,10 @@ function getCorrectedSegment(rawSeg, core, opts) {
     : core.charAt(0).toUpperCase() + core.slice(1).toLowerCase();
   const firstAlpha = rawSeg.search(/[A-Za-z0-9]/);
   if (firstAlpha < 0) return rawSeg;
-  const runMatch = rawSeg.slice(firstAlpha).match(/^[A-Za-z0-9]+/);
-  const runLen = runMatch ? runMatch[0].length : 0;
+  // Use core length so we replace the full segment (e.g. "sba_result"), not just the first [A-Za-z0-9]+ run ("sba").
+  const runLen = rawSeg.slice(firstAlpha, firstAlpha + core.length) === core
+    ? core.length
+    : (rawSeg.slice(firstAlpha).match(/^[A-Za-z0-9]+/)?.[0].length ?? 0);
   return rawSeg.slice(0, firstAlpha) + correctedCore + rawSeg.slice(firstAlpha + runLen);
 }
 
@@ -513,36 +522,46 @@ function splitWordPunctuation(raw) {
   return { core, prefix: leading, suffix: trailing };
 }
 
-function reportFilenameErrors(opts) {
+/**
+ * Report words that should be in backticks (filenames, identifiers with underscores).
+ * Returns the set of word indices so title-case errors are skipped for those words.
+ */
+function reportBacktickWords(opts) {
   const { h, line, titleText, onError, lines } = opts;
   const words = stripInlineCode(titleText).split(/\s+/).filter((w) => w.length > 0);
-  const fileNameWordIndices = new Set();
+  const backtickWordIndices = new Set();
   for (let wi = 0; wi < words.length; wi++) {
     const raw = words[wi];
     const { core, prefix, suffix } = splitWordPunctuation(raw);
-    if (!core || !looksLikeFileName(core)) continue;
+    if (!core) continue;
+    const isFileName = looksLikeFileName(core);
+    const isIdentifier = looksLikeIdentifier(raw);
+    if (!isFileName && !isIdentifier) continue;
     const rangeInfo = getWordRangeInLine(line, h.rawText, titleText, { wordIndex: wi });
     /* c8 ignore next 1 -- defensive: titleText is always substring of rawText from parseHeadingNumberPrefix */
     if (!rangeInfo) continue;
-    fileNameWordIndices.add(wi);
+    backtickWordIndices.add(wi);
     const insertText = prefix + "`" + core + "`" + suffix;
+    const detail = isFileName
+      ? `File name "${core}" should be enclosed in backticks.`
+      : `Identifier "${core}" should be enclosed in backticks.`;
     reportTitleCaseError({
       onError,
       lineNumber: h.lineNumber,
       line,
-      detail: `File name "${core}" should be enclosed in backticks.`,
+      detail,
       rangeInfo,
       insertText,
       lines,
     });
   }
-  return fileNameWordIndices;
+  return backtickWordIndices;
 }
 
 function reportTitleCaseErrors(opts) {
-  const { h, line, titleText, result, fileNameWordIndices, onError, lines } = opts;
+  const { h, line, titleText, result, backtickWordIndices, onError, lines } = opts;
   for (const err of result.errors) {
-    if (fileNameWordIndices.has(err.wordIndex)) continue;
+    if (backtickWordIndices.has(err.wordIndex)) continue;
     const rangeInfo = getWordRangeInLine(line, h.rawText, titleText, {
       wordIndex: err.wordIndex,
       segmentOffset: err.segmentOffset,
@@ -582,17 +601,17 @@ function ruleFunction(params, onError) {
   for (const h of headings) {
     const { titleText } = parseHeadingNumberPrefix(h.rawText);
     const line = lines[h.lineNumber - 1];
-    const fileNameWordIndices = reportFilenameErrors({ h, line, titleText, onError, lines });
+    const backtickWordIndices = reportBacktickWords({ h, line, titleText, onError, lines });
     const result = checkTitleCase(titleText, lowercaseWords);
     if (!result.valid) {
-      reportTitleCaseErrors({ h, line, titleText, result, fileNameWordIndices, onError, lines });
+      reportTitleCaseErrors({ h, line, titleText, result, backtickWordIndices, onError, lines });
     }
   }
 }
 
 module.exports = {
   names: ["heading-title-case"],
-  description: "Enforce AP-style capitalization for headings, with exceptions for words in backticks and configurable lowercase words.",
+  description: "Enforce AP-style capitalization for headings, with exceptions for words in backticks, identifiers (words with underscores) and file names suggested for backticks, and configurable lowercase words.",
   tags: ["headings"],
   function: ruleFunction,
   applyTitleCase,

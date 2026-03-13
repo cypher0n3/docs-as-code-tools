@@ -34,3 +34,11 @@ Second segment "stop" in hyphenated word should be capitalized (AP: major word).
 ## Overview: the Basics
 
 First word after colon "the" should be capitalized (AP: subphrase start).
+
+## sba_result
+
+Identifier with underscore should be enclosed in backticks.
+
+## Overview of my_var
+
+Identifier (e.g. variable name) in heading should be enclosed in backticks.

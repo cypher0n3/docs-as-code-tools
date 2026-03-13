@@ -584,6 +584,7 @@ v, vs
 **Behavior (AP headline rules):** For each ATX heading, the title part (after stripping any numeric prefix like `1.2.3`) is checked.
 Content inside inline code (backticks) is ignored.
 
+- **File names and identifiers:** Words that look like file names (e.g. `README.md`, `Makefile`) or identifiers containing underscores (e.g. `sba_result`, `my_var`) are reported with a suggestion to enclose them in backticks instead of applying title case.
 - **First and last words** of the heading must be capitalized (including the first and last segment of hyphenated compounds).
 - **First word after a colon** (e.g. `Summary: The Results`) and the **first word inside parentheses or brackets** (e.g. `(in Practice)`, `[optional]`) are treated as phrase starts and must be capitalized even if they are in the lowercase list.
 - **Phase labels:** A single letter immediately after the word "Phase" (e.g. `Phase A:`, `Phase B`) is treated as a label and kept capitalized, so the article "a" in the default list does not force lowercase in that context.

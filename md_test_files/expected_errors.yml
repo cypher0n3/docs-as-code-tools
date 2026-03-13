@@ -11,6 +11,9 @@ positive_heading_numbering_zero.md:
 positive_general_index.md:
   errors: []
 
+positive_heading_title_case.md:
+  errors: []
+
 negative_anchor_algo_placement.md:
   errors:
     - line: 10
@@ -245,6 +248,12 @@ negative_heading_title_case.md:
       rule: heading-title-case
       column: 14
       message_contains: 'Word "the" should be capitalized'
+    - line: 38
+      rule: heading-title-case
+      message_contains: Identifier
+    - line: 42
+      rule: heading-title-case
+      message_contains: Identifier
 
 negative_no_h1_content.md:
   errors:

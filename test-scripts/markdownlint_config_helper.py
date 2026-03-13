@@ -12,6 +12,7 @@ import subprocess  # nosec B404
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Iterator, Union
+from uuid import uuid4
 
 import yaml
 
@@ -89,7 +90,8 @@ def temp_markdownlint_config(overrides: Dict[str, Any] | None = None) -> Iterato
     ignores = [i for i in ignores if i != "tmp/**"]
     options = {"config": config, "customRules": abs_rules, "ignores": ignores}
     config_dir = _repo_tmp_dir()
-    config_path = config_dir / ".markdownlint-cli2.jsonc"
+    # Use a unique file name per invocation so repeated test runs never collide.
+    config_path = config_dir / f"{uuid4().hex}.markdownlint-cli2.jsonc"
     config_path.write_text(json.dumps(options, indent=2), encoding="utf-8")
     try:
         yield config_path
@@ -135,7 +137,7 @@ def run_markdownlint_with_config(
     path_strs = [_path_arg(p) for p in paths]
     cmd = find_markdownlint_cmd()
     with temp_markdownlint_config(config_overrides) as config_path:
-        run_cmd = [*cmd, "--config", config_path.name]
+        run_cmd = [*cmd, "--config", str(config_path.resolve())]
         if fix:
             run_cmd.append("--fix")
         run_cmd.extend(path_strs)

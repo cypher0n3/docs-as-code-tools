@@ -171,6 +171,41 @@ Content.
             actual = path.read_text(encoding="utf-8")
             self.assertIn("Phase A:", actual, "Phase A must remain capitalized after --fix")
 
+    def test_fix_identifier_with_underscore_gets_backticks(self) -> None:
+        """Identifiers with underscores (e.g. sba_result, my_var) get backticks, not title case."""
+        content_before = """# Doc
+
+## sba_result
+
+Identifier should be in backticks.
+
+## Overview of my_var
+
+Variable name in heading.
+"""
+        content_after = """# Doc
+
+## `sba_result`
+
+Identifier should be in backticks.
+
+## Overview of `my_var`
+
+Variable name in heading.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_heading_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertNotEqual(proc.returncode, 0, "expected lint errors before fix")
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertEqual(
+                actual, content_after,
+                "identifiers with underscores get backticks",
+            )
+
     def test_fix_filenames_in_parens_get_backticks_not_title_case(self) -> None:
         """Filenames like (utils.js, allow-custom-anchors.js) get backticks, not Title Case."""
         content_before = """# Suppressions

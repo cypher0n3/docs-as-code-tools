@@ -267,6 +267,7 @@ function trimmedLineMatchesDisable(trimmed, ruleName) {
   const n = ruleName.length;
   /* eslint-disable-next-line security/detect-non-literal-regexp -- ruleName escaped; used for disable comment */
   const re = new RegExp(`^\\s*<!--\\s*${escaped}\\s+disable\\s*-->\\s*$`);
+  /* eslint-disable-next-line security/detect-non-literal-regexp -- n is ruleName.length; cleared form */
   const clearedRe = new RegExp(`^\\s*<!--\\s*\\.{${n}}\\s+\\.{${DISABLE_LEN}}\\s*-->\\s*$`);
   return re.test(trimmed) || clearedRe.test(trimmed);
 }
@@ -283,6 +284,7 @@ function trimmedLineMatchesEnable(trimmed, ruleName) {
   const n = ruleName.length;
   /* eslint-disable-next-line security/detect-non-literal-regexp -- ruleName escaped; used for enable comment */
   const re = new RegExp(`^\\s*<!--\\s*${escaped}\\s+enable\\s*-->\\s*$`);
+  /* eslint-disable-next-line security/detect-non-literal-regexp -- n is ruleName.length; cleared form */
   const clearedRe = new RegExp(`^\\s*<!--\\s*\\.{${n}}\\s+\\.{${ENABLE_LEN}}\\s*-->\\s*$`);
   return re.test(trimmed) || clearedRe.test(trimmed);
 }
