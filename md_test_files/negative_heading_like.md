@@ -18,3 +18,10 @@
 **Introduction**
 
 *Note*
+
+View Activity History:
+You can see past events and changes in the dashboard.
+
+View Activity History Also:
+
+You can see past events and changes in the dashboard.

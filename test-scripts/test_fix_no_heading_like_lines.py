@@ -2,7 +2,8 @@
 """
 Functional test for no-heading-like-lines fixInfo: generate a file with heading-like
 lines (e.g. **Summary:**, 1. **Introduction**), assert markdownlint reports errors,
-run --fix, then assert file content (default fix strips emphasis to plain text).
+run --fix, then assert file content. Default fix converts to ATX heading; strip path
+tested with convertToHeading: false.
 """
 
 from __future__ import annotations
@@ -41,12 +42,11 @@ def _run_markdownlint(
 
 
 class TestFixNoHeadingLikeLines(unittest.TestCase):
-    """Test that no-heading-like-lines fixInfo (stripEmphasis) is applied by markdownlint --fix."""
+    """Test that no-heading-like-lines fixInfo is applied by markdownlint --fix."""
 
     def test_fix_strip_emphasis_and_file_updated(self) -> None:
+        # With convertToHeading: false, fix strips emphasis and trailing colons.
         # Minimal TOC under first h1; content under ## so no-h1-content and no-empty-heading pass.
-        # Single blank lines only to avoid MD012.
-        # Default fix strips emphasis and trailing colons (**Summary:** -> Summary, etc.).
         content_before = """# Test
 
 - [Section](#section)
@@ -71,25 +71,23 @@ Content here.
 Introduction
 More content.
 """
+        strip_config = {"default": False, "no-heading-like-lines": {"convertToHeading": False}}
         with tempfile.TemporaryDirectory(prefix="fix_no_heading_like_") as tmp:
             path = Path(tmp) / "test.md"
             path.write_text(content_before, encoding="utf-8")
 
-            # Must report errors before fix
-            proc = _run_markdownlint(path, fix=False)
+            proc = _run_markdownlint(path, fix=False, config_overrides=strip_config)
             self.assertNotEqual(proc.returncode, 0, "expected lint errors before fix")
             combined = (proc.stdout or "") + "\n" + (proc.stderr or "")
             self.assertIn(RULE, combined, f"expected {RULE} in output")
 
-            # Apply fix
-            proc_fix = _run_markdownlint(path, fix=True)
+            proc_fix = _run_markdownlint(path, fix=True, config_overrides=strip_config)
             self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
 
-            # File content must match expected after fix
             actual = path.read_text(encoding="utf-8")
             self.assertEqual(
                 actual, content_after,
-                "file content after --fix should match expected",
+                "file content after --fix (convertToHeading false) should match expected",
             )
 
     def test_fix_convert_to_heading_option(self) -> None:
@@ -121,7 +119,7 @@ Content.
             self.assertNotIn("**Summary**", actual)
 
     def test_fix_strips_trailing_colon_from_line(self) -> None:
-        """fixInfo strips trailing colons so the fixed line does not end with a colon."""
+        """fixInfo strips trailing colons; fixed line does not end with colon (strip path)."""
         content_before = """# Doc
 
 ## Section
@@ -129,10 +127,11 @@ Content.
 **Summary:**
 Content.
 """
+        strip_config = {"default": False, "no-heading-like-lines": {"convertToHeading": False}}
         with tempfile.TemporaryDirectory(prefix="fix_no_heading_like_") as tmp:
             path = Path(tmp) / "test.md"
             path.write_text(content_before, encoding="utf-8")
-            proc_fix = _run_markdownlint(path, fix=True)
+            proc_fix = _run_markdownlint(path, fix=True, config_overrides=strip_config)
             self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
             actual = path.read_text(encoding="utf-8")
             self.assertIn("Summary\n", actual, "fixed line is Summary with no trailing colon")
@@ -195,6 +194,31 @@ Content.
                 "`# noqa: E402`", actual,
                 "inline code in heading-like line preserved when converted to heading",
             )
+
+    def test_fix_short_title_case_colon_converts_to_heading(self) -> None:
+        """Short title-case line ending in colon with prose is fixed to ATX heading (default)."""
+        content_before = """# Doc
+
+## Section
+
+View Activity History:
+You can see past events in the dashboard.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_no_heading_like_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            overrides = {
+                "default": False,
+                "no-heading-like-lines": {"convertToHeading": True},
+            }
+            proc = _run_markdownlint(path, fix=False, config_overrides=overrides)
+            self.assertNotEqual(proc.returncode, 0, "expected lint errors before fix")
+            proc_fix = _run_markdownlint(path, fix=True, config_overrides=overrides)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertIn("### View Activity History", actual)
+            self.assertIn("You can see past events", actual)
+            self.assertNotIn("View Activity History:\n", actual)
 
     def test_exclude_path_patterns_skips_rule(self) -> None:
         """With excludePathPatterns matching file, no error and fix not needed."""

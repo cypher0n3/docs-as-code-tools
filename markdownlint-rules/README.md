@@ -184,7 +184,7 @@ Entries may be a plain regex string (no placement) or `{ pattern: "regex", place
 
 ```yaml
 no-heading-like-lines:
-  convertToHeading: false   # when true, fix converts to ATX heading instead of stripping emphasis
+  convertToHeading: true    # default; set false to strip emphasis to plain text instead of converting to ATX heading
   defaultHeadingLevel: 2    # level when there is no preceding heading (1-6)
   fixedHeadingLevel: 3     # if set, force this level and ignore context
   punctuationMarks: ".,;!?"   # for whole-line emphasis, skip when content ends with one of these (default omits : so colon lines are caught)
@@ -192,8 +192,8 @@ no-heading-like-lines:
     - "**/README.md"
 ```
 
-- **`convertToHeading`** (boolean, default `false`): When false, the default fix strips emphasis to plain text (e.g. `**Summary:**` -> `Summary:`).
-  When true, the fix converts the line to an ATX heading with context-aware level (one below the last preceding heading; no prior heading -> `defaultHeadingLevel`).
+- **`convertToHeading`** (boolean, default `true`): When true, the fix converts the line to an ATX heading with context-aware level (one below the last preceding heading; no prior heading -> `defaultHeadingLevel`).
+  When false, the fix strips emphasis to plain text (e.g. `**Summary:**` -> `Summary`).
 - **`defaultHeadingLevel`** (number 1-6, default 2): Used when converting to a heading and there is no preceding heading in the document.
 - **`fixedHeadingLevel`** (number 1-6, optional): When set, the suggested heading uses this level and ignores context.
 - **`punctuationMarks`** (string, default `".,;!?"`): For whole-line emphasis (`**Text**` / `*Text*`), the rule does not report when the emphasized content ends with one of these (treats as sentences).
@@ -202,10 +202,11 @@ no-heading-like-lines:
   When the file path matches any pattern, the rule does not report for that file.
 
 **Fixable:** Yes (config-controlled).
-Default fix strips emphasis to plain text.
+Default fix converts to an ATX heading.
+When `convertToHeading` is false, the fix strips emphasis to plain text.
 When `convertToHeading` is true, the fix converts to an ATX heading with context-aware level, adds a blank line after the heading when the next line is non-blank, and when the optional dependency files are present respects numbering (adds the correct number prefix when the section uses numbered headings) and applies AP title case to the heading text (same rules as heading-title-case).
 
-**Behavior:** Reports lines that look like headings but are not (e.g. `**Text:**`, `**Text**:`, `1. **Text**`, italic variants, whole-line emphasis).
+**Behavior:** Reports lines that look like headings but are not: bold/italic with colon (e.g. `**Text:**`, `**Text**:`, `1. **Text**`, italic variants), whole-line emphasis, and short (up to 5 words) title-case lines ending in a colon when followed by longer prose (e.g. `View Activity History:` with a paragraph below).
 Whole-line emphasis ending with a `punctuationMarks` character is not reported; default omits colon so colon lines are always caught (greedier than MD036).
 fixInfo replaces with stripped text or ATX heading.
 Disable MD036 to avoid duplicates and use this rule's fixInfo for `--fix`.
@@ -213,8 +214,9 @@ Disable MD036 to avoid duplicates and use this rule's fixInfo for `--fix`.
 #### Using Without Heading-Title-Case And/Or Heading-Numbering
 
 You can use `no-heading-like-lines.js` with only `utils.js`; the other rule files are optional.
-For the default fix (strip emphasis), no other files are needed.
-For `convertToHeading: true`:
+For the default fix (convert to ATX heading), no other files are needed; optional deps add title case and numbering.
+For `convertToHeading: false` (strip emphasis), no other files are needed.
+When `convertToHeading` is true:
 
 - If `heading-title-case.js` is not in the same rules directory, suggested headings use the extracted title as-is (no AP title case).
 - If `heading-numbering.js` is not in the same rules directory, no number prefix is added to suggested headings.
@@ -312,7 +314,7 @@ no-empty-heading:
 - **`stripNumberingForAllowList`** (boolean, default `true`): When `true`, leading numbering (e.g. `1.2.3`) is stripped from the heading text before comparing to `allowList`.
 - **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
 
-Behavior:
+#### Rule Behavior
 
 - For each H2-H6 heading, only _direct_ content counts: lines that appear **before** the next heading (any level).
   Content under subheadings does **not** count for the parent heading.

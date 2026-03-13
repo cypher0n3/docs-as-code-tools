@@ -78,7 +78,7 @@ document-length:
 
 # no-heading-like-lines: report lines that look like headings but are not (e.g. **Text:**, 1. **Text**, MD036-style **Intro**). Fixable.
 # Options (all optional):
-#   convertToHeading: bool (default false); when true, fix converts to ATX heading; when false, fix strips emphasis to plain text
+#   convertToHeading: bool (default true); when true, fix converts to ATX heading; when false, fix strips emphasis to plain text
 #   defaultHeadingLevel: number 1-6 (default 2); used when converting to heading and there is no preceding heading
 #   fixedHeadingLevel: number 1-6; when set, suggested heading uses this level and ignores context
 #   punctuationMarks: string (default ".,;!?"); for whole-line emphasis, skip when content ends with one of these (no colon = catch colon lines)

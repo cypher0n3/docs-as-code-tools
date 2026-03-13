@@ -335,7 +335,7 @@ default: true
 # -----------------------------------------------------------------------------
 # To override: Uncomment the block; set convertToHeading, defaultHeadingLevel, fixedHeadingLevel, punctuationMarks, or excludePathPatterns. Report lines that look like headings but are not (e.g. **Text:**, MD036-style). Fixable.
 # Options (all optional):
-#   convertToHeading: bool (default false); when true, fix converts to ATX heading; when false, fix strips emphasis
+#   convertToHeading: bool (default true); when true, fix converts to ATX heading; when false, fix strips emphasis
 #   defaultHeadingLevel: number 1–6 (default 2); used when converting and there is no preceding heading
 #   fixedHeadingLevel: number 1–6; when set, suggested heading uses this level and ignores context
 #   punctuationMarks: string (default ".,;!?"); for whole-line emphasis, skip when content ends with one of these

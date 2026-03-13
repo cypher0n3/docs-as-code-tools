@@ -59,6 +59,9 @@ const MD036_STYLE_PATTERN_INDICES = new Set([6, 7]);
 /** Pattern indices for numbered-list bold/italic; skip when content ends with sentence punctuation (e.g. "1. **Sentence.**"). */
 const NUMBERED_LIST_EMPHASIS_PATTERN_INDICES = new Set([2, 5]);
 
+/** Max word count for "short" prose line in title case ending with colon (e.g. "View Activity History:"). */
+const MAX_WORDS_SHORT_TITLE_COLON = 5;
+
 /**
  * Extract plain title from a heading-like line given the pattern index that matched.
  * @param {string} trimmedLine - Trimmed line content
@@ -126,6 +129,35 @@ function buildConvertToHeadingInsertText(opts) {
   return headingLine;
 }
 
+/** True if there is a non-blank line after index that is not an ATX heading (prose after). */
+function hasProseAfter(lines, index) {
+  for (let i = index + 1; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (!t) continue;
+    if (t.startsWith("#")) return false;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Match short (≤5 words) title-case line ending in colon; returns { description, extractedTitle } or null.
+ * Used when there is longer prose after (call hasProseAfter separately).
+ */
+function isShortTitleCaseWithColon(trimmedLine) {
+  if (!/:\s*$/.test(trimmedLine)) return null;
+  const beforeColon = trimmedLine.replace(/:+$/, "").trim();
+  if (!beforeColon) return null;
+  const words = beforeColon.split(/\s+/).filter(Boolean);
+  if (words.length > MAX_WORDS_SHORT_TITLE_COLON) return null;
+  const allTitleCase = words.every((w) => /^[A-Z]/.test(w));
+  if (!allTitleCase) return null;
+  return {
+    description: "short title-case line ending in colon with prose after",
+    extractedTitle: beforeColon,
+  };
+}
+
 /** True when pattern p matched but content is only colon (e.g. **:**); skip reporting. */
 function skipBoldColonOnly(trimmedLine, p, pattern) {
   if (![0, 1, 6].includes(p)) return false;
@@ -156,6 +188,22 @@ function findHeadingLikeMatch(trimmedLine, punctuationMarks) {
   return null;
 }
 
+/**
+ * Get heading-like match for one line (bold/italic patterns or short title-case colon with prose after).
+ * @param {string} trimmedLine - Trimmed line
+ * @param {string[]} lines - All lines
+ * @param {number} index - Current line index
+ * @param {string} punctuationMarks - Punctuation marks for MD036-style skip
+ * @returns {{ description: string, extractedTitle: string } | null}
+ */
+function getMatchForLine(trimmedLine, lines, index, punctuationMarks) {
+  const match = findHeadingLikeMatch(trimmedLine, punctuationMarks);
+  if (match) return match;
+  const shortMatch = isShortTitleCaseWithColon(trimmedLine);
+  if (shortMatch && hasProseAfter(lines, index)) return shortMatch;
+  return null;
+}
+
 /** Build and report one heading-like error. */
 function reportHeadingLikeError(line, index, match, ctx) {
   const { lines, headings, config, ruleConfig, convertToHeading, onError } = ctx;
@@ -180,7 +228,7 @@ function reportHeadingLikeError(line, index, match, ctx) {
 function getNoHeadingLikeContext(params, onError) {
   const lines = params.lines;
   const ruleConfig = params.config?.["no-heading-like-lines"] ?? params.config ?? {};
-  const convertToHeading = ruleConfig.convertToHeading === true;
+  const convertToHeading = ruleConfig.convertToHeading !== false;
   const defaultHeadingLevel = ruleConfig.defaultHeadingLevel;
   const fixedHeadingLevel = ruleConfig.fixedHeadingLevel;
   const punctuationMarks = typeof ruleConfig.punctuationMarks === "string"
@@ -219,9 +267,8 @@ function ruleFunction(params, onError) {
     const line = lines[index];
     const trimmedLine = line.trim();
     if (!trimmedLine) continue;
-    const match = findHeadingLikeMatch(trimmedLine, punctuationMarks);
-    if (!match) continue;
-    reportHeadingLikeError(line, index, match, ctx);
+    const match = getMatchForLine(trimmedLine, lines, index, punctuationMarks);
+    if (match) reportHeadingLikeError(line, index, match, ctx);
   }
 }
 

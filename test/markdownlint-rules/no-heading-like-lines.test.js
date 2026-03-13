@@ -84,7 +84,7 @@ describe("no-heading-like-lines", () => {
 
   it("reports **Summary.** when punctuationMarks is empty", () => {
     const lines = ["**Summary.**", "Content."];
-    const config = { "no-heading-like-lines": { punctuationMarks: "" } };
+    const config = { "no-heading-like-lines": { punctuationMarks: "", convertToHeading: false } };
     const errors = runRule(rule, lines, config);
     assert.strictEqual(errors.length, 1);
     assert.strictEqual(errors[0].fixInfo.insertText, "Summary.");
@@ -127,11 +127,22 @@ describe("no-heading-like-lines", () => {
     assert.strictEqual(errors.length, 0);
   });
 
-  describe("fixInfo (default stripEmphasis)", () => {
+  describe("fixInfo (default convertToHeading: true)", () => {
+    it("by default suggests ATX heading for **Summary:**", () => {
+      const lines = ["**Summary:**", "Content."];
+      const errors = runRule(rule, lines, {});
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo.insertText.startsWith("## "), "default fix suggests heading");
+      assert.ok(errors[0].fixInfo.insertText.includes("Summary"));
+    });
+  });
+
+  describe("fixInfo (convertToHeading: false, stripEmphasis)", () => {
+    const stripConfig = { "no-heading-like-lines": { convertToHeading: false } };
+
     it("provides fixInfo for **Summary:** with editColumn 1, deleteCount line length, insertText plain", () => {
       const lines = ["**Summary:**", "Content."];
-      const config = {};
-      const errors = runRule(rule, lines, config);
+      const errors = runRule(rule, lines, stripConfig);
       assert.strictEqual(errors.length, 1);
       assert.strictEqual(errors[0].fixInfo.editColumn, 1);
       assert.strictEqual(errors[0].fixInfo.deleteCount, "**Summary:**".length);
@@ -140,21 +151,21 @@ describe("no-heading-like-lines", () => {
 
     it("provides fixInfo for 1. **Introduction** with insertText Introduction", () => {
       const lines = ["1. **Introduction**", "Content."];
-      const errors = runRule(rule, lines, {});
+      const errors = runRule(rule, lines, stripConfig);
       assert.strictEqual(errors.length, 1);
       assert.strictEqual(errors[0].fixInfo.insertText, "Introduction");
     });
 
     it("provides fixInfo for **Introduction** (whole line bold) with insertText Introduction", () => {
       const lines = ["**Introduction**", "Content."];
-      const errors = runRule(rule, lines, {});
+      const errors = runRule(rule, lines, stripConfig);
       assert.strictEqual(errors.length, 1);
       assert.strictEqual(errors[0].fixInfo.insertText, "Introduction");
     });
 
     it("provides fixInfo for *Note* (whole line italic) with insertText Note", () => {
       const lines = ["*Note*", "Content."];
-      const errors = runRule(rule, lines, {});
+      const errors = runRule(rule, lines, stripConfig);
       assert.strictEqual(errors.length, 1);
       assert.strictEqual(errors[0].fixInfo.insertText, "Note");
     });
@@ -287,7 +298,8 @@ describe("no-heading-like-lines", () => {
 
     it("reports **Text:** with leading and trailing spaces (trimmed before match)", () => {
       const lines = ["   **Summary:**   ", "Content."];
-      const errors = runRule(rule, lines);
+      const config = { "no-heading-like-lines": { convertToHeading: false } };
+      const errors = runRule(rule, lines, config);
       assert.strictEqual(errors.length, 1);
       assert.strictEqual(errors[0].lineNumber, 1);
       assert.strictEqual(errors[0].fixInfo.insertText, "Summary");
@@ -295,13 +307,68 @@ describe("no-heading-like-lines", () => {
 
     it("bold colon only **:** does not match **.*:** (needs content)", () => {
       const lines = ["**:**", "Content."];
+      const config = { "no-heading-like-lines": { convertToHeading: false } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("reports short title-case line ending in colon when prose follows", () => {
+      const lines = ["View Activity History:", "You can see past events here."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 1);
+      assert.ok(
+        errors[0].detail.includes("short title-case") && errors[0].detail.includes("colon"),
+        "detail describes short title-case colon pattern"
+      );
+      assert.ok(errors[0].fixInfo.insertText.startsWith("## "), "default fix suggests heading");
+      assert.ok(errors[0].fixInfo.insertText.includes("View Activity History"));
+    });
+
+    it("does not report short title-case colon when no prose after", () => {
+      const lines = ["View Activity History:", ""];
       const errors = runRule(rule, lines);
       assert.strictEqual(errors.length, 0);
+    });
+
+    it("does not report short title-case colon when next non-blank is ATX heading", () => {
+      const lines = ["View Activity History:", "", "## Real Section", "Content."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("does not report when more than 5 words (not short)", () => {
+      const lines = ["View Activity History And More Stuff:", "Content here."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("does not report when not title case (e.g. lowercase start)", () => {
+      const lines = ["view Activity History:", "Content here."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("reports exactly 5 words (upper bound) as short title-case colon with prose", () => {
+      const lines = ["One Two Three Four Five:", "Prose after."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 1);
+      assert.ok(errors[0].detail.includes("short title-case"));
+    });
+
+    it("short title-case colon with prose: fix suggests heading (convertToHeading true)", () => {
+      const lines = ["## Parent", "View Activity History:", "Details here."];
+      const config = { "no-heading-like-lines": { convertToHeading: true } };
+      const errors = runRule(rule, lines, config);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo.insertText.startsWith("### "));
+      assert.ok(errors[0].fixInfo.insertText.includes("View Activity History"));
     });
   });
 
   describe("optional dependencies (graceful degradation)", () => {
-    it("rule works without heading-title-case and heading-numbering (stripEmphasis fix)", () => {
+    it("rule works without heading-title-case and heading-numbering (stripEmphasis when convertToHeading false)", () => {
       const tmpDir = path.join(__dirname, "..", "..", "tmp-no-heading-like-lines-standalone");
       fs.mkdirSync(tmpDir, { recursive: true });
       try {
@@ -313,7 +380,7 @@ describe("no-heading-like-lines", () => {
         const script = `
           const rule = require("./no-heading-like-lines.js");
           const errors = [];
-          rule.function({ lines: ["**Hi:**", "content"], config: {} }, (e) => errors.push(e));
+          rule.function({ lines: ["**Hi:**", "content"], config: { "no-heading-like-lines": { convertToHeading: false } } }, (e) => errors.push(e));
           console.log(JSON.stringify(errors.length > 0 ? errors[0].fixInfo : null));
         `;
         const result = spawnSync(

@@ -14,6 +14,9 @@ positive_general_index.md:
 positive_heading_title_case.md:
   errors: []
 
+positive_heading_like.md:
+  errors: []
+
 negative_anchor_algo_placement.md:
   errors:
     - line: 10
@@ -142,6 +145,12 @@ negative_heading_like.md:
     - line: 20
       rule: no-heading-like-lines
       message_contains: italic only
+    - line: 22
+      rule: no-heading-like-lines
+      message_contains: short title-case
+    - line: 25
+      rule: no-heading-like-lines
+      message_contains: short title-case
 
 negative_heading_min_words.md:
   errors:

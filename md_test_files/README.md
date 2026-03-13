@@ -15,6 +15,7 @@
 - `**positive_general_index.md**` - Index-style page (filename matches `**/*_index.md`); excluded from no-empty-heading so empty H2 sections are allowed; passes with 0 errors.
 - `**positive_heading_numbering_zero.md**` - 0-indexed H2 numbering (## 0., 1., 2. and subsections); passes with 0 errors.
 - `**positive_heading_title_case.md**` - Valid AP title case and headings with identifiers/file names in backticks (e.g. `sba_result`, `README.md`); passes with 0 errors.
+- `**positive_heading_like.md**` - Proper ATX headings and prose only; short title-case lines ending in colon with no prose after (or with a heading next) are not reported; passes with 0 errors.
 - `**negative_*.md**` - One file per failing scenario; lint each to verify the expected custom rule(s) fail.
 
 ## Negative Fixtures (Custom Rules Only)
