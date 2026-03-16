@@ -263,6 +263,12 @@ negative_heading_title_case.md:
     - line: 42
       rule: heading-title-case
       message_contains: Identifier
+    - line: 46
+      rule: heading-title-case
+      message_contains: 'Word "see" should be capitalized'
+    - line: 46
+      rule: heading-title-case
+      message_contains: 'Word "here" should be capitalized'
 
 negative_no_h1_content.md:
   errors:

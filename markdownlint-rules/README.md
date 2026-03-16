@@ -584,7 +584,8 @@ v, vs
 ```
 
 **Behavior (AP headline rules):** For each ATX heading, the title part (after stripping any numeric prefix like `1.2.3`) is checked.
-Content inside inline code (backticks) is ignored.
+Content inside inline code (backticks) and inside Markdown links `[text](path)` (link text and path) is ignored.
+For links to files, either human-readable link text (e.g. `[Getting Started](docs/getting-started.md)`) or the file name in backticks (e.g. `` [`getting-started.md`](docs/getting-started.md) ``) is acceptable.
 
 - **File names and identifiers:** Words that look like file names (e.g. `README.md`, `Makefile`) or identifiers containing underscores (e.g. `sba_result`, `my_var`) are reported with a suggestion to enclose them in backticks instead of applying title case.
 - **First and last words** of the heading must be capitalized (including the first and last segment of hyphenated compounds).

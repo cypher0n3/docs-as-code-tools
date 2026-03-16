@@ -17,6 +17,9 @@ const RE_HTML_ENTITY = /^[^A-Za-z0-9]*&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F
 /** Scientific notation (e.g. 5e, 1e6, 2.5e-10); skip so "e" is not flagged for capitalization. */
 const RE_SCIENTIFIC = /^\d+(?:\.\d+)?[eE][+-]?\d*$/;
 
+/** Markdown link [text](url) or [text](url "title"); used to strip so link text and paths are not title-cased. */
+const RE_MARKDOWN_LINK = /\[[^\]]*\]\s*\([^)]*\)/g;
+
 /** Placeholder sentinels for inline code in applyTitleCase (private-use Unicode, not control chars). */
 const PLACEHOLDER_START = "\uE000";
 const PLACEHOLDER_END = "\uE001";
@@ -186,6 +189,16 @@ function isAlphanumericIdentifier(core) {
   return /[0-9]/.test(core) && /[a-zA-Z]/.test(core);
 }
 
+/**
+ * Replace each Markdown link [text](url) in the string with same-length spaces so that
+ * link text and paths are not checked for title case and character positions are preserved.
+ * @param {string} line - Raw line
+ * @returns {string} Line with links replaced by spaces (same length)
+ */
+function stripLinksReplaceWithSpaces(line) {
+  return line.replace(RE_MARKDOWN_LINK, (match) => " ".repeat(match.length));
+}
+
 /** True if this segment should be skipped for title-case (entity, empty, non-alpha, scientific notation, or alphanumeric identifier). */
 function shouldSkipSegmentForTitleCase(rawSeg, core) {
   return isHtmlEntity(rawSeg)
@@ -255,8 +268,8 @@ function checkOneSegment(opts) {
  * @returns {{ valid: boolean, errors: Array<{ detail: string, wordIndex: number, segmentOffset?: number, segmentLength?: number }> }}
  */
 function checkTitleCase(titleText, lowercaseWords) {
-  const withCodeStripped = stripInlineCode(titleText);
-  const words = withCodeStripped.split(/\s+/).filter((w) => w.length > 0);
+  const withLinksAndCodeStripped = stripLinksReplaceWithSpaces(stripInlineCode(titleText));
+  const words = withLinksAndCodeStripped.split(/\s+/).filter((w) => w.length > 0);
   if (words.length === 0) return { valid: true, errors: [] };
 
   const errors = [];
@@ -366,6 +379,20 @@ function processWordForTitleCase(raw, i, words, lowercaseWords) {
 }
 
 /**
+ * Replace Markdown link spans with placeholders so applyTitleCase preserves them.
+ * @param {string} line - Raw line
+ * @returns {{ text: string, spans: string[] }}
+ */
+function replaceLinksWithPlaceholders(line) {
+  const spans = [];
+  const text = line.replace(RE_MARKDOWN_LINK, (match) => {
+    spans.push(match);
+    return PLACEHOLDER_START + (spans.length - 1) + PLACEHOLDER_END;
+  });
+  return { text, spans };
+}
+
+/**
  * Replace inline code spans with placeholders so applyTitleCase can preserve them.
  * @param {string} line - Raw line
  * @returns {{ text: string, spans: string[] }}
@@ -432,8 +459,10 @@ function restoreInlineCodePlaceholders(text, spans) {
  */
 function applyTitleCase(titleText, options = {}) {
   const lowercaseWords = getLowercaseWordsFromOptions(options);
-  const { text: withPlaceholders, spans } = replaceInlineCodeWithPlaceholders(titleText);
-  const words = withPlaceholders.split(/\s+/).filter((w) => w.length > 0);
+  const linkResult = replaceLinksWithPlaceholders(titleText);
+  const codeResult = replaceInlineCodeWithPlaceholders(linkResult.text);
+  const spans = [...linkResult.spans, ...codeResult.spans];
+  const words = codeResult.text.split(/\s+/).filter((w) => w.length > 0);
   if (words.length === 0) return titleText;
   const resultParts = words.map((raw, i) =>
     processWordForTitleCase(raw, i, words, lowercaseWords)
@@ -455,8 +484,8 @@ function applyTitleCase(titleText, options = {}) {
  */
 function getWordRangeInLine(line, rawText, titleText, opts) {
   const { wordIndex, segmentOffset, segmentLength } = opts;
-  const withCodeStripped = stripInlineCode(titleText);
-  const wordMatches = [...withCodeStripped.matchAll(/\S+/g)];
+  const withLinksAndCodeStripped = stripLinksReplaceWithSpaces(stripInlineCode(titleText));
+  const wordMatches = [...withLinksAndCodeStripped.matchAll(/\S+/g)];
   if (wordIndex < 0 || wordIndex >= wordMatches.length) return null;
   const rawTextStart = line.indexOf(rawText);
   if (rawTextStart === -1) return null;
@@ -528,7 +557,7 @@ function splitWordPunctuation(raw) {
  */
 function reportBacktickWords(opts) {
   const { h, line, titleText, onError, lines } = opts;
-  const words = stripInlineCode(titleText).split(/\s+/).filter((w) => w.length > 0);
+  const words = stripLinksReplaceWithSpaces(stripInlineCode(titleText)).split(/\s+/).filter((w) => w.length > 0);
   const backtickWordIndices = new Set();
   for (let wi = 0; wi < words.length; wi++) {
     const raw = words[wi];
@@ -611,7 +640,7 @@ function ruleFunction(params, onError) {
 
 module.exports = {
   names: ["heading-title-case"],
-  description: "Enforce AP-style capitalization for headings, with exceptions for words in backticks, identifiers (words with underscores) and file names suggested for backticks, and configurable lowercase words.",
+  description: "Enforce AP-style capitalization for headings, with exceptions for words in backticks, Markdown links [text](path), identifiers (words with underscores) and file names suggested for backticks, and configurable lowercase words.",
   tags: ["headings"],
   function: ruleFunction,
   applyTitleCase,

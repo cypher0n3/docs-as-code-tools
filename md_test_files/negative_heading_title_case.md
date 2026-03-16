@@ -42,3 +42,7 @@ Identifier with underscore should be enclosed in backticks.
 ## Overview of my_var
 
 Identifier (e.g. variable name) in heading should be enclosed in backticks.
+
+## see [Ignore This Link](docs/ignore-me.md) here
+
+Link text and path ignored; "see" and "here" (first/last) must be capitalized.

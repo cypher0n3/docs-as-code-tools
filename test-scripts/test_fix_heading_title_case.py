@@ -206,6 +206,60 @@ Variable name in heading.
                 "identifiers with underscores get backticks",
             )
 
+    def test_heading_with_link_passes_lint_and_fix_preserves_link(self) -> None:
+        """Heading with [text](path) passes; link text/path ignored; --fix leaves link unchanged."""
+        content = """# Doc
+
+## See [Getting Started](docs/getting-started.md) for More
+
+Link text and path are not title-cased.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_heading_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertEqual(proc.returncode, 0, f"heading with link should pass: {proc.stderr}")
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertIn(
+                "[Getting Started](docs/getting-started.md)", actual, "link preserved"
+            )
+            self.assertIn("See ", actual)
+            self.assertIn(" for More", actual)
+
+    def test_heading_with_link_fix_corrects_only_words_outside_link(self) -> None:
+        """--fix corrects only 'see' and 'here' outside link; link text/path unchanged."""
+        content_before = """# Doc
+
+## see [Ignore This Link](path/to/file.md) here
+
+Link text and path ignored.
+"""
+        content_after = """# Doc
+
+## See [Ignore This Link](path/to/file.md) Here
+
+Link text and path ignored.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_heading_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertNotEqual(proc.returncode, 0, "expected lint errors before fix")
+            combined = (proc.stdout or "") + "\n" + (proc.stderr or "")
+            self.assertIn(RULE, combined)
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertEqual(
+                actual, content_after,
+                "only words outside link are fixed; link text and path unchanged",
+            )
+            self.assertIn(
+                "[Ignore This Link](path/to/file.md)", actual, "link preserved exactly"
+            )
+
     def test_fix_filenames_in_parens_get_backticks_not_title_case(self) -> None:
         """Filenames like (utils.js, allow-custom-anchors.js) get backticks, not Title Case."""
         content_before = """# Suppressions

@@ -22,3 +22,11 @@ Multiple words with backticked identifier; "of" lowercase, "Overview" and "Resul
 ## Using `README.md` in Docs
 
 File name in backticks passes; "in" lowercase in the middle.
+
+## See [Getting Started](docs/getting-started.md) for More
+
+Link text may be human-readable; link text and path are ignored for title case.
+
+## See [`getting-started.md`](docs/getting-started.md) for More
+
+Link text may be the file name in backticks; both formats are acceptable.

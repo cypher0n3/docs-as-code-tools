@@ -184,6 +184,21 @@ describe("heading-title-case", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("ignores link text and paths: no errors for heading with [text](path)", () => {
+    const lines = ["## See [Getting Started](docs/getting-started.md) for More"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "link text and path are not checked for title case");
+  });
+
+  it("reports errors only for words outside links", () => {
+    const lines = ["## see [Ignore This Link](path) here"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 2, "'see' and 'here' should be capitalized (first/last)");
+    const details = errors.map((e) => e.detail);
+    assert.ok(details.some((d) => d.includes("see")), "first word 'see' flagged");
+    assert.ok(details.some((d) => d.includes("here")), "last word 'here' flagged");
+  });
+
   it("reports no errors for hyphenated word with punctuation-only segment (skip non-alpha segment)", () => {
     const lines = ["## Test---Here"];
     const errors = runRule(rule, lines);
@@ -351,6 +366,14 @@ describe("heading-title-case", () => {
         rule.applyTitleCase("Use `# noqa: E402` here"),
         "Use `# noqa: E402` Here",
         "inline code (backticks) must be preserved; surrounding words get title case"
+      );
+    });
+
+    it("preserves Markdown links unchanged (link text and path not title-cased)", () => {
+      assert.strictEqual(
+        rule.applyTitleCase("see [Getting Started](docs/getting-started.md) here"),
+        "See [Getting Started](docs/getting-started.md) Here",
+        "only words outside the link are title-cased"
       );
     });
   });
