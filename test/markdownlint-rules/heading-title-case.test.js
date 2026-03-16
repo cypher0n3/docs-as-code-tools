@@ -184,10 +184,23 @@ describe("heading-title-case", () => {
     assert.strictEqual(errors.length, 0);
   });
 
-  it("ignores link text and paths: no errors for heading with [text](path)", () => {
+  it("no errors when link text is valid title case (checked as phrase)", () => {
     const lines = ["## See [Getting Started](docs/getting-started.md) for More"];
     const errors = runRule(rule, lines);
-    assert.strictEqual(errors.length, 0, "link text and path are not checked for title case");
+    assert.strictEqual(errors.length, 0, "link text 'Getting Started' is valid title case");
+  });
+
+  it("reports errors for link text not in title case (checked as phrase)", () => {
+    const lines = ["## See [getting started](path) for More"];
+    const errors = runRule(rule, lines);
+    const linkErrors = errors.filter((e) => e.detail && (e.detail.includes("getting") || e.detail.includes("started")));
+    assert.strictEqual(linkErrors.length, 2, "link text 'getting started' should report first/last word capitalized");
+  });
+
+  it("skips link text that is filename in backticks", () => {
+    const lines = ["## See [`getting-started.md`](path) for More"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0, "link text in backticks is not checked for title case");
   });
 
   it("reports errors only for words outside links", () => {
@@ -369,11 +382,19 @@ describe("heading-title-case", () => {
       );
     });
 
-    it("preserves Markdown links unchanged (link text and path not title-cased)", () => {
+    it("applies title case to link text and to words outside link", () => {
       assert.strictEqual(
         rule.applyTitleCase("see [Getting Started](docs/getting-started.md) here"),
         "See [Getting Started](docs/getting-started.md) Here",
-        "only words outside the link are title-cased"
+        "first/last outside link and link text (if already title case) preserved"
+      );
+    });
+
+    it("fixes link text to title case when invalid", () => {
+      assert.strictEqual(
+        rule.applyTitleCase("See [getting started](path) Here"),
+        "See [Getting Started](path) Here",
+        "link text gets title-cased"
       );
     });
   });

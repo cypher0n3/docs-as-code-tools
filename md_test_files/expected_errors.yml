@@ -269,6 +269,12 @@ negative_heading_title_case.md:
     - line: 46
       rule: heading-title-case
       message_contains: 'Word "here" should be capitalized'
+    - line: 50
+      rule: heading-title-case
+      message_contains: 'Word "getting" should be capitalized'
+    - line: 50
+      rule: heading-title-case
+      message_contains: 'Word "started" should be capitalized'
 
 negative_no_h1_content.md:
   errors:

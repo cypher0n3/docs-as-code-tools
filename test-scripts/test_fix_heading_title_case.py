@@ -260,6 +260,31 @@ Link text and path ignored.
                 "[Ignore This Link](path/to/file.md)", actual, "link preserved exactly"
             )
 
+    def test_fix_link_text_title_case(self) -> None:
+        """Link text not in title case is fixed by --fix to AP title case."""
+        content_before = """# Doc
+
+## See [getting started](docs/foo.md) for More
+
+Link text must be title case.
+"""
+        content_after = """# Doc
+
+## See [Getting Started](docs/foo.md) for More
+
+Link text must be title case.
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_heading_title_case_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False)
+            self.assertNotEqual(proc.returncode, 0, "expected lint errors for link text")
+            proc_fix = _run_markdownlint(path, fix=True)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertEqual(actual, content_after, "link text should be title-cased")
+            self.assertIn("[Getting Started](docs/foo.md)", actual)
+
     def test_fix_filenames_in_parens_get_backticks_not_title_case(self) -> None:
         """Filenames like (utils.js, allow-custom-anchors.js) get backticks, not Title Case."""
         content_before = """# Suppressions

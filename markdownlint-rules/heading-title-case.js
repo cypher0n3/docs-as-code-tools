@@ -17,8 +17,11 @@ const RE_HTML_ENTITY = /^[^A-Za-z0-9]*&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F
 /** Scientific notation (e.g. 5e, 1e6, 2.5e-10); skip so "e" is not flagged for capitalization. */
 const RE_SCIENTIFIC = /^\d+(?:\.\d+)?[eE][+-]?\d*$/;
 
-/** Markdown link [text](url) or [text](url "title"); used to strip so link text and paths are not title-cased. */
+/** Markdown link [text](url); used to strip for main title-case check and to replace with placeholder in applyTitleCase. */
 const RE_MARKDOWN_LINK = /\[[^\]]*\]\s*\([^)]*\)/g;
+
+/** Capture link text and url for parsing; use exec in loop. */
+const RE_MARKDOWN_LINK_CAPTURE = /\[([^\]]*)\]\s*\(([^)]*)\)/g;
 
 /** Placeholder sentinels for inline code in applyTitleCase (private-use Unicode, not control chars). */
 const PLACEHOLDER_START = "\uE000";
@@ -190,8 +193,8 @@ function isAlphanumericIdentifier(core) {
 }
 
 /**
- * Replace each Markdown link [text](url) in the string with same-length spaces so that
- * link text and paths are not checked for title case and character positions are preserved.
+ * Replace each full Markdown link [text](url) with same-length spaces so that
+ * the main title-case check runs on non-link text only; link text is checked separately.
  * @param {string} line - Raw line
  * @returns {string} Line with links replaced by spaces (same length)
  */
@@ -379,7 +382,7 @@ function processWordForTitleCase(raw, i, words, lowercaseWords) {
 }
 
 /**
- * Replace Markdown link spans with placeholders so applyTitleCase preserves them.
+ * Replace whole Markdown links with placeholders; restore with link text title-cased.
  * @param {string} line - Raw line
  * @returns {{ text: string, spans: string[] }}
  */
@@ -461,14 +464,21 @@ function applyTitleCase(titleText, options = {}) {
   const lowercaseWords = getLowercaseWordsFromOptions(options);
   const linkResult = replaceLinksWithPlaceholders(titleText);
   const codeResult = replaceInlineCodeWithPlaceholders(linkResult.text);
-  const spans = [...linkResult.spans, ...codeResult.spans];
   const words = codeResult.text.split(/\s+/).filter((w) => w.length > 0);
   if (words.length === 0) return titleText;
   const resultParts = words.map((raw, i) =>
     processWordForTitleCase(raw, i, words, lowercaseWords)
   );
   const joined = resultParts.join(" ");
-  return restoreInlineCodePlaceholders(joined, spans);
+  for (let i = 0; i < linkResult.spans.length; i++) {
+    const link = linkResult.spans[i];
+    const m = link.match(/\[([^\]]*)\]\s*\(([^)]*)\)/);
+    if (m) {
+      linkResult.spans[i] = "[" + applyTitleCase(m[1], options) + "](" + m[2] + ")";
+    }
+  }
+  const allSpans = [...linkResult.spans, ...codeResult.spans];
+  return restoreInlineCodePlaceholders(joined, allSpans);
 }
 
 /**
@@ -552,6 +562,72 @@ function splitWordPunctuation(raw) {
 }
 
 /**
+ * Get 1-based column and length for the i-th word (or segment) within link text in the heading line.
+ * @param {string} line - Full source line
+ * @param {string} rawText - Content after ATX prefix
+ * @param {string} titleText - Content after numbering
+ * @param {number} linkTextStartInTitle - 0-based index in titleText where link text starts (after '[')
+ * @param {string} linkText - Raw link text (content between [ and ])
+ * @param {{ wordIndex: number, segmentOffset?: number, segmentLength?: number }} opts
+ * @returns {{ column: number, length: number }|null}
+ */
+function getLinkTextWordRangeInLine(line, rawText, titleText, linkTextStartInTitle, linkText, opts) {
+  const { wordIndex, segmentOffset, segmentLength } = opts;
+  const withCodeStripped = stripInlineCode(linkText);
+  const wordMatches = [...withCodeStripped.matchAll(/\S+/g)];
+  if (wordIndex < 0 || wordIndex >= wordMatches.length) return null;
+  const rawTextStart = line.indexOf(rawText);
+  if (rawTextStart === -1) return null;
+  const titleStartInRaw = rawText.indexOf(titleText);
+  if (titleStartInRaw === -1) return null;
+  const m = wordMatches[wordIndex];
+  let offsetInLinkText = m.index;
+  let length = m[0].length;
+  if (segmentOffset !== undefined && segmentLength !== undefined) {
+    offsetInLinkText += segmentOffset;
+    length = segmentLength;
+  }
+  const column = rawTextStart + titleStartInRaw + linkTextStartInTitle + offsetInLinkText + 1;
+  return { column, length };
+}
+
+/**
+ * Check link text as its own phrase (title case or filename in backticks); report errors with range in line.
+ * @param {{ h: { lineNumber: number, rawText: string }, line: string, titleText: string, lowercaseWords: Set<string>, onError: function, lines: string[] }} opts
+ */
+function reportLinkTextTitleCase(opts) {
+  const { h, line, titleText, lowercaseWords, onError, lines } = opts;
+  if (lines && isRuleSuppressedByComment(lines, h.lineNumber, "heading-title-case")) return;
+  RE_MARKDOWN_LINK_CAPTURE.lastIndex = 0;
+  let match;
+  while ((match = RE_MARKDOWN_LINK_CAPTURE.exec(titleText)) !== null) {
+    const linkText = match[1];
+    const linkTextTrim = linkText.trim();
+    if (linkTextTrim.startsWith("`") && linkTextTrim.endsWith("`")) continue;
+    const result = checkTitleCase(linkText, lowercaseWords);
+    if (result.valid) continue;
+    const linkTextStartInTitle = match.index + 1;
+    for (const err of result.errors) {
+      const rangeInfo = getLinkTextWordRangeInLine(line, h.rawText, titleText, linkTextStartInTitle, linkText, {
+        wordIndex: err.wordIndex,
+        segmentOffset: err.segmentOffset,
+        segmentLength: err.segmentLength,
+      });
+      if (!rangeInfo) continue;
+      reportTitleCaseError({
+        onError,
+        lineNumber: h.lineNumber,
+        line,
+        detail: err.detail,
+        rangeInfo,
+        insertText: err.insertText,
+        lines,
+      });
+    }
+  }
+}
+
+/**
  * Report words that should be in backticks (filenames, identifiers with underscores).
  * Returns the set of word indices so title-case errors are skipped for those words.
  */
@@ -630,6 +706,7 @@ function ruleFunction(params, onError) {
   for (const h of headings) {
     const { titleText } = parseHeadingNumberPrefix(h.rawText);
     const line = lines[h.lineNumber - 1];
+    reportLinkTextTitleCase({ h, line, titleText, lowercaseWords, onError, lines });
     const backtickWordIndices = reportBacktickWords({ h, line, titleText, onError, lines });
     const result = checkTitleCase(titleText, lowercaseWords);
     if (!result.valid) {
@@ -640,7 +717,7 @@ function ruleFunction(params, onError) {
 
 module.exports = {
   names: ["heading-title-case"],
-  description: "Enforce AP-style capitalization for headings, with exceptions for words in backticks, Markdown links [text](path), identifiers (words with underscores) and file names suggested for backticks, and configurable lowercase words.",
+  description: "Enforce AP-style capitalization for headings. Link text in [text](path) must be title case or a filename in backticks; the path is ignored. Words in backticks, identifiers and file names suggested for backticks, and configurable lowercase words.",
   tags: ["headings"],
   function: ruleFunction,
   applyTitleCase,

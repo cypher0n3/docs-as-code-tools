@@ -46,3 +46,7 @@ Identifier (e.g. variable name) in heading should be enclosed in backticks.
 ## see [Ignore This Link](docs/ignore-me.md) here
 
 Link text and path ignored; "see" and "here" (first/last) must be capitalized.
+
+## See [getting started](docs/foo.md) for More
+
+Link text must be title case or filename in backticks; "getting" and "started" should be capitalized (first/last of phrase).
