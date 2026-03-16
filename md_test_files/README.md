@@ -14,7 +14,7 @@
   Also line-level HTML comment suppress: a line with non-ASCII (->) preceded by `<!-- ascii-only allow -->` on the previous line; lint reports 0 errors.
 - `**positive_general_index.md**` - Index-style page (filename matches `**/*_index.md`); excluded from no-empty-heading so empty H2 sections are allowed; passes with 0 errors.
 - `**positive_heading_numbering_zero.md**` - 0-indexed H2 numbering (## 0., 1., 2. and subsections); passes with 0 errors.
-- `**positive_heading_title_case.md**` - Valid AP title case and headings with identifiers/file names in backticks (e.g. `sba_result`, `README.md`); passes with 0 errors.
+- `**positive_heading_title_case.md**` - Valid AP title case; headings with identifiers/file names in backticks (e.g. `sba_result`, `README.md`) and links with valid title-case or backticked-filename link text; passes with 0 errors.
 - `**positive_heading_like.md**` - Proper ATX headings and prose only; short title-case lines ending in colon with no prose after (or with a heading next) are not reported; passes with 0 errors.
 - `**negative_*.md**` - One file per failing scenario; lint each to verify the expected custom rule(s) fail.
 
@@ -47,6 +47,7 @@ Each item: **filename** - custom rule(s) that fail; sub-bullet - what the fixtur
   - Segment count, sequence, period style, unnumbered sibling or child (section uses numbering when parent or siblings have numbering), zero-indexed violations; optional maxSegmentValue/maxHeadingLevel.
 - **negative_heading_title_case.md** - heading-title-case
   - AP-style capitalization (lowercase/middle words, hyphenated compounds, etc.).
+  - Link text not in title case (e.g. `[getting started](path)`) reported; link text is checked as its own phrase.
   - Identifiers with underscores (e.g. sba_result, my_var) reported with suggestion to enclose in backticks.
 - **negative_inline_html.md** - allow-custom-anchors
   - Inline HTML (MD033), anchor id/format, end-of-line content.

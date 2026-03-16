@@ -23,8 +23,9 @@ This directory contains Python scripts used to support this repository's test su
     Run via `make test-markdownlint-fix`.
     - `test_fix_ascii_only.py` - ascii-only
     - `test_fix_heading_numbering.py` - heading-numbering
-    - `test_fix_heading_title_case.py` - heading-title-case
+    - `test_fix_heading_title_case.py` - heading-title-case (including link text title case)
     - `test_fix_no_heading_like_lines.py` - no-heading-like-lines
+    - `test_fix_no_tables.py` - no-tables (when convert-to is list)
     - `test_fix_one_sentence_per_line.py` - one-sentence-per-line
 - `markdownlint_config_helper.py`
   - Shared helper for functional tests: creates an alternate markdownlint config (in a temp dir), runs markdownlint with that config, then cleans up.

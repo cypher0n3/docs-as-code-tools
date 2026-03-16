@@ -41,8 +41,10 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     Fixable for wrong sequence, missing prefix, wrong segment count, period style.
     - Use when: docs use numbered headings (e.g. `### 1.2.3 Title` or 0-based `### 0. Introduction`) and you want structure and style consistent.
   - [heading-title-case.js](markdownlint-rules/heading-title-case.js) - heading title case.
-    - Enforce title case for headings; words in backticks ignored; configurable lowercase words (e.g. vs, and, the).
-      Fixable: corrects each violating word to AP title case.
+    - Enforce AP title case for headings; words in backticks ignored.
+      Link text in `[text](path)` is checked as its own phrase (title case or filename in backticks); destination is not checked.
+    - Configurable lowercase words (e.g. vs, and, the).
+    - Fixable: corrects each violating word (including link text) to AP title case.
     - Use when: you want consistent capitalization of headings (first/last and major words capped; small words lowercase in the middle).
   - [no-duplicate-headings-normalized.js](markdownlint-rules/no-duplicate-headings-normalized.js) - duplicate-heading checks.
     - Disallow duplicate heading titles after stripping numeric prefixes and normalizing case/whitespace; first occurrence is reference.
@@ -56,6 +58,9 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Report lines that look like headings but are not (e.g. `**Text:**`, `1. **Text**`, whole-line emphasis `**Introduction**` / `*Note*`); default omits colon from sentence punctuation so colon lines are caught (greedier than MD036).
       Fixable: default strips emphasis; optional `convertToHeading` converts to ATX heading (context-aware level; optional AP title case and numbering when heading-title-case and heading-numbering are present).
     - Use when: ensuring real Markdown headings instead of bold/italic that look like headings.
+  - [no-tables.js](markdownlint-rules/no-tables.js) - no GFM tables.
+    - Disallow GFM tables; optional `convert-to: list` suggests list format and is fixable.
+    - Use when: disallowing tables in favor of lists or other structure.
   - [no-h1-content.js](markdownlint-rules/no-h1-content.js) - no content under h1 except TOC.
     - Under the first h1, allow only table-of-contents content (blank lines, list-of-links, HTML comments).
     - Use when: enforcing that the only content under the doc title is a TOC.
@@ -77,7 +82,7 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
 - **Rule unit tests**: Node `node:test` unit tests for each custom rule in `test/markdownlint-rules/` (including security tests for defensive regex handling and ReDoS awareness); run with `make test-rules` or `npm run test:rules`.
   CI runs `make test-rules-coverage` (fails if any rule file is below 90% line/statement coverage).
 - **Python unit tests**: `unittest` tests for [test-scripts/](test-scripts/README.md) in `test-scripts/test_*.py`; run with `make test-python`.
-  Includes functional fix tests (`test_fix_heading_title_case.py`, `test_fix_ascii_only.py`, `test_fix_heading_numbering.py`, `test_fix_no_heading_like_lines.py`, `test_fix_one_sentence_per_line.py`) and `test_markdownlint_options.py` (rule options via config helper).
+  Includes functional fix tests (`test_fix_heading_title_case.py`, `test_fix_ascii_only.py`, `test_fix_heading_numbering.py`, `test_fix_no_heading_like_lines.py`, `test_fix_no_tables.py`, `test_fix_one_sentence_per_line.py`) and `test_markdownlint_options.py` (rule options via config helper).
 - **Python linting** for repo tooling scripts: `make lint-python` (flake8, pylint, xenon/radon, vulture, bandit).
 
 See **[markdownlint-rules/README.md](markdownlint-rules/README.md)** for rule docs and configuration.
