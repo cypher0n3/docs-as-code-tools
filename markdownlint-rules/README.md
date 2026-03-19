@@ -554,10 +554,11 @@ Path filters apply before any check.
 
 **Description:** Enforce AP-style (Associated Press) headline capitalization for headings.
 Words inside backticks are not checked.
+Link text in `[text](path)` is checked as its own phrase (must be title case or a filename in backticks); the destination `(path)` is not checked.
 A configurable set of minor words (e.g. "vs", "and", "the", "is") stay lowercase except when they are the first word, last word, or the first word after a colon or after `(` / `[`.
 
 **Fixable:** Yes.
-Auto-fix corrects each violating word to AP title case (lowercase or capitalize per AP rules).
+Auto-fix corrects each violating word to AP title case (lowercase or capitalize per AP rules), including words inside link text.
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `heading-title-case`:
 
