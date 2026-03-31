@@ -69,6 +69,7 @@ Use those targets instead of invoking tools directly.
 5. **Fix support:** if the rule is fixable, add/update a test in `test-scripts/test_fix_<rule>.py` that runs `markdownlint-cli2 --fix` and asserts file content.
    Run `make test-markdownlint-fix` and `make test-python`.
 6. **Docs:** update `markdownlint-rules/README.md` (rule list and config).
+   For `ascii-only`, document path options with `(formerly "oldName")` next to each current key (see existing `ascii-only` section).
    Run `make lint-readmes`.
 
 ## `expected_errors.yml` Format

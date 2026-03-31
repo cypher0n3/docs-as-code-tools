@@ -111,9 +111,9 @@ default: true
 # Disallow non-ASCII except in configured paths; inline code (backticks) always
 # stripped. Fixable when replacement in unicodeReplacements.
 # Options (all optional):
-#   allowedEmoji: list of chars/emoji allowed in paths matching allowedPathPatternsEmoji
-#   allowedPathPatternsEmoji: list of globs; files where only allowedEmoji allowed
-#   allowedPathPatternsUnicode: list of globs; files where any non-ASCII allowed
+#   anyUnicodePathPatterns (formerly "allowedPathPatternsUnicode"): globs where any non-ASCII allowed
+#   unicodeAllowlistPathPatterns (formerly "allowedPathPatternsEmoji"): globs where only unicodeAllowlist applies
+#   unicodeAllowlist (formerly "allowedEmoji"): strings allowed on those paths
 #   allowedUnicode: list of single-char strings; allowed in all files
 #   allowedUnicodeReplaceDefault: bool (default false); true = use only allowedUnicode, no built-in
 #   allowUnicodeInCodeBlocks: bool (default true); false = check inside fenced blocks
@@ -122,11 +122,11 @@ default: true
 #   unicodeReplacements: object or [[char, replacement], ...]; built-in defaults if omitted
 # ---
 # ascii-only:
-#   # allowedPathPatternsUnicode:
+#   # anyUnicodePathPatterns:  # formerly allowedPathPatternsUnicode
 #   #   - "**/README.md"
-#   # allowedPathPatternsEmoji:
+#   # unicodeAllowlistPathPatterns:  # formerly allowedPathPatternsEmoji
 #   #   - "docs/**"
-#   # allowedEmoji:
+#   # unicodeAllowlist:  # formerly allowedEmoji
 #   #   - "✅"
 #   #   - "⚠️"
 #   # allowedUnicode:
@@ -367,7 +367,7 @@ default: true
 # -----------------------------------------------------------------------------
 # To override: Uncomment the block; set continuationIndent, strictAbbreviations, and/or excludePathPatterns. Enforce one sentence per line in prose and list content. Fixable (repeated Fix all).
 # Options (all optional):
-#   continuationIndent: number (default 4); spaces for paragraph continuation lines
+#   continuationIndent: number (optional); fixed spaces for indented paragraph continuations (default: match line indent)
 #   strictAbbreviations: list of strings; abbreviations that do not end a sentence (extends/replaces default)
 #   excludePathPatterns: list of globs; skip this rule for matching file paths
 # ---

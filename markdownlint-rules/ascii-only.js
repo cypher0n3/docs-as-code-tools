@@ -77,12 +77,30 @@ const VARIATION_SELECTOR_MIN = "\uFE00";
 const VARIATION_SELECTOR_MAX = "\uFE0F";
 
 /**
+ * Concatenate two optional string arrays, preserving order and dropping duplicate strings.
+ * @param {unknown} a - First list
+ * @param {unknown} b - Second list
+ * @returns {string[]}
+ */
+function mergeUniqueStringArrays(a, b) {
+  const out = [];
+  const seen = new Set();
+  for (const item of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
+    if (typeof item === "string" && !seen.has(item)) {
+      seen.add(item);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+/**
  * Return true if all non-ASCII in str are in allowedSet or are variation selectors (U+FE00–U+FE0F).
  * @param {string} str - Input string
- * @param {Set<string>} allowedSet - Allowed emoji (NFC-normalized)
+ * @param {Set<string>} allowedSet - Allowed allowlisted Unicode (NFC-normalized)
  * @returns {boolean}
  */
-function onlyAllowedEmoji(str, allowedSet) {
+function onlyAllowedUnicodeAllowlist(str, allowedSet) {
   const nonAscii = getNonAsciiCodePoints(str);
   if (nonAscii.length === 0) {
     return true;
@@ -169,7 +187,10 @@ function toCharSet(arr) {
 }
 
 /**
- * Build rule config: path patterns, allowed emoji/unicode, and unicodeReplacements map.
+ * Build normalized rule config: anyUnicodePathPatterns (formerly allowedPathPatternsUnicode),
+ * unicodeAllowlistPathPatterns (formerly allowedPathPatternsEmoji), unicodeAllowlist
+ * (formerly allowedEmoji), global allowedUnicode set, and unicodeReplacements.
+ * Legacy keys allowedPathPatternsEmoji and allowedEmoji are merged with canonical keys.
  * @param {{ config?: object }} params - markdownlint params
  * @returns {object} Config object
  */
@@ -187,14 +208,22 @@ function getConfig(params) {
   const disallowUnicodeInCodeBlockTypesSet = new Set(
     disallowTypesRaw.filter((t) => typeof t === "string").map((t) => String(t).trim().toLowerCase()),
   );
+  const unicodeAllowlistPathPatterns = mergeUniqueStringArrays(
+    c.unicodeAllowlistPathPatterns,
+    c.allowedPathPatternsEmoji,
+  );
+  const unicodeAllowlist = mergeUniqueStringArrays(
+    c.unicodeAllowlist,
+    c.allowedEmoji,
+  );
+  const anyUnicodePathPatterns = mergeUniqueStringArrays(
+    c.anyUnicodePathPatterns,
+    c.allowedPathPatternsUnicode,
+  );
   return {
-    allowedPathPatternsUnicode: Array.isArray(c.allowedPathPatternsUnicode)
-      ? c.allowedPathPatternsUnicode
-      : [],
-    allowedPathPatternsEmoji: Array.isArray(c.allowedPathPatternsEmoji)
-      ? c.allowedPathPatternsEmoji
-      : [],
-    allowedEmoji: Array.isArray(c.allowedEmoji) ? c.allowedEmoji : [],
+    anyUnicodePathPatterns,
+    unicodeAllowlistPathPatterns,
+    unicodeAllowlist,
     allowedUnicode: allowedUnicodeSet,
     allowUnicodeInCodeBlocks: c.allowUnicodeInCodeBlocks !== false,
     disallowUnicodeInCodeBlockTypes: disallowUnicodeInCodeBlockTypesSet,
@@ -208,12 +237,12 @@ function getConfig(params) {
  * Iterate over disallowed non-ASCII occurrences in scan.
  * Yields { startIndex, char, length } (char may be 1 or 2 code units for astral chars).
  * @param {string} scan - Line with inline code stripped
- * @param {boolean} allowEmojiOnly - Whether only emoji are allowed (path-based)
+ * @param {boolean} allowUnicodeAllowlistOnly - Whether only allowlisted Unicode is allowed (path-based)
  * @param {Set<string>} allowedUnicodeSet - Allowed non-ASCII chars (NFC)
- * @param {Set<string>} allowedEmojiSet - Allowed emoji (NFC)
+ * @param {Set<string>} unicodeAllowlistSet - Allowed path-local Unicode allowlist (NFC)
  * @yields {{ startIndex: number, char: string, length: number }}
  */
-function* getDisallowedOccurrences(scan, allowEmojiOnly, allowedUnicodeSet, allowedEmojiSet) {
+function* getDisallowedOccurrences(scan, allowUnicodeAllowlistOnly, allowedUnicodeSet, unicodeAllowlistSet) {
   for (let i = 0; i < scan.length; i++) {
     const cp = scan.codePointAt(i);
     if (cp <= 0x7f) continue;
@@ -221,8 +250,8 @@ function* getDisallowedOccurrences(scan, allowEmojiOnly, allowedUnicodeSet, allo
     const ch = scan.slice(i, i + len);
     const n = ch.normalize("NFC");
     if (allowedUnicodeSet.has(n)) { i += len - 1; continue; }
-    if (allowEmojiOnly && allowedEmojiSet.has(n)) { i += len - 1; continue; }
-    if (allowEmojiOnly && n >= VARIATION_SELECTOR_MIN && n <= VARIATION_SELECTOR_MAX) { i += len - 1; continue; }
+    if (allowUnicodeAllowlistOnly && unicodeAllowlistSet.has(n)) { i += len - 1; continue; }
+    if (allowUnicodeAllowlistOnly && n >= VARIATION_SELECTOR_MIN && n <= VARIATION_SELECTOR_MAX) { i += len - 1; continue; }
     yield { startIndex: i, char: ch, length: len };
     i += len - 1;
   }
@@ -242,17 +271,17 @@ function formatCodePoint(ch) {
  * Build human-readable error detail for a disallowed character (code point + suggestion or reason).
  * @param {string} ch - The disallowed character
  * @param {string|undefined} replacement - Suggested replacement if any
- * @param {boolean} allowEmojiOnly - Whether rule is in emoji-only mode for this path
- * @param {object} config - Full config (e.g. allowedEmoji for message)
+ * @param {boolean} allowUnicodeAllowlistOnly - Whether rule is in Unicode-allowlist mode for this path
+ * @param {object} config - Full config (e.g. unicodeAllowlist for message)
  * @returns {string}
  */
-function buildOccurrenceDetail(ch, replacement, allowEmojiOnly, config) {
+function buildOccurrenceDetail(ch, replacement, allowUnicodeAllowlistOnly, config) {
   const cpStr = formatCodePoint(ch);
   if (replacement !== undefined) {
     return `Character '${ch}' (${cpStr}); suggested replacement: '${replacement}'`;
   }
-  if (allowEmojiOnly) {
-    return `Character '${ch}' (${cpStr}) not in allowed emoji list (${config.allowedEmoji.join(", ")})`;
+  if (allowUnicodeAllowlistOnly) {
+    return `Character '${ch}' (${cpStr}) not in Unicode allowlist (${config.unicodeAllowlist.join(", ")})`;
   }
   return `Character '${ch}' (${cpStr}) not allowed; use ASCII only`;
 }
@@ -279,17 +308,17 @@ function reportDisallowedOccurrences(lineNumber, line, ctx, onError) {
   const scan = stripInlineCode(line);
   if (!hasNonAscii(scan)) return;
   if (ctx.allowUnicode) return;
-  if (ctx.allowEmojiOnly && onlyAllowedEmoji(scan, ctx.allowedEmojiSet)) return;
+  if (ctx.allowUnicodeAllowlistOnly && onlyAllowedUnicodeAllowlist(scan, ctx.unicodeAllowlistSet)) return;
 
   for (const { startIndex, char, length } of getDisallowedOccurrences(
-    scan, ctx.allowEmojiOnly, ctx.allowedUnicodeSet, ctx.allowedEmojiSet,
+    scan, ctx.allowUnicodeAllowlistOnly, ctx.allowedUnicodeSet, ctx.unicodeAllowlistSet,
   )) {
     if (isRuleSuppressedByComment(ctx.lines, lineNumber, "ascii-only")) return;
     const column = startIndex + 1;
     const replacement = ctx.config.unicodeReplacements.get(char);
     onError({
       lineNumber,
-      detail: buildOccurrenceDetail(char, replacement, ctx.allowEmojiOnly, ctx.config),
+      detail: buildOccurrenceDetail(char, replacement, ctx.allowUnicodeAllowlistOnly, ctx.config),
       context: line,
       range: [column, length],
       ...(replacement != null && replacement !== "" && { fixInfo: { editColumn: column, deleteCount: length, insertText: replacement } }),
@@ -300,7 +329,7 @@ function reportDisallowedOccurrences(lineNumber, line, ctx, onError) {
 /**
  * markdownlint rule: disallow non-ASCII except in configured paths; optional
  * replacement suggestions via unicodeReplacements. Paths can allow full Unicode
- * or emoji-only. Unicode and emoji inside fenced code blocks or between
+ * or only an allowlisted Unicode set. Unicode inside fenced code blocks or between
  * backticks (inline code) are ignored by default; use allowUnicodeInCodeBlocks
  * and disallowUnicodeInCodeBlockTypes to check inside code blocks.
  *
@@ -317,9 +346,9 @@ function ruleFunction(params, onError) {
   const ctx = {
     config,
     lines,
-    allowUnicode: pathMatchesAny(filePath, config.allowedPathPatternsUnicode),
-    allowEmojiOnly: pathMatchesAny(filePath, config.allowedPathPatternsEmoji),
-    allowedEmojiSet: toCharSet(config.allowedEmoji),
+    allowUnicode: pathMatchesAny(filePath, config.anyUnicodePathPatterns),
+    allowUnicodeAllowlistOnly: pathMatchesAny(filePath, config.unicodeAllowlistPathPatterns),
+    unicodeAllowlistSet: toCharSet(config.unicodeAllowlist),
     allowedUnicodeSet: config.allowedUnicode,
   };
 

@@ -156,6 +156,69 @@ This is the first sentence.
                 "fix should split at period and preserve bold",
             )
 
+    def test_fix_splits_when_next_sentence_starts_with_inline_code(self) -> None:
+        """Period + space + backtick: second sentence is detected; --fix splits list line."""
+        content_before = """# Doc
+
+## Section
+
+- **Streaming:** While `isAgentStreaming()` is true, plain Enter **queues** drafts (\
+`queuedAutoSend`); slash/shell run immediately. `EnterBlockedWhileLoading` documents the matrix.
+"""
+        content_after = """# Doc
+
+## Section
+
+- **Streaming:** While `isAgentStreaming()` is true, plain Enter **queues** drafts (\
+`queuedAutoSend`); slash/shell run immediately.
+  `EnterBlockedWhileLoading` documents the matrix.
+"""
+        overrides = {"default": False, RULE: True}
+        with tempfile.TemporaryDirectory(prefix="fix_one_sentence_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False, config_overrides=overrides)
+            self.assertNotEqual(proc.returncode, 0, "expected lint error before fix")
+            self.assertIn(RULE, (proc.stdout or "") + (proc.stderr or ""))
+            proc_fix = _run_markdownlint(path, fix=True, config_overrides=overrides)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertEqual(
+                actual,
+                content_after,
+                "fix should split after immediately. and keep list continuation indent",
+            )
+
+    def test_fix_indented_paragraph_uses_line_content_indent(self) -> None:
+        """Indented prose: continuation matches leading spaces (no fixed default of four)."""
+        content_before = """# Doc
+
+## Section
+
+  First. Second.
+"""
+        content_after = """# Doc
+
+## Section
+
+  First.
+  Second.
+"""
+        overrides = {"default": False, RULE: True}
+        with tempfile.TemporaryDirectory(prefix="fix_one_sentence_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc = _run_markdownlint(path, fix=False, config_overrides=overrides)
+            self.assertNotEqual(proc.returncode, 0, "expected lint error before fix")
+            proc_fix = _run_markdownlint(path, fix=True, config_overrides=overrides)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertEqual(
+                actual,
+                content_after,
+                "continuation should be two spaces to align with paragraph indent",
+            )
+
     def test_no_split_within_filenames(self) -> None:
         """Period in filenames (no space after) does not trigger split."""
         content = """# Doc

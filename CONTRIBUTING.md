@@ -115,6 +115,7 @@ Or run individual targets: `make lint-js && make test-rules && make test-markdow
   Do not register `utils.js` as a rule; it is a shared helper.
 - Config for custom rules is in [.markdownlint.yml](.markdownlint.yml).
   Rule docs and reuse instructions are in [markdownlint-rules/README.md](markdownlint-rules/README.md).
+  For **ascii-only** path options, the README lists current keys with `(formerly "oldName")` for each renamed option.
 
 ## Sync Notes
 

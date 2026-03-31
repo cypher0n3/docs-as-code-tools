@@ -60,11 +60,11 @@ Example `.markdownlint.yml` with custom rules that have options:
 ```yaml
 default: true
 
-# ascii-only: allow certain paths/emoji
+# ascii-only — see Configuration (ascii-only) for (formerly "…") key names
 ascii-only:
-  allowedPathPatternsEmoji:
+  unicodeAllowlistPathPatterns: # formerly "allowedPathPatternsEmoji"
     - "**/README.md"
-  allowedEmoji:
+  unicodeAllowlist: # formerly "allowedEmoji"
     - "✅"
     - "⚠️"
 
@@ -80,6 +80,7 @@ heading-title-case:
 ```
 
 The same structure works in `.markdownlint.json` (use JSON object keys and arrays instead of YAML).
+To allow any Unicode on other paths, add `anyUnicodePathPatterns` (formerly `"allowedPathPatternsUnicode"`).
 
 ### Using in `VS Code` and its Forks
 
@@ -358,15 +359,15 @@ Not fixable when no replacement is available.
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `ascii-only`:
 
-Example: minimal (default letters plus path/emoji)
+Example: minimal (default letters plus path / Unicode allowlist)
 
 ```yaml
 ascii-only:
-  allowedPathPatternsUnicode:
+  anyUnicodePathPatterns: # formerly "allowedPathPatternsUnicode"
     - "**/README.md" # any non-ASCII allowed in READMEs
-  allowedPathPatternsEmoji:
-    - "docs/**" # only allowedEmoji in docs/
-  allowedEmoji:
+  unicodeAllowlistPathPatterns: # formerly "allowedPathPatternsEmoji"
+    - "docs/**" # only unicodeAllowlist in docs/
+  unicodeAllowlist: # formerly "allowedEmoji"
     - "✅"
     - "⚠️"
 ```
@@ -417,12 +418,12 @@ Example: full configuration combining options
 
 ```yaml
 ascii-only:
-  allowedPathPatternsUnicode:
+  anyUnicodePathPatterns: # formerly "allowedPathPatternsUnicode"
     - "**/README.md"
     - "**/CHANGELOG*.md"
-  allowedPathPatternsEmoji:
+  unicodeAllowlistPathPatterns: # formerly "allowedPathPatternsEmoji"
     - "docs/**"
-  allowedEmoji:
+  unicodeAllowlist: # formerly "allowedEmoji"
     - "✅"
     - "❌"
     - "⚠️"
@@ -436,9 +437,10 @@ ascii-only:
     "—": "-"
 ```
 
-- **`allowedPathPatternsUnicode`** (list of strings, default none): Glob patterns for files where any non-ASCII is allowed.
-- **`allowedPathPatternsEmoji`** (list of strings, default none): Glob patterns for files where only `allowedEmoji` characters are allowed.
-- **`allowedEmoji`** (list of strings, default none): Emoji (or other chars) allowed in paths matching `allowedPathPatternsEmoji`; each entry may be multi-codepoint (e.g. ⚠️); all code points are allowed.
+- **`anyUnicodePathPatterns`** (formerly `"allowedPathPatternsUnicode"`; list of strings, default none): Glob patterns for files where any non-ASCII is allowed.
+- **`unicodeAllowlistPathPatterns`** (formerly `"allowedPathPatternsEmoji"`; list of strings, default none): Glob patterns for files where only `unicodeAllowlist` sequences are allowed.
+- **`unicodeAllowlist`** (formerly `"allowedEmoji"`; list of strings, default none): Unicode sequences allowed on paths matching `unicodeAllowlistPathPatterns`; each entry may be multi-codepoint (e.g. ⚠️); all code points from those entries are allowed.
+  If both a canonical key and a former name are set, values are merged (unique strings, order preserved).
 - **`allowedUnicode`** (list of single-character strings, optional): Characters allowed in all files (global allowlist).
   By default these **extend** the built-in set of common non-English letters (e.g. é, ï, è, ñ, ç).
   Set **`allowedUnicodeReplaceDefault: true`** to **override** and use only your list (no default set).
@@ -458,9 +460,9 @@ Relative patterns (no leading `/` or `*`) match both path-prefix (e.g. `dev_docs
 
 #### Behavior (`ascii-only`)
 
-- No built-in path or emoji defaults; configure `allowedPathPatternsUnicode`, `allowedPathPatternsEmoji`, and `allowedEmoji` as needed.
-- If the file path matches `allowedPathPatternsUnicode`, any non-ASCII is allowed in that file.
-- If the file path matches `allowedPathPatternsEmoji`, only characters in `allowedEmoji` (and Unicode variation selectors U+FE00-U+FE0F) are allowed; other non-ASCII is reported per occurrence.
+- No built-in path defaults; configure `anyUnicodePathPatterns`, `unicodeAllowlistPathPatterns`, and `unicodeAllowlist` as needed (former key names are listed with each option above).
+- If the file path matches `anyUnicodePathPatterns`, any non-ASCII is allowed in that file.
+- If the file path matches `unicodeAllowlistPathPatterns`, only characters from `unicodeAllowlist` (and Unicode variation selectors U+FE00-U+FE0F) are allowed; other non-ASCII is reported per occurrence.
 - Characters allowed in all files: the default set (e.g. é, ï, ñ, ç) plus `allowedUnicode` when **extend** (default), or only `allowedUnicode` when `allowedUnicodeReplaceDefault: true`.
 - Non-ASCII is detected by code-point iteration (surrogate pairs treated as one character) and compared after NFC normalization.
 - **One error per disallowed character:** each violation highlights only that character (range) on the line.
@@ -658,7 +660,8 @@ Sentence boundaries are detected conservatively: periods/question marks/exclamat
 **Fixable:** Yes.
 One violation per line with multiple sentences; fix splits all sentences in one pass (newline + continuation indent per sentence).
 When the base line has no leading indent, continuation lines have no indent.
-List items use list-body indent for continuation; indented paragraphs use configurable `continuationIndent`.
+List items use list-body indent for continuation.
+Indented paragraphs align continuation with the line's leading spaces by default; set `continuationIndent` only when you want a fixed width instead.
 
 **Configuration:** In `.markdownlint.yml` under `one-sentence-per-line` (all optional):
 
@@ -669,7 +672,8 @@ one-sentence-per-line:
   # excludePathPatterns: ["**/README.md"]
 ```
 
-- **`continuationIndent`** (number, default 4): Spaces for continuation lines when the paragraph is indented; when the base line has no leading indent, continuation lines have no indent (0).
+- **`continuationIndent`** (number, optional): When set, spaces used for continuation lines on indented paragraphs (overrides alignment with the paragraph's leading indent).
+  When omitted, continuation matches the paragraph's leading indent; when the base line has no leading indent, continuation lines have no indent (0).
   List items always use list-body indent.
 - **`strictAbbreviations`** (array of strings, optional): Abbreviations that do not end a sentence (no trailing period in value, e.g. `e.g`).
   When set, replaces the built-in set; when omitted, the rule uses a default set (e.g., i.e., etc., Dr., Mr., U.S., ...).
@@ -678,10 +682,10 @@ one-sentence-per-line:
 #### Behavior (`one-sentence-per-line`)
 
 - **Prose lines:** The rule iterates only over "prose" lines: outside fenced code, outside front matter (YAML between `---` at start of file), and skips link-reference definitions, table rows (two consecutive lines with `|`), ATX headings, thematic breaks, and blank lines.
-- **List/paragraph context:** For each prose line, leading indent and list markers (numbered `1.`, bullet `-`/`*`/`+`) are detected; continuation lines use the same indent as the list body (or `continuationIndent` for paragraphs).
+- **List/paragraph context:** For each prose line, leading indent and list markers (numbered `1.`, bullet `-`/`*`/`+`) are detected; continuation lines use the same indent as the list body, or for indented paragraphs the line's leading indent unless `continuationIndent` is set.
 - **Sentence detection:** Content is scanned after stripping inline code; bracket and parenthesis depth (e.g. links) are ignored for sentence-end detection.
   A period/question/exclamation is only a sentence end when followed by at least one space (or EOL); e.g. filenames like `file.name` or `config.json` do not trigger a split.
-  After optional closing quotes, a period followed by space then a letter/digit is a candidate; it is skipped when the preceding token is a decimal digit or a known abbreviation (including "e.g." when the next token is "g" etc.).
+  After optional closing quotes and inline code spans, a period followed by space then a word is a candidate; it is skipped when the preceding token is a decimal digit or a known abbreviation (including "e.g." when the next token is "g" etc.).
 
 ## Shared Helper
 
@@ -699,6 +703,6 @@ This uses `pathMatchesAny` from `utils.js`.
   Also accepts markdownlint's cleared form (comment body replaced with dots).
 
 - **Heading and content:** `extractHeadings`, `iterateNonFencedLines`, `iterateProseLines`, `stripInlineCode`, `parseHeadingNumberPrefix`, `normalizeHeadingTitleForDup`, `normalizedTitleForDuplicate`, `RE_ATX_HEADING`, `RE_NUMBERING_PREFIX`.
-- **Path/glob matching:** `globToRegExp`, `matchGlob`, `pathMatchesAny` - used for `excludePathPatterns` and other path options (e.g. ascii-only `allowedPathPatternsUnicode`).
+- **Path/glob matching:** `globToRegExp`, `matchGlob`, `pathMatchesAny` - used for `excludePathPatterns` and other path options (e.g. ascii-only `anyUnicodePathPatterns` (formerly `"allowedPathPatternsUnicode"`) / `unicodeAllowlistPathPatterns` (formerly `"allowedPathPatternsEmoji"`)).
   Supports `**` and `*`; paths normalized to forward slashes; relative patterns match path prefix or mid-path.
 - **Fence parsing:** `parseFenceInfo`, `iterateLinesWithFenceInfo` - used to detect fenced code block type (e.g. ascii-only skips content; fenced-code-under-heading finds blocks by language).

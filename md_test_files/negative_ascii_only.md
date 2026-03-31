@@ -8,4 +8,4 @@
 - Line with smart quotes: “curly” and ‘curly’ (each curly quote highlighted).
 - Char not in default or config: Polish ł is reported when not in allowedUnicode.
 
-No allowed emoji in this list; if we add ✅ it should be reported.
+No Unicode allowlist for this file; if we add ✅ it should be reported.

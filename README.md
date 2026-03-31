@@ -25,8 +25,10 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
   - [allow-custom-anchors.js](markdownlint-rules/allow-custom-anchors.js) - Custom anchor validation.
     - Only allow `<a id="..."></a>` whose ids match configured regex patterns; optional placement (heading match, line match, require-after, max per section).
     - Use when: enforcing stable fragment links (e.g. spec/algo docs) and consistent anchor placement.
-  - [ascii-only.js](markdownlint-rules/ascii-only.js) - ASCII-only with path/emoji allowlists.
-    - Disallow non-ASCII except in paths matching globs; allow Unicode or emoji-only in specific paths; optional replacement suggestions in errors.
+  - [ascii-only.js](markdownlint-rules/ascii-only.js) - ASCII-only with path-based Unicode allowlists.
+    - Disallow non-ASCII except in paths matching globs; allow full Unicode or a path-specific Unicode allowlist; optional replacement suggestions in errors.
+      Main options: `anyUnicodePathPatterns` (formerly `"allowedPathPatternsUnicode"`), `unicodeAllowlistPathPatterns` (formerly `"allowedPathPatternsEmoji"`), and `unicodeAllowlist` (formerly `"allowedEmoji"`).
+      Full list: [ascii-only rule](markdownlint-rules/README.md#ascii-only).
       Fixable when a replacement is configured (default map includes arrows, quotes, em dash).
     - Use when: keeping most docs ASCII while allowing Unicode/emoji only in chosen files (e.g. i18n or release notes).
   - [fenced-code-under-heading.js](markdownlint-rules/fenced-code-under-heading.js) - fenced code under heading.

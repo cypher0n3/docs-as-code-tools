@@ -81,7 +81,7 @@ negative_ascii_only.md:
       message_contains: "U+0142"
     - line: 11
       rule: ascii-only
-      column: 42
+      column: 47
       message_contains: use ASCII only
 
 negative_duplicate_headings_normalized.md:

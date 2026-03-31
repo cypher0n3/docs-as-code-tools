@@ -184,17 +184,73 @@ function spaceStartAndNextWordPos(scanned, spaceStart) {
   return { spaceStart, j };
 }
 
-/** After position start, skip * and _, then ' and ", then return position of first [a-zA-Z0-9] or null. */
-function nextWordPosAfterEmphasis(scanned, start) {
-  let pos = start;
+/** @returns {{ run: string, end: number }} */
+function consumeBacktickRun(scanned, k) {
+  const runStart = k;
+  while (k < scanned.length && scanned[k] === "`") {
+    k++;
+  }
+  return { run: scanned.slice(runStart, k), end: k };
+}
+
+/**
+ * Advance past inline code if `pos` is on opening backticks; return index after closing fence.
+ * Matches utils.stripInlineCode fence pairing.
+ */
+function skipPastInlineCode(scanned, pos) {
+  if (pos >= scanned.length || scanned[pos] !== "`") return pos;
+  const open = consumeBacktickRun(scanned, pos);
+  const fence = open.run;
+  let k = open.end;
+  let inCode = true;
+  while (k < scanned.length && inCode) {
+    if (scanned[k] === "`") {
+      const close = consumeBacktickRun(scanned, k);
+      if (close.run === fence) inCode = false;
+      k = close.end;
+    } else {
+      k++;
+    }
+  }
+  return k;
+}
+
+function skipInlineSpaces(scanned, pos) {
+  while (pos < scanned.length && scanned[pos] === " ") {
+    pos++;
+  }
+  return pos;
+}
+
+function skipEmphasisAndQuoteChars(scanned, pos) {
   while (pos < scanned.length && (scanned[pos] === "*" || scanned[pos] === "_")) {
     pos++;
   }
   while (pos < scanned.length && (scanned[pos] === "'" || scanned[pos] === '"')) {
     pos++;
   }
-  if (pos >= scanned.length || scanned[pos] === "\n" || !/[a-zA-Z0-9]/.test(scanned[pos])) return null;
   return pos;
+}
+
+/**
+ * After position start, skip emphasis, quotes, and inline code spans; return position of first
+ * [a-zA-Z0-9] starting the next word, or null.
+ */
+function nextWordPosAfterEmphasis(scanned, start) {
+  let pos = start;
+  while (pos < scanned.length) {
+    pos = skipInlineSpaces(scanned, pos);
+    if (pos >= scanned.length || scanned[pos] === "\n") return null;
+    pos = skipEmphasisAndQuoteChars(scanned, pos);
+    if (pos >= scanned.length) return null;
+    if (scanned[pos] === "`") {
+      pos = skipPastInlineCode(scanned, pos);
+      continue;
+    }
+    if (scanned[pos] === "\n" || !/[a-zA-Z0-9]/.test(scanned[pos])) return null;
+    return pos;
+  }
+  return null;
 }
 
 /**
@@ -298,16 +354,19 @@ function getAllSentenceBoundaries(content, opts) {
  * @param {string} line - Full line
  * @param {{ content: string, contentIndent: number, type: string }} listInfo - From getListInfo
  * @param {number[]} boundaryIndices - Indices in listInfo.content of space before 2nd, 3rd, ... sentence
- * @param {number} defaultContinuationIndent - Default spaces for paragraph continuation
+ * @param {{ continuationIndent: number, hasExplicitContinuation: boolean }} continuationOpts
  * @returns {{ editColumn: number, deleteCount: number, insertText: string }}
  */
-function buildFixInfo(line, listInfo, boundaryIndices, defaultContinuationIndent) {
+function buildFixInfo(line, listInfo, boundaryIndices, continuationOpts) {
+  const { continuationIndent, hasExplicitContinuation } = continuationOpts;
   const firstBoundary = boundaryIndices[0];
   const prefixLength = line.length - listInfo.content.length;
   const lineBoundaryIndex = prefixLength + firstBoundary;
-  const continuationSpaces = listInfo.type === "paragraph"
-    ? (listInfo.contentIndent === 0 ? 0 : defaultContinuationIndent)
-    : listInfo.contentIndent;
+  const continuationSpaces = listInfo.contentIndent === 0
+    ? 0
+    : (listInfo.type === "paragraph" && hasExplicitContinuation
+      ? continuationIndent
+      : listInfo.contentIndent);
   const indent = " ".repeat(continuationSpaces);
   const content = listInfo.content;
   const parts = [];
@@ -327,12 +386,13 @@ function buildFixInfo(line, listInfo, boundaryIndices, defaultContinuationIndent
 function getRuleConfig(params) {
   const ruleConfig = params.config?.["one-sentence-per-line"] ?? params.config ?? {};
   const excludePathPatterns = ruleConfig.excludePathPatterns;
+  const hasExplicitContinuation = Object.prototype.hasOwnProperty.call(ruleConfig, "continuationIndent");
   const continuationIndent = typeof ruleConfig.continuationIndent === "number" ? ruleConfig.continuationIndent : 4;
   const strictAbbreviations = ruleConfig.strictAbbreviations;
   const abbreviations = Array.isArray(strictAbbreviations)
     ? new Set(strictAbbreviations.map((s) => String(s).replace(/\.$/, "")))
     : DEFAULT_ABBREVIATIONS;
-  return { ruleConfig, excludePathPatterns, continuationIndent, abbreviations };
+  return { ruleConfig, excludePathPatterns, continuationIndent, hasExplicitContinuation, abbreviations };
 }
 
 /**
@@ -345,7 +405,7 @@ function getRuleConfig(params) {
 function ruleFunction(params, onError) {
   const lines = params.lines;
   const filePath = params.name || "";
-  const { excludePathPatterns, continuationIndent, abbreviations } = getRuleConfig(params);
+  const { excludePathPatterns, continuationIndent, hasExplicitContinuation, abbreviations } = getRuleConfig(params);
   if (Array.isArray(excludePathPatterns) && excludePathPatterns.length > 0 && pathMatchesAny(filePath, excludePathPatterns)) {
     return;
   }
@@ -357,7 +417,10 @@ function ruleFunction(params, onError) {
     if (boundaryIndices.length === 0) continue;
     if (isRuleSuppressedByComment(lines, lineNumber, "one-sentence-per-line")) continue;
 
-    const fixInfo = buildFixInfo(line, listInfo, boundaryIndices, continuationIndent);
+    const fixInfo = buildFixInfo(line, listInfo, boundaryIndices, {
+      continuationIndent,
+      hasExplicitContinuation,
+    });
     onError({
       lineNumber,
       detail: "Use one sentence per line; this line contains multiple sentences.",

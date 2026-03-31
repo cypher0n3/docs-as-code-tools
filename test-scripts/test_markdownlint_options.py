@@ -471,18 +471,47 @@ Content.
 
 
 class TestAsciiOnlyOptions(unittest.TestCase):
-    """ascii-only: path patterns, emoji, unicode, code blocks, excludePathPatterns."""
+    """ascii-only: path options (anyUnicodePathPatterns, unicodeAllowlistPathPatterns).
 
-    def test_emoji_allowed_in_matching_path(self) -> None:
+    Also unicodeAllowlist. Former key names: (formerly "oldName") in
+    markdownlint-rules/README.md (ascii-only).
+    """
+
+    def test_unicode_allowlist_allowed_in_matching_path(self) -> None:
         content = """# T
 
 ## S
 
-✅ allowed when path in allowedPathPatternsEmoji.
+✅ allowed when path matches unicodeAllowlistPathPatterns.
 """
         tmp_dir = _REPO_ROOT / "tmp"
         tmp_dir.mkdir(exist_ok=True)
-        path = tmp_dir / "test_markdownlint_options_emoji.md"
+        path = tmp_dir / "test_markdownlint_options_unicode_allowlist.md"
+        try:
+            path.write_text(content, encoding="utf-8")
+            proc = run_markdownlint_with_config(
+                {
+                    "ascii-only": {
+                        "unicodeAllowlistPathPatterns": [str(path.resolve())],
+                        "unicodeAllowlist": ["✅"],
+                    },
+                },
+                path,
+            )
+            self.assertEqual(proc.returncode, 0)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_deprecated_emoji_keys_still_work(self) -> None:
+        content = """# T
+
+## S
+
+ASCII only under deprecated emoji config keys.
+"""
+        tmp_dir = _REPO_ROOT / "tmp"
+        tmp_dir.mkdir(exist_ok=True)
+        path = tmp_dir / "test_markdownlint_options_legacy_emoji_keys.md"
         try:
             path.write_text(content, encoding="utf-8")
             proc = run_markdownlint_with_config(
@@ -498,7 +527,7 @@ class TestAsciiOnlyOptions(unittest.TestCase):
         finally:
             path.unlink(missing_ok=True)
 
-    def test_allowed_path_patterns_unicode_allows_any_non_ascii(self) -> None:
+    def test_any_unicode_path_patterns_allows_any_non_ascii(self) -> None:
         content = """# T
 
 ## S
@@ -509,7 +538,23 @@ café and naïve.
             path = Path(tmp) / "unicode_allowed.md"
             path.write_text(content, encoding="utf-8")
             proc = run_markdownlint_with_config(
-                {"ascii-only": {"allowedPathPatternsUnicode": ["**/unicode_allowed.md"]}},
+                {"ascii-only": {"anyUnicodePathPatterns": ["**/unicode_allowed.md"]}},
+                path,
+            )
+            self.assertEqual(proc.returncode, 0)
+
+    def test_deprecated_allowed_path_patterns_unicode_still_merges(self) -> None:
+        content = """# T
+
+## S
+
+café.
+"""
+        with tempfile.TemporaryDirectory(prefix="mdl_opts_legacy_unicode_") as tmp:
+            path = Path(tmp) / "unicode_legacy.md"
+            path.write_text(content, encoding="utf-8")
+            proc = run_markdownlint_with_config(
+                {"ascii-only": {"allowedPathPatternsUnicode": ["**/unicode_legacy.md"]}},
                 path,
             )
             self.assertEqual(proc.returncode, 0)

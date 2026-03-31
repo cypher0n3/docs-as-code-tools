@@ -37,9 +37,9 @@ MD046:
 
 # ascii-only: disallow non-ASCII except in configured paths; inline code (backticks) always stripped. Fixable when replacement in unicodeReplacements.
 # Options (all optional):
-#   allowedEmoji: list of chars/emoji allowed in paths matching allowedPathPatternsEmoji (multi-codepoint OK)
-#   allowedPathPatternsEmoji: list of globs; files where only allowedEmoji chars are allowed
-#   allowedPathPatternsUnicode: list of globs; files where any non-ASCII is allowed
+#   anyUnicodePathPatterns (formerly "allowedPathPatternsUnicode"): globs where any non-ASCII is allowed
+#   unicodeAllowlistPathPatterns (formerly "allowedPathPatternsEmoji"): globs where only unicodeAllowlist may appear (plus U+FE00–U+FE0F)
+#   unicodeAllowlist (formerly "allowedEmoji"): strings allowed on those paths (multi-codepoint per entry OK); merged if both canonical and former keys are set
 #   allowedUnicode: list of single-char strings; allowed in all files (extends default é, ï, ñ, etc. unless replace below)
 #   allowedUnicodeReplaceDefault: bool (default false); true = use only allowedUnicode list, no built-in default
 #   allowUnicodeInCodeBlocks: bool (default true); false = check inside fenced blocks
@@ -47,14 +47,14 @@ MD046:
 #   excludePathPatterns: list of globs; skip this rule for matching file paths
 #   unicodeReplacements: object or [[char, replacement], ...]; built-in defaults (arrows, quotes, etc.) if omitted
 ascii-only:
-  allowedPathPatternsUnicode:
+  anyUnicodePathPatterns: # formerly "allowedPathPatternsUnicode"
     # - "**/README.md"
-  allowedPathPatternsEmoji:
+  unicodeAllowlistPathPatterns: # formerly "allowedPathPatternsEmoji"
     - "markdownlint-rules/README.md"
   # allowedUnicode:
   #   - "ń"   # additions on top of default (fixtures e.g. positive_general.md)
   # allowedUnicodeReplaceDefault: false  # true = use only allowedUnicode list, no default set
-  allowedEmoji:
+  unicodeAllowlist: # formerly "allowedEmoji"
     - "✅"
     - "❌"
     - "📊"
@@ -217,7 +217,7 @@ allow-custom-anchors:
 
 # one-sentence-per-line: enforce one sentence per line in prose and list content. Fixable (repeated Fix all).
 # Options (all optional):
-#   continuationIndent: number (default 4); spaces for paragraph continuation lines
+#   continuationIndent: number (optional); fixed spaces for indented paragraph continuations (default: match line indent)
 #   strictAbbreviations: list of strings; abbreviations that do not end a sentence (extends/replaces default)
 #   excludePathPatterns: list of globs; skip this rule for matching file paths
 # one-sentence-per-line:

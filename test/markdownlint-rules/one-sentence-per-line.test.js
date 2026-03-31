@@ -241,6 +241,17 @@ describe("one-sentence-per-line", () => {
     assert.ok(errors[0].fixInfo.insertText.startsWith("\n  "), "continuation should be 2 spaces when paragraph is indented");
   });
 
+  it("indented paragraph without explicit continuationIndent aligns continuation with line indent", () => {
+    const lines = ["  First. Second."];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(
+      errors[0].fixInfo.insertText,
+      "\n  Second.",
+      "default should match content indent (2), not fixed 4 spaces",
+    );
+  });
+
   it("uses no indent for unindented paragraph continuation", () => {
     const lines = ["First. Second."];
     const errors = runRule(rule, lines);
@@ -295,6 +306,15 @@ describe("one-sentence-per-line", () => {
       assert.strictEqual(errors.length, 1);
       assert.ok(errors[0].fixInfo);
       assert.ok(errors[0].fixInfo.insertText.includes("**Bolded text** rest of the sentence"));
+    });
+
+    it("splits when next sentence starts with inline code after period", () => {
+      const lines = [
+        "- **Streaming:** While `isAgentStreaming()` is true, plain Enter **queues** drafts (`queuedAutoSend`); slash/shell run immediately. `EnterBlockedWhileLoading` documents the matrix.",
+      ];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo.insertText.includes("`EnterBlockedWhileLoading` documents the matrix."));
     });
 
     it("does not split when no space after period (e.g. .**The or word.Word)", () => {

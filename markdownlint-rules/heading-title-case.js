@@ -563,15 +563,12 @@ function splitWordPunctuation(raw) {
 
 /**
  * Get 1-based column and length for the i-th word (or segment) within link text in the heading line.
- * @param {string} line - Full source line
- * @param {string} rawText - Content after ATX prefix
- * @param {string} titleText - Content after numbering
- * @param {number} linkTextStartInTitle - 0-based index in titleText where link text starts (after '[')
- * @param {string} linkText - Raw link text (content between [ and ])
+ * @param {{ line: string, rawText: string, titleText: string, linkTextStartInTitle: number, linkText: string }} ctx
  * @param {{ wordIndex: number, segmentOffset?: number, segmentLength?: number }} opts
  * @returns {{ column: number, length: number }|null}
  */
-function getLinkTextWordRangeInLine(line, rawText, titleText, linkTextStartInTitle, linkText, opts) {
+function getLinkTextWordRangeInLine(ctx, opts) {
+  const { line, rawText, titleText, linkTextStartInTitle, linkText } = ctx;
   const { wordIndex, segmentOffset, segmentLength } = opts;
   const withCodeStripped = stripInlineCode(linkText);
   const wordMatches = [...withCodeStripped.matchAll(/\S+/g)];
@@ -608,11 +605,20 @@ function reportLinkTextTitleCase(opts) {
     if (result.valid) continue;
     const linkTextStartInTitle = match.index + 1;
     for (const err of result.errors) {
-      const rangeInfo = getLinkTextWordRangeInLine(line, h.rawText, titleText, linkTextStartInTitle, linkText, {
-        wordIndex: err.wordIndex,
-        segmentOffset: err.segmentOffset,
-        segmentLength: err.segmentLength,
-      });
+      const rangeInfo = getLinkTextWordRangeInLine(
+        {
+          line,
+          rawText: h.rawText,
+          titleText,
+          linkTextStartInTitle,
+          linkText,
+        },
+        {
+          wordIndex: err.wordIndex,
+          segmentOffset: err.segmentOffset,
+          segmentLength: err.segmentLength,
+        },
+      );
       if (!rangeInfo) continue;
       reportTitleCaseError({
         onError,

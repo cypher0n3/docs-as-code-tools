@@ -1,10 +1,11 @@
 "use strict";
 
 /**
- * Unit tests for ascii-only: disallow non-ASCII characters except in paths
- * matching allowedPathPatternsUnicode (or allowedPathPatternsEmoji for
- * emoji-only). The rule is path-aware, so we pass a fake file name (name)
- * when invoking it.
+ * Unit tests for ascii-only: disallow non-ASCII except in paths matching
+ * anyUnicodePathPatterns (formerly allowedPathPatternsUnicode) or
+ * unicodeAllowlistPathPatterns (formerly allowedPathPatternsEmoji) with
+ * unicodeAllowlist (formerly allowedEmoji). Legacy keys are merged in getConfig.
+ * The rule is path-aware, so we pass a fake file name (name) when invoking it.
  */
 
 const { describe, it } = require("node:test");
@@ -77,8 +78,16 @@ describe("ascii-only", () => {
     });
   });
 
-  it("reports no errors when path matches allowedPathPatternsUnicode", () => {
+  it("reports no errors when path matches anyUnicodePathPatterns", () => {
     // Glob "*.md" matches "doc.md"; non-ASCII is allowed in that file.
+    const lines = ["Café"];
+    const errors = runRule(rule, lines, {
+      anyUnicodePathPatterns: ["*.md"],
+    }, "doc.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("still accepts deprecated allowedPathPatternsUnicode (merged into anyUnicodePathPatterns)", () => {
     const lines = ["Café"];
     const errors = runRule(rule, lines, {
       allowedPathPatternsUnicode: ["*.md"],
@@ -86,20 +95,29 @@ describe("ascii-only", () => {
     assert.strictEqual(errors.length, 0);
   });
 
-  it("reports error with emoji-list message when path is emoji-only and char not in list", () => {
+  it("reports error with allowlist message when path is Unicode-allowlist-only and char not in list", () => {
     const lines = ["Arrow \u2192 here"];
+    const errors = runRule(rule, lines, {
+      unicodeAllowlistPathPatterns: ["*.md"],
+      unicodeAllowlist: ["\u263A"],
+    }, "doc.md");
+    assert.ok(errors.length >= 1);
+    assert.ok(errors.some((e) => e.detail.includes("not in Unicode allowlist") || e.detail.includes("U+")), "detail should mention allowlist or code point");
+  });
+
+  it("still accepts deprecated allowedPathPatternsEmoji and allowedEmoji keys", () => {
+    const lines = ["Hello \u263A"];
     const errors = runRule(rule, lines, {
       allowedPathPatternsEmoji: ["*.md"],
       allowedEmoji: ["\u263A"],
     }, "doc.md");
-    assert.ok(errors.length >= 1);
-    assert.ok(errors.some((e) => e.detail.includes("not in allowed emoji") || e.detail.includes("U+")), "detail should mention emoji list or code point");
+    assert.strictEqual(errors.length, 0);
   });
 
   it("allows non-ASCII when path matches relative pattern (utils matchGlob **/ branch)", () => {
     const lines = ["Café"];
     const errors = runRule(rule, lines, {
-      allowedPathPatternsUnicode: ["foo.md"],
+      anyUnicodePathPatterns: ["foo.md"],
     }, "sub/foo.md");
     assert.strictEqual(errors.length, 0);
   });
@@ -107,7 +125,7 @@ describe("ascii-only", () => {
   it("reports error when path does not match any unicode pattern (utils pathMatchesAny)", () => {
     const lines = ["Arrow \u2192"];
     const errors = runRule(rule, lines, {
-      allowedPathPatternsUnicode: ["other.md"],
+      anyUnicodePathPatterns: ["other.md"],
     }, "doc.md");
     assert.ok(errors.length >= 1);
   });
@@ -178,20 +196,20 @@ describe("ascii-only", () => {
     assert.ok(errors.some((e) => e.detail.includes("U+2192") || e.detail.includes("→")), "detail should mention the character");
   });
 
-  it("reports no errors when path is emoji-only and content has only allowed emoji", () => {
+  it("reports no errors when path is Unicode-allowlist-only and content has only allowed characters", () => {
     const lines = ["Hello \u263A"]; // ☺ in allowed list
     const errors = runRule(rule, lines, {
-      allowedPathPatternsEmoji: ["*.md"],
-      allowedEmoji: ["\u263A"],
+      unicodeAllowlistPathPatterns: ["*.md"],
+      unicodeAllowlist: ["\u263A"],
     }, "doc.md");
     assert.strictEqual(errors.length, 0);
   });
 
-  it("reports no errors when path is emoji-only and content has emoji plus variation selector", () => {
+  it("reports no errors when path is Unicode-allowlist-only and content has character plus variation selector", () => {
     const lines = ["\u263A\uFE00"]; // ☺ + variation selector
     const errors = runRule(rule, lines, {
-      allowedPathPatternsEmoji: ["*.md"],
-      allowedEmoji: ["\u263A"],
+      unicodeAllowlistPathPatterns: ["*.md"],
+      unicodeAllowlist: ["\u263A"],
     }, "doc.md");
     assert.strictEqual(errors.length, 0);
   });
@@ -297,7 +315,7 @@ describe("ascii-only", () => {
   it("skips non-string entries in path patterns (utils pathMatchesAny)", () => {
     const lines = ["Café"];
     const errors = runRule(rule, lines, {
-      allowedPathPatternsUnicode: ["*.md", 123],
+      anyUnicodePathPatterns: ["*.md", 123],
     }, "doc.md");
     assert.strictEqual(errors.length, 0);
   });
@@ -305,7 +323,7 @@ describe("ascii-only", () => {
   it("handles empty pattern in path list (utils matchGlob)", () => {
     const lines = ["Café"];
     const errors = runRule(rule, lines, {
-      allowedPathPatternsUnicode: ["", "*.md"],
+      anyUnicodePathPatterns: ["", "*.md"],
     }, "doc.md");
     assert.strictEqual(errors.length, 0);
   });
@@ -341,26 +359,26 @@ describe("ascii-only", () => {
   });
 
   describe("edge cases", () => {
-    it("line containing only variation selector after allowed emoji is allowed", () => {
+    it("line containing only variation selector after allowed allowlist character is allowed", () => {
       const lines = ["\u263A\uFE00"];
       const errors = runRule(rule, lines, {
-        allowedPathPatternsEmoji: ["*.md"],
-        allowedEmoji: ["\u263A"],
+        unicodeAllowlistPathPatterns: ["*.md"],
+        unicodeAllowlist: ["\u263A"],
       }, "doc.md");
       assert.strictEqual(errors.length, 0);
     });
 
-    it("astral character (emoji) reported with code point in detail (4–6 hex digits)", () => {
+    it("astral character reported with code point in detail (4–6 hex digits)", () => {
       const lines = ["Smile \u{1F600} here"];
       const errors = runRule(rule, lines, {}, "doc.md");
       assert.ok(errors.length >= 1);
       assert.ok(errors.some((e) => /U\+[0-9A-F]{4,6}/i.test(e.detail)), "detail should include code point");
     });
 
-    it("path matching both unicode and emoji patterns allows unicode when only unicode config set", () => {
+    it("path matching anyUnicodePathPatterns allows full Unicode when only that config is set", () => {
       const lines = ["Café"];
       const errors = runRule(rule, lines, {
-        allowedPathPatternsUnicode: ["*.md"],
+        anyUnicodePathPatterns: ["*.md"],
       }, "doc.md");
       assert.strictEqual(errors.length, 0);
     });
