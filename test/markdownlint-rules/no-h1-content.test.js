@@ -123,6 +123,12 @@ describe("no-h1-content", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("reports no error when suppress comment is separated by blank lines from prose", () => {
+    const lines = ["# Title", "<!-- no-h1-content allow -->", "", "This is not allowed.", "## Section"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("reports error for code block under h1", () => {
     const lines = ["# Title", "```", "code", "```", "## Next"];
     const errors = runRule(rule, lines);

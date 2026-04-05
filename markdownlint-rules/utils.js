@@ -1,5 +1,7 @@
 "use strict";
 
+const path = require("node:path");
+
 /**
  * Shared helpers for markdownlint custom rules.
  * Used by heading and prose rules (duplicate headings, numbering, ASCII, arrows).
@@ -203,24 +205,45 @@ function globToRegExp(pattern) {
 
 /**
  * Match path against a single glob pattern. Path normalized to forward slashes.
- * Relative patterns match when path starts with pattern or pattern appears mid-path.
- * @param {string} path - File path to test
+ * Relative inputs use `path.normalize` before matching so e.g. `docs/../README.md`
+ * matches the same as `README.md`.
+ * A pattern with no `/` matches only project-root files: the path relative to
+ * `process.cwd()` must be a single segment below cwd, or one `..` segment then a
+ * filename (e.g. `../README.md` when linting from a subdir). Nested paths like
+ * `docs/README.md` still require `**` in the pattern.
+ * @param {string} filePath - File path to test (as markdownlint passes in `name`)
  * @param {string} pattern - Glob pattern
  * @returns {boolean}
  */
-function matchGlob(path, pattern) {
-  if (!path || !pattern) {
+function matchGlob(filePath, pattern) {
+  if (!filePath || !pattern) {
     return false;
   }
-  const normalized = path.replace(/\\/g, "/").replace(/^\.\//, "");
-  const re = globToRegExp(pattern);
-  if (re.test(normalized)) {
+  const normalized = path.normalize(filePath).replace(/\\/g, "/").replace(/^\.\//, "");
+  if (globToRegExp(pattern).test(normalized)) {
     return true;
   }
-  const isRelative =
-    pattern[0] !== "/" && pattern[0] !== "*" && !pattern.startsWith("./");
-  if (isRelative) {
-    return globToRegExp("**/" + pattern).test(normalized);
+  if (!pattern.includes("/")) {
+    let resolved;
+    try {
+      resolved = path.resolve(filePath);
+    } catch {
+      return false;
+    }
+    const rel = path.relative(process.cwd(), resolved).replace(/\\/g, "/");
+    if (!rel) {
+      return false;
+    }
+    let segmentForGlob = rel;
+    if (rel.startsWith("..")) {
+      if (!/^\.\.\/[^/]+$/.test(rel)) {
+        return false;
+      }
+      segmentForGlob = path.basename(resolved);
+    } else if (rel.includes("/")) {
+      return false;
+    }
+    return globToRegExp(pattern).test(segmentForGlob);
   }
   return false;
 }
@@ -311,10 +334,12 @@ function isRuleDisabledAtLine(lines, lineNumber, ruleName) {
 
 /**
  * Return true if a violation at the given line is suppressed by an HTML comment.
- * Suppression: (1) the line immediately before lineNumber is solely
- * `<!-- ruleName allow -->` (optional whitespace), or (2) the line at lineNumber
+ * Suppression: (1) the first non-blank line at or above lineNumber-1, scanning upward,
+ * is solely `<!-- ruleName allow -->` (optional whitespace), or (2) the line at lineNumber
  * ends with that comment (e.g. inline at end of line), or (3) the line is inside
  * a disable block (between `<!-- ruleName disable -->` and `<!-- ruleName enable -->`).
+ * Blank lines between the allow comment and the violating line are skipped so a
+ * comment can sit above a spaced-out paragraph (common under H1 intros).
  *
  * @param {string[]} lines - All document lines (1-based index: line at lines[lineNumber - 1])
  * @param {number} lineNumber - 1-based line number of the violation
@@ -328,8 +353,14 @@ function isRuleSuppressedByComment(lines, lineNumber, ruleName) {
   if (currentLine == null) return false;
   if (trimmedLineMatchesSuppress(String(currentLine).trim(), ruleName)) return true;
   if (lineNumber < 2) return false;
-  const prevLine = lines[lineNumber - 2];
-  return prevLine != null && trimmedLineMatchesSuppress(String(prevLine).trim(), ruleName);
+  for (let i = lineNumber - 2; i >= 0; i--) {
+    const t = String(lines[i] ?? "").trim();
+    if (t === "") {
+      continue;
+    }
+    return trimmedLineMatchesSuppress(t, ruleName);
+  }
+  return false;
 }
 
 /**

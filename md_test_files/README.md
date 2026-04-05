@@ -16,6 +16,7 @@
 - `**positive_heading_numbering_zero.md**` - 0-indexed H2 numbering (## 0., 1., 2. and subsections); passes with 0 errors.
 - `**positive_heading_title_case.md**` - Valid AP title case; headings with identifiers/file names in backticks (e.g. `sba_result`, `README.md`) and links with valid title-case or backticked-filename link text; passes with 0 errors.
 - `**positive_heading_like.md**` - Proper ATX headings and prose only; short title-case lines ending in colon with no prose after (or with a heading next) are not reported; passes with 0 errors.
+- `**positive_no_h1_content_suppress_immediate.md**` / `**positive_no_h1_content_suppress_blank_line.md**` - no-h1-content suppressed via `<!-- no-h1-content allow -->` on the previous line: prose immediately after the comment vs separated by a blank line; both pass with 0 errors.
 - `**negative_*.md**` - One file per failing scenario; lint each to verify the expected custom rule(s) fail.
 
 ## Negative Fixtures (Custom Rules Only)

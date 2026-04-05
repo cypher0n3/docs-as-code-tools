@@ -4,15 +4,68 @@
  * Unit tests for utils.js helpers used by custom rules (e.g. isRuleSuppressedByComment).
  */
 
+const path = require("node:path");
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
-const { isRuleSuppressedByComment } = require("../../markdownlint-rules/utils.js");
+const { isRuleSuppressedByComment, matchGlob, pathMatchesAny } = require("../../markdownlint-rules/utils.js");
 
 describe("utils", () => {
+  describe("matchGlob", () => {
+    it("matches bare filename only at path root (single segment)", () => {
+      assert.strictEqual(matchGlob("README.md", "README.md"), true);
+      assert.strictEqual(matchGlob("docs/README.md", "README.md"), false);
+      assert.strictEqual(matchGlob("docs/README.md", "**/README.md"), true);
+    });
+
+    it("matches *.md only at root segment", () => {
+      assert.strictEqual(matchGlob("doc.md", "*.md"), true);
+      assert.strictEqual(matchGlob("sub/doc.md", "*.md"), false);
+      assert.strictEqual(matchGlob("sub/doc.md", "**/*.md"), true);
+    });
+
+    it("matches root basename when path is absolute (markdownlint passes full path)", () => {
+      const rootReadme = path.join(process.cwd(), "README.md");
+      const nestedReadme = path.join(process.cwd(), "docs", "README.md");
+      assert.strictEqual(matchGlob(rootReadme, "README.md"), true);
+      assert.strictEqual(matchGlob(nestedReadme, "README.md"), false);
+    });
+
+    it("normalizes relative paths with .. before matching (docs/../README.md)", () => {
+      assert.strictEqual(matchGlob("docs/../README.md", "README.md"), true);
+      assert.strictEqual(matchGlob("docs/../other/README.md", "README.md"), false);
+    });
+
+    it("matches one .. segment relative to cwd (../README.md from a subdir)", () => {
+      const parentReadme = path.resolve(process.cwd(), "..", "README.md");
+      assert.strictEqual(matchGlob(parentReadme, "README.md"), true);
+      assert.strictEqual(matchGlob(path.resolve(process.cwd(), "..", "other", "README.md"), "README.md"), false);
+    });
+  });
+
+  describe("pathMatchesAny", () => {
+    it("returns false when no pattern matches", () => {
+      assert.strictEqual(pathMatchesAny("a/b.md", ["x.md"]), false);
+    });
+
+    it("returns true when any pattern matches", () => {
+      assert.strictEqual(pathMatchesAny("README.md", ["other.md", "README.md"]), true);
+    });
+  });
+
   describe("isRuleSuppressedByComment", () => {
     it("returns true when previous line is solely the suppress comment", () => {
       const lines = ["<!-- no-empty-heading allow -->", "## Empty", "## Next"];
       assert.strictEqual(isRuleSuppressedByComment(lines, 2, "no-empty-heading"), true);
+    });
+
+    it("returns true when suppress comment is separated by blank lines from the line", () => {
+      const lines = ["<!-- no-h1-content allow -->", "", "", "Intro paragraph.", "## Next"];
+      assert.strictEqual(isRuleSuppressedByComment(lines, 4, "no-h1-content"), true);
+    });
+
+    it("returns false when a non-blank line between target and suppress is not the comment", () => {
+      const lines = ["<!-- no-h1-content allow -->", "- [TOC](#toc)", "", "Prose.", "## Next"];
+      assert.strictEqual(isRuleSuppressedByComment(lines, 4, "no-h1-content"), false);
     });
 
     it("returns true when current line ends with the suppress comment", () => {

@@ -23,7 +23,7 @@
 # Custom rules support HTML comments to suppress the rule:
 #
 # One-off (single line):
-#   • Put "<!-- rule-name allow -->" on the previous line (its own line), or
+#   • Put "<!-- rule-name allow -->" on its own line before the line to suppress (blank lines in between are OK), or
 #   • Put "<!-- rule-name allow -->" at the end of the violating line.
 #
 # Block (disable then enable):

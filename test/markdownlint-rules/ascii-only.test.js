@@ -114,12 +114,20 @@ describe("ascii-only", () => {
     assert.strictEqual(errors.length, 0);
   });
 
-  it("allows non-ASCII when path matches relative pattern (utils matchGlob **/ branch)", () => {
+  it("allows non-ASCII when basename pattern uses explicit **/ (not implicit subdir match)", () => {
     const lines = ["Café"];
+    const errors = runRule(rule, lines, {
+      anyUnicodePathPatterns: ["**/foo.md"],
+    }, "sub/foo.md");
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("reports error for non-ASCII when only basename matches in a subdir (foo.md does not match sub/foo.md)", () => {
+    const lines = ["Arrow \u2192"];
     const errors = runRule(rule, lines, {
       anyUnicodePathPatterns: ["foo.md"],
     }, "sub/foo.md");
-    assert.strictEqual(errors.length, 0);
+    assert.ok(errors.length >= 1);
   });
 
   it("reports error when path does not match any unicode pattern (utils pathMatchesAny)", () => {

@@ -17,6 +17,12 @@ positive_heading_title_case.md:
 positive_heading_like.md:
   errors: []
 
+positive_no_h1_content_suppress_blank_line.md:
+  errors: []
+
+positive_no_h1_content_suppress_immediate.md:
+  errors: []
+
 negative_anchor_algo_placement.md:
   errors:
     - line: 10
@@ -297,9 +303,6 @@ negative_no_empty_heading.md:
       rule: no-empty-heading
       message_contains: at least one line of content
     - line: 47
-      rule: no-empty-heading
-      message_contains: at least one line of content
-    - line: 51
       rule: no-empty-heading
       message_contains: at least one line of content
     - line: 63
