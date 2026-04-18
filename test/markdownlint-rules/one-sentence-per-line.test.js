@@ -290,6 +290,306 @@ describe("one-sentence-per-line", () => {
     assert.strictEqual(errors.length, 1);
   });
 
+  describe("getLineEndingState", () => {
+    it("returns 'ended' for line ending with period", () => {
+      assert.strictEqual(rule.getLineEndingState("This is a sentence."), "ended");
+    });
+
+    it("returns 'ended' for line ending with question mark", () => {
+      assert.strictEqual(rule.getLineEndingState("Is this a sentence?"), "ended");
+    });
+
+    it("returns 'ended' for line ending with exclamation", () => {
+      assert.strictEqual(rule.getLineEndingState("Wow this is a sentence!"), "ended");
+    });
+
+    it("returns 'open' for a word-ending line", () => {
+      assert.strictEqual(rule.getLineEndingState("word ends the line here"), "open");
+    });
+
+    it("returns 'ended' for line ending with colon", () => {
+      assert.strictEqual(rule.getLineEndingState("We require the following:"), "ended");
+    });
+
+    it("ignores content inside inline code when computing ending state", () => {
+      assert.strictEqual(rule.getLineEndingState("Run `cmd.exe` now"), "open");
+      assert.strictEqual(rule.getLineEndingState("Run `cmd.exe` now."), "ended");
+    });
+
+    it("returns 'open' after an e.g. abbreviation", () => {
+      assert.strictEqual(rule.getLineEndingState("See examples e.g."), "open");
+    });
+
+    it("returns 'open' for empty or whitespace-only content", () => {
+      assert.strictEqual(rule.getLineEndingState(""), "open");
+      assert.strictEqual(rule.getLineEndingState("   "), "open");
+    });
+
+    it("returns 'open' for a line ending in ellipsis", () => {
+      assert.strictEqual(rule.getLineEndingState("This is continuing..."), "open");
+    });
+
+    it("returns 'ended' for a line ending with a period after digits (sentence end)", () => {
+      assert.strictEqual(rule.getLineEndingState("Use version 3.14."), "ended");
+      assert.strictEqual(rule.getLineEndingState("Use version 1."), "ended");
+    });
+
+    it("uses default abbreviations when opts omitted", () => {
+      assert.strictEqual(rule.getLineEndingState("See Dr."), "open");
+    });
+
+    it("allows strictAbbreviations override via opts", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("No abbrev.", { abbreviations: new Set() }),
+        "ended",
+      );
+    });
+
+    it("returns 'open' when content is null or undefined", () => {
+      assert.strictEqual(rule.getLineEndingState(null), "open");
+      assert.strictEqual(rule.getLineEndingState(undefined), "open");
+    });
+
+    it("returns 'open' for a bare period", () => {
+      assert.strictEqual(rule.getLineEndingState("."), "ended");
+    });
+
+    it("returns 'ended' for a line that is only an inline-style link", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("[link text](https://example.com/path)"),
+        "ended",
+      );
+    });
+
+    it("returns 'ended' for a line of nested reference-style badges", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("[![alt][badge-ref]][workflow-ref]"),
+        "ended",
+      );
+    });
+
+    it("returns 'ended' for multiple inline-style badges on one line", () => {
+      const line = "[![CI](https://a.example/c.svg)](https://a.example/c) "
+        + "[![L](https://a.example/l.svg)](https://a.example/l)";
+      assert.strictEqual(rule.getLineEndingState(line), "ended");
+    });
+
+    it("returns 'open' for a line with prose followed by a link (no period)", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("See the docs at [here](https://example.com)"),
+        "open",
+      );
+    });
+  });
+
+  describe("checkCrossLine", () => {
+    const CROSS_ON = { "one-sentence-per-line": { checkCrossLine: true } };
+
+    it("reports a wrap across two lines in a paragraph", () => {
+      const lines = ["first part of the sentence", "keeps going here.", ""];
+      const errors = runRule(rule, lines, CROSS_ON);
+      assert.strictEqual(errors.length, 2);
+      assert.strictEqual(errors[0].lineNumber, 1);
+      assert.ok(errors[0].detail.includes("next line"));
+      assert.strictEqual(errors[1].lineNumber, 2);
+      assert.strictEqual(errors[1].fixInfo.deleteCount, -1);
+    });
+
+    it("does not report when checkCrossLine is false (default)", () => {
+      const lines = ["first part of the sentence", "keeps going here.", ""];
+      assert.strictEqual(runRule(rule, lines).length, 0);
+      assert.strictEqual(runRule(rule, lines, { "one-sentence-per-line": { checkCrossLine: false } }).length, 0);
+    });
+
+    it("does not report across blank-line boundary", () => {
+      const lines = ["first part", "", "Second part of text."];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    it("does not report across ATX heading", () => {
+      const lines = ["introductory text", "## Heading", "rest of text."];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    it("does not report across fenced code fence", () => {
+      const lines = [
+        "introductory text",
+        "```",
+        "code line one",
+        "```",
+        "rest of text.",
+      ];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    it("does not report when current line ends with a colon", () => {
+      const lines = ["We require the following:", "A list here."];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    it("does not report across a new list-item marker", () => {
+      const lines = [
+        "- First item starts here",
+        "- Second item starts here.",
+      ];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    it("does not report when file path matches excludePathPatterns", () => {
+      const lines = ["first part of the sentence", "keeps going here."];
+      const cfg = {
+        "one-sentence-per-line": {
+          checkCrossLine: true,
+          excludePathPatterns: ["**/README.md"],
+        },
+      };
+      assert.strictEqual(runRule(rule, lines, cfg, "project/README.md").length, 0);
+    });
+
+    it("does not report when file length exceeds maxFileLinesForCrossLine", () => {
+      const lines = [
+        "first part of the sentence",
+        "keeps going here.",
+        "another",
+        "line",
+        "more",
+        "content",
+      ];
+      const cfg = {
+        "one-sentence-per-line": {
+          checkCrossLine: true,
+          maxFileLinesForCrossLine: 5,
+        },
+      };
+      assert.strictEqual(runRule(rule, lines, cfg).length, 0);
+    });
+
+    describe("suppression", () => {
+      it("line-scoped sub-check allow above wrapped line suppresses only cross-line", () => {
+        const lines = [
+          "<!-- one-sentence-per-line check_cross_line allow -->",
+          "first part of the sentence",
+          "keeps going here.",
+        ];
+        assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+      });
+
+      it("block sub-check disable/enable suppresses cross-line within block", () => {
+        const lines = [
+          "<!-- one-sentence-per-line check_cross_line disable -->",
+          "first part of the sentence",
+          "keeps going here.",
+          "<!-- one-sentence-per-line check_cross_line enable -->",
+          "another open",
+          "continues here.",
+        ];
+        const errors = runRule(rule, lines, CROSS_ON);
+        assert.strictEqual(errors.length, 2);
+        assert.strictEqual(errors[0].lineNumber, 5);
+        assert.strictEqual(errors[1].lineNumber, 6);
+        assert.strictEqual(errors[1].fixInfo.deleteCount, -1);
+      });
+
+      it("sub-check form does not suppress a multi-sentence-per-line violation", () => {
+        const lines = [
+          "<!-- one-sentence-per-line check_cross_line disable -->",
+          "First. Second.",
+          "<!-- one-sentence-per-line check_cross_line enable -->",
+        ];
+        const errors = runRule(rule, lines, CROSS_ON);
+        assert.strictEqual(errors.length, 1);
+        assert.strictEqual(errors[0].lineNumber, 2);
+        assert.ok(errors[0].detail.includes("multiple sentences"));
+      });
+
+      it("whole-rule disable still suppresses both checks", () => {
+        const lines = [
+          "<!-- one-sentence-per-line disable -->",
+          "First. Second.",
+          "first part of the sentence",
+          "keeps going here.",
+          "<!-- one-sentence-per-line enable -->",
+        ];
+        assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+      });
+    });
+
+    it("still reports per-line multi-sentence when a large file skips cross-line", () => {
+      const lines = [
+        "Alpha. Beta.",
+        "filler",
+        "filler",
+        "filler",
+        "filler",
+        "filler",
+      ];
+      const cfg = {
+        "one-sentence-per-line": {
+          checkCrossLine: true,
+          maxFileLinesForCrossLine: 5,
+        },
+      };
+      const errors = runRule(rule, lines, cfg);
+      assert.strictEqual(errors.length, 1);
+      assert.strictEqual(errors[0].lineNumber, 1);
+    });
+
+    describe("fixInfo", () => {
+      it("primary fixInfo appends single-space + left-trimmed next-line content", () => {
+        const lines = ["first part", "  keeps going."];
+        const errors = runRule(rule, lines, CROSS_ON);
+        assert.strictEqual(errors.length, 2);
+        const primary = errors[0];
+        assert.strictEqual(primary.lineNumber, 1);
+        assert.ok(primary.fixInfo, "primary error has fixInfo");
+        assert.strictEqual(primary.fixInfo.editColumn, lines[0].length + 1);
+        assert.strictEqual(primary.fixInfo.insertText, " keeps going.");
+        assert.strictEqual(primary.fixInfo.deleteCount, 0);
+      });
+
+      it("primary fixInfo trims trailing whitespace on current line", () => {
+        const lines = ["first part   ", "keeps going."];
+        const errors = runRule(rule, lines, CROSS_ON);
+        const primary = errors[0];
+        assert.ok(primary.fixInfo);
+        assert.strictEqual(primary.fixInfo.editColumn, "first part".length + 1);
+        assert.strictEqual(primary.fixInfo.deleteCount, 3);
+        assert.strictEqual(primary.fixInfo.insertText, " keeps going.");
+      });
+
+      it("cleanup error has deleteCount -1 on the next line", () => {
+        const lines = ["first part", "  keeps going."];
+        const errors = runRule(rule, lines, CROSS_ON);
+        const cleanup = errors[1];
+        assert.strictEqual(cleanup.lineNumber, 2);
+        assert.ok(cleanup.fixInfo);
+        assert.strictEqual(cleanup.fixInfo.deleteCount, -1);
+      });
+
+      it("strips a 4-space continuation indent fully and inserts one space", () => {
+        const lines = ["- First part", "    keeps going."];
+        const errors = runRule(rule, lines, CROSS_ON);
+        const primary = errors[0];
+        assert.ok(primary.fixInfo);
+        assert.strictEqual(primary.fixInfo.insertText, " keeps going.");
+      });
+
+      it("omits fixInfo when block exceeds maxBlockLinesForFix (reports primary only)", () => {
+        const lines = ["first part", "keeps going here"];
+        const cfg = {
+          "one-sentence-per-line": {
+            checkCrossLine: true,
+            maxBlockLinesForFix: 1,
+          },
+        };
+        const errors = runRule(rule, lines, cfg);
+        assert.strictEqual(errors.length, 1);
+        assert.strictEqual(errors[0].lineNumber, 1);
+        assert.strictEqual(errors[0].fixInfo, undefined);
+      });
+    });
+  });
+
   describe("edge cases (sentence boundary)", () => {
     it("splits after bolded sentence and suggests break (fixInfo) after **...**", () => {
       const lines = ["**Important sentence.** Additional context. Other stuff"];

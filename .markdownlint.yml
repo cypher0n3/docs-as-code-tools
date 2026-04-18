@@ -216,11 +216,26 @@ allow-custom-anchors:
 #   # excludePathPatterns: ["**/README.md"]
 
 # one-sentence-per-line: enforce one sentence per line in prose and list content. Fixable (repeated Fix all).
+# Two checks: per-line (always on) and cross-line (opt-in via checkCrossLine).
+# Sub-check suppression (cross-line only):
+#   <!-- one-sentence-per-line check_cross_line disable -->
+#   this is a
+#   broken sentence.
+#   <!-- one-sentence-per-line check_cross_line enable -->
+#   Or line-scoped: <!-- one-sentence-per-line check_cross_line allow -->
+# Whole-rule suppression (disables both checks) uses the usual form:
+#   <!-- one-sentence-per-line disable --> ... <!-- one-sentence-per-line enable -->
 # Options (all optional):
 #   continuationIndent: number (optional); fixed spaces for indented paragraph continuations (default: match line indent)
 #   strictAbbreviations: list of strings; abbreviations that do not end a sentence (extends/replaces default)
+#   checkCrossLine: bool (default false); when true, also flag sentences hard-wrapped across multiple lines in the same prose block (trailing ":" still closes a line; trailing two-space and <br> are NOT opt-outs)
+#   maxBlockLinesForFix: number (default 8); when a prose block has more physical lines than this, cross-line violations are reported but fixInfo is omitted (fix safety guard)
+#   maxFileLinesForCrossLine: number (default 1500); skip cross-line check on files longer than this; per-line check unaffected; set to 0 or negative to disable the guard
 #   excludePathPatterns: list of globs; skip this rule for matching file paths
-# one-sentence-per-line:
+one-sentence-per-line:
+  checkCrossLine: true
 #   continuationIndent: 4
+#   maxBlockLinesForFix: 8
+#   maxFileLinesForCrossLine: 1500
 #   # excludePathPatterns: ["**/README.md"]
 ...

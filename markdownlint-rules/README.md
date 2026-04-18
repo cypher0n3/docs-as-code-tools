@@ -280,9 +280,7 @@ Any other line (prose, code blocks, etc.) is reported.
 
 **Description:** Every H2+ heading must have a configurable minimum number of lines of content directly under it (before any subheading).
 Content under subheadings does not count.
-By default prose and lines inside fenced code blocks (``` or ~~~) count; blank lines, HTML-comment-only lines, and HTML-tag-only lines do not.
-You can optionally count any of those.
-Optionally exclude files by path (e.g. index-style pages) or allow a section via the exact suppress comment on its own line.
+By default prose and lines inside fenced code blocks (``` or ~~~) count; blank lines, HTML-comment-only lines, and HTML-tag-only lines do not. You can optionally count any of those. Optionally exclude files by path (e.g. index-style pages) or allow a section via the exact suppress comment on its own line.
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `no-empty-heading`:
 
@@ -654,14 +652,24 @@ heading-numbering:
 **File:** `one-sentence-per-line.js`
 
 **Description:** Enforce one sentence per line in prose and list content.
+The rule runs two checks:
+
+1. **Per-line** (always on): a single physical line must not contain multiple sentences (e.g. `"First. Second."` on one line).
+2. **Cross-line** (opt-in via `checkCrossLine`): a single sentence must not be hard-wrapped across two or more non-blank lines inside the same prose block.
+
 Lines with multiple sentences are reported; the rule skips fenced code, front matter, link-reference definitions, table rows, ATX headings, thematic breaks, and blank lines.
 Sentence boundaries are detected conservatively: periods/question marks/exclamation followed by space, while avoiding decimals (e.g. `3.14`), common abbreviations (e.g. `e.g.`, `i.e.`), and content inside inline code or link text.
 
 **Fixable:** Yes.
-One violation per line with multiple sentences; fix splits all sentences in one pass (newline + continuation indent per sentence).
-When the base line has no leading indent, continuation lines have no indent.
-List items use list-body indent for continuation.
-Indented paragraphs align continuation with the line's leading spaces by default; set `continuationIndent` only when you want a fixed width instead.
+
+- **Per-line:** One violation per line with multiple sentences; fix splits all sentences in one pass (newline + continuation indent per sentence).
+  When the base line has no leading indent, continuation lines have no indent.
+  List items use list-body indent for continuation.
+  Indented paragraphs align continuation with the line's leading spaces by default; set `continuationIndent` only when you want a fixed width instead.
+- **Cross-line:** Each wrap is reported with a `fixInfo` that joins the two lines with a single space (stripping any continuation indent on the next line).
+  To keep fixes deterministic and safe, `--fix` collapses **one wrap per prose block per pass**; blocks with multiple chained wraps converge over repeated `--fix` invocations.
+  Blocks longer than `maxBlockLinesForFix` physical lines are reported without `fixInfo` (so editor `Fix all` leaves them alone).
+  Files longer than `maxFileLinesForCrossLine` skip the cross-line scan entirely (per-line still runs).
 
 **Configuration:** In `.markdownlint.yml` under `one-sentence-per-line` (all optional):
 
@@ -669,6 +677,9 @@ Indented paragraphs align continuation with the line's leading spaces by default
 one-sentence-per-line:
   continuationIndent: 4
   # strictAbbreviations: ["e.g", "i.e", "etc"]
+  # checkCrossLine: false          # opt-in hard-wrap detection
+  # maxBlockLinesForFix: 8         # fix-safety cap for cross-line join
+  # maxFileLinesForCrossLine: 1500 # skip cross-line scan on very long files
   # excludePathPatterns: ["**/README.md"]
 ```
 
@@ -677,6 +688,12 @@ one-sentence-per-line:
   List items always use list-body indent.
 - **`strictAbbreviations`** (array of strings, optional): Abbreviations that do not end a sentence (no trailing period in value, e.g. `e.g`).
   When set, replaces the built-in set; when omitted, the rule uses a default set (e.g., i.e., etc., Dr., Mr., U.S., ...).
+- **`checkCrossLine`** (boolean, default `false`): When `true`, also flag single sentences that are hard-wrapped across multiple non-blank lines inside the same prose block.
+  A trailing colon (`:`) still closes a line; a trailing two-space or `<br>` does **not** opt out.
+- **`maxBlockLinesForFix`** (number, default `8`): When a prose block has more physical lines than this, cross-line violations are still reported but `fixInfo` is omitted so `--fix` leaves them alone.
+  Set higher at your own risk.
+- **`maxFileLinesForCrossLine`** (number, default `1500`): Skip the cross-line check on files longer than this; the per-line check is unaffected.
+  Set to `0` or negative to disable the guard.
 - **`excludePathPatterns`** (array of globs, optional): Skip this rule for matching file paths.
 
 #### Behavior (`one-sentence-per-line`)
@@ -686,6 +703,26 @@ one-sentence-per-line:
 - **Sentence detection:** Content is scanned after stripping inline code; bracket and parenthesis depth (e.g. links) are ignored for sentence-end detection.
   A period/question/exclamation is only a sentence end when followed by at least one space (or EOL); e.g. filenames like `file.name` or `config.json` do not trigger a split.
   After optional closing quotes and inline code spans, a period followed by space then a word is a candidate; it is skipped when the preceding token is a decimal digit or a known abbreviation (including "e.g." when the next token is "g" etc.).
+- **Cross-line scan (opt-in):** For each contiguous prose block, the rule classifies each line's end as `ended` (sentence-final punctuation, trailing `:` close, or only inline code/brackets with no prose) or `open` (mid-sentence).
+  When an `open` line is followed by a non-list-item line, it is reported as a wrap and (for blocks within the fix cap) receives a join `fixInfo`.
+
+#### Sub-Check Suppression
+
+The whole rule can be suppressed with the usual `allow` / `disable` / `enable` comments.
+The cross-line check alone can be suppressed with a `check_cross_line` sub-check action (the per-line check still runs), as shown below.
+
+```markdown
+<!-- one-sentence-per-line allow -->
+<!-- one-sentence-per-line disable --> ... <!-- one-sentence-per-line enable -->
+
+<!-- one-sentence-per-line check_cross_line disable -->
+This sentence is
+hard-wrapped on purpose.
+<!-- one-sentence-per-line check_cross_line enable -->
+
+<!-- one-sentence-per-line check_cross_line allow -->
+This one-off wrap is tolerated.
+```
 
 ## Shared Helper
 

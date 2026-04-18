@@ -248,21 +248,39 @@ function matchGlob(filePath, pattern) {
   return false;
 }
 
+/** Escape regex metacharacters for literal use inside a dynamic RegExp. */
+function escapeForRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Token pattern body (escaped name, optionally followed by an escaped sub-check). */
+function suppressNamePattern(ruleName, subCheck) {
+  const base = escapeForRegex(ruleName);
+  return subCheck ? `${base}\\s+${escapeForRegex(subCheck)}` : base;
+}
+
+/** Cleared-form token length (dots replacing ruleName, optional sub-check). */
+function clearedNamePattern(ruleName, subCheck) {
+  const base = `\\.{${ruleName.length}}`;
+  return subCheck ? `${base}\\s+\\.{${subCheck.length}}` : base;
+}
+
 /**
  * Return true if a trimmed line is solely or ends with the rule's suppress comment (raw or cleared form).
  *
  * @param {string} trimmed - Trimmed line
  * @param {string} ruleName - Rule name (e.g. "no-empty-heading")
+ * @param {string} [subCheck] - Optional sub-check token (e.g. "check_cross_line")
  * @returns {boolean}
  */
-function trimmedLineMatchesSuppress(trimmed, ruleName) {
-  const escaped = ruleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const n = ruleName.length;
-  /* eslint-disable security/detect-non-literal-regexp -- ruleName escaped above; used for suppress comment match */
-  const commentOnly = new RegExp(`^\\s*<!--\\s*${escaped}\\s+allow\\s*-->\\s*$`);
-  const endsWithComment = new RegExp(`<!--\\s*${escaped}\\s+allow\\s*-->\\s*$`);
-  const clearedCommentOnly = new RegExp(`^\\s*<!--\\s*\\.{${n}}\\s+\\.{5}\\s*-->\\s*$`);
-  const clearedEndsWithComment = new RegExp(`<!--\\s*\\.{${n}}\\s+\\.{5}\\s*-->\\s*$`);
+function trimmedLineMatchesSuppress(trimmed, ruleName, subCheck) {
+  const namePattern = suppressNamePattern(ruleName, subCheck);
+  const clearedPattern = clearedNamePattern(ruleName, subCheck);
+  /* eslint-disable security/detect-non-literal-regexp -- patterns built from escaped ruleName */
+  const commentOnly = new RegExp(`^\\s*<!--\\s*${namePattern}\\s+allow\\s*-->\\s*$`);
+  const endsWithComment = new RegExp(`<!--\\s*${namePattern}\\s+allow\\s*-->\\s*$`);
+  const clearedCommentOnly = new RegExp(`^\\s*<!--\\s*${clearedPattern}\\s+\\.{5}\\s*-->\\s*$`);
+  const clearedEndsWithComment = new RegExp(`<!--\\s*${clearedPattern}\\s+\\.{5}\\s*-->\\s*$`);
   /* eslint-enable security/detect-non-literal-regexp */
   return commentOnly.test(trimmed) || endsWithComment.test(trimmed)
     || clearedCommentOnly.test(trimmed) || clearedEndsWithComment.test(trimmed);
@@ -278,58 +296,67 @@ const DISABLE_LEN = 7;
 /** "enable" length for cleared-form regex. */
 const ENABLE_LEN = 6;
 
+/** Build a whole-line regex matching "<!-- ruleName [subCheck] action -->" and its cleared form. */
+function buildActionMatcher(ruleName, action, actionLen, subCheck) {
+  const namePattern = suppressNamePattern(ruleName, subCheck);
+  const clearedPattern = clearedNamePattern(ruleName, subCheck);
+  /* eslint-disable security/detect-non-literal-regexp -- patterns built from escaped ruleName */
+  const re = new RegExp(`^\\s*<!--\\s*${namePattern}\\s+${action}\\s*-->\\s*$`);
+  const clearedRe = new RegExp(`^\\s*<!--\\s*${clearedPattern}\\s+\\.{${actionLen}}\\s*-->\\s*$`);
+  /* eslint-enable security/detect-non-literal-regexp */
+  return { re, clearedRe };
+}
+
 /**
  * Return true if the trimmed line is solely "<!-- ruleName disable -->" (whole-line only; optional whitespace).
  * Also matches markdownlint-cleared form: <!-- .{n} .{7} --> (dots replace rule name and "disable").
- * @param {string} trimmed - Trimmed line
- * @param {string} ruleName - Rule name
- * @returns {boolean}
  */
-function trimmedLineMatchesDisable(trimmed, ruleName) {
-  const escaped = ruleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const n = ruleName.length;
-  /* eslint-disable-next-line security/detect-non-literal-regexp -- ruleName escaped; used for disable comment */
-  const re = new RegExp(`^\\s*<!--\\s*${escaped}\\s+disable\\s*-->\\s*$`);
-  /* eslint-disable-next-line security/detect-non-literal-regexp -- n is ruleName.length; cleared form */
-  const clearedRe = new RegExp(`^\\s*<!--\\s*\\.{${n}}\\s+\\.{${DISABLE_LEN}}\\s*-->\\s*$`);
+function trimmedLineMatchesDisable(trimmed, ruleName, subCheck) {
+  const { re, clearedRe } = buildActionMatcher(ruleName, "disable", DISABLE_LEN, subCheck);
   return re.test(trimmed) || clearedRe.test(trimmed);
 }
 
 /**
  * Return true if the trimmed line is solely "<!-- ruleName enable -->" (whole-line only; optional whitespace).
  * Also matches markdownlint-cleared form: <!-- .{n} .{6} --> (dots replace rule name and "enable").
- * @param {string} trimmed - Trimmed line
- * @param {string} ruleName - Rule name
- * @returns {boolean}
  */
-function trimmedLineMatchesEnable(trimmed, ruleName) {
-  const escaped = ruleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const n = ruleName.length;
-  /* eslint-disable-next-line security/detect-non-literal-regexp -- ruleName escaped; used for enable comment */
-  const re = new RegExp(`^\\s*<!--\\s*${escaped}\\s+enable\\s*-->\\s*$`);
-  /* eslint-disable-next-line security/detect-non-literal-regexp -- n is ruleName.length; cleared form */
-  const clearedRe = new RegExp(`^\\s*<!--\\s*\\.{${n}}\\s+\\.{${ENABLE_LEN}}\\s*-->\\s*$`);
+function trimmedLineMatchesEnable(trimmed, ruleName, subCheck) {
+  const { re, clearedRe } = buildActionMatcher(ruleName, "enable", ENABLE_LEN, subCheck);
   return re.test(trimmed) || clearedRe.test(trimmed);
 }
 
 /**
- * Return true if the rule is in a disabled block at the given line.
- * Scans from line 1 to lineNumber: a line that is solely "<!-- ruleName disable -->" turns the rule off;
- * a line that is solely "<!-- ruleName enable -->" turns it back on.
- * @param {string[]} lines - All document lines
- * @param {number} lineNumber - 1-based line number
- * @param {string} ruleName - Rule name
- * @returns {boolean}
+ * Return true if the rule (or rule+subCheck) is in a disabled block at the given line.
  */
-function isRuleDisabledAtLine(lines, lineNumber, ruleName) {
+function isDisabledAtLine(lines, lineNumber, ruleName, subCheck) {
   if (!isValidSuppressArgs(lines, lineNumber, ruleName)) return false;
   let enabled = true;
   for (let i = 0; i < lineNumber; i++) {
     const trimmed = String(lines[i] ?? "").trim();
-    if (trimmedLineMatchesDisable(trimmed, ruleName)) enabled = false;
-    else if (trimmedLineMatchesEnable(trimmed, ruleName)) enabled = true;
+    if (trimmedLineMatchesDisable(trimmed, ruleName, subCheck)) enabled = false;
+    else if (trimmedLineMatchesEnable(trimmed, ruleName, subCheck)) enabled = true;
   }
   return !enabled;
+}
+
+/**
+ * Core helper: return true when a rule or sub-check is suppressed at `lineNumber`
+ * by a disable/enable block, an on-line trailing allow comment, or an allow comment
+ * on the nearest preceding non-blank line (blank lines are skipped).
+ */
+function isSuppressedByCommentCore(lines, lineNumber, ruleName, subCheck) {
+  if (!isValidSuppressArgs(lines, lineNumber, ruleName)) return false;
+  if (isDisabledAtLine(lines, lineNumber, ruleName, subCheck)) return true;
+  const currentLine = lines[lineNumber - 1];
+  if (currentLine == null) return false;
+  if (trimmedLineMatchesSuppress(String(currentLine).trim(), ruleName, subCheck)) return true;
+  if (lineNumber < 2) return false;
+  for (let i = lineNumber - 2; i >= 0; i--) {
+    const t = String(lines[i] ?? "").trim();
+    if (t === "") continue;
+    return trimmedLineMatchesSuppress(t, ruleName, subCheck);
+  }
+  return false;
 }
 
 /**
@@ -347,20 +374,26 @@ function isRuleDisabledAtLine(lines, lineNumber, ruleName) {
  * @returns {boolean}
  */
 function isRuleSuppressedByComment(lines, lineNumber, ruleName) {
-  if (!isValidSuppressArgs(lines, lineNumber, ruleName)) return false;
-  if (isRuleDisabledAtLine(lines, lineNumber, ruleName)) return true;
-  const currentLine = lines[lineNumber - 1];
-  if (currentLine == null) return false;
-  if (trimmedLineMatchesSuppress(String(currentLine).trim(), ruleName)) return true;
-  if (lineNumber < 2) return false;
-  for (let i = lineNumber - 2; i >= 0; i--) {
-    const t = String(lines[i] ?? "").trim();
-    if (t === "") {
-      continue;
-    }
-    return trimmedLineMatchesSuppress(t, ruleName);
-  }
-  return false;
+  return isSuppressedByCommentCore(lines, lineNumber, ruleName);
+}
+
+/**
+ * Return true if a specific sub-check of a rule is suppressed at the given line by an
+ * HTML comment of the form `<!-- ruleName subCheck allow|disable|enable -->`.
+ *
+ * Mirrors `isRuleSuppressedByComment` exactly except that the comment must also include
+ * the sub-check token after the rule name. Whole-rule suppression is NOT implied by this
+ * helper; check `isRuleSuppressedByComment` separately when both forms should apply.
+ *
+ * @param {string[]} lines - All document lines
+ * @param {number} lineNumber - 1-based line number of the violation
+ * @param {string} ruleName - Rule name (e.g. "one-sentence-per-line")
+ * @param {string} subCheck - Sub-check token (e.g. "check_cross_line")
+ * @returns {boolean}
+ */
+function isSubCheckSuppressedByComment(lines, lineNumber, ruleName, subCheck) {
+  if (typeof subCheck !== "string" || subCheck.length === 0) return false;
+  return isSuppressedByCommentCore(lines, lineNumber, ruleName, subCheck);
 }
 
 /**
@@ -510,10 +543,76 @@ function* iterateProseLines(lines) {
   }
 }
 
+/**
+ * Compute the set of 1-based line numbers that lie inside a multi-line HTML
+ * comment (`<!-- ... -->` spanning two or more physical lines). Lines that are
+ * themselves a fully self-contained `<!-- ... -->` on one line are not
+ * included here (the cross-line scan filters those separately via
+ * `isHtmlCommentLine` in the rule).
+ *
+ * @param {string[]} lines - All lines
+ * @returns {Set<number>} Line numbers to treat as non-prose / block breaks.
+ */
+function computeMultiLineHtmlCommentLines(lines) {
+  const result = new Set();
+  let inside = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] || "";
+    const lineNumber = i + 1;
+    if (!inside) {
+      const openIdx = line.indexOf("<!--");
+      if (openIdx === -1) continue;
+      const afterOpen = line.slice(openIdx + 4);
+      if (afterOpen.includes("-->")) continue;
+      inside = true;
+      result.add(lineNumber);
+      continue;
+    }
+    result.add(lineNumber);
+    if (line.includes("-->")) inside = false;
+  }
+  return result;
+}
+
+/**
+ * Iterate over contiguous prose blocks. A block is a maximal run of consecutive
+ * lines yielded by `iterateProseLines` with no gap in line numbers (no blank
+ * line, fenced code, heading, table row, HTML comment interior, etc. between
+ * them).
+ *
+ * @param {string[]} lines - All lines
+ * @yields {Array<{ lineNumber: number, line: string, trimmed: string }>}
+ *   Non-empty array of prose lines making up one block, in document order.
+ */
+function* iterateProseBlocks(lines) {
+  const htmlCommentLines = computeMultiLineHtmlCommentLines(lines);
+  let block = [];
+  let expectedNext = 0;
+  for (const entry of iterateProseLines(lines)) {
+    if (htmlCommentLines.has(entry.lineNumber)) {
+      if (block.length > 0) {
+        yield block;
+        block = [];
+      }
+      expectedNext = 0;
+      continue;
+    }
+    if (block.length === 0 || entry.lineNumber === expectedNext) {
+      block.push(entry);
+    } else {
+      yield block;
+      block = [entry];
+    }
+    expectedNext = entry.lineNumber + 1;
+  }
+  if (block.length > 0) yield block;
+}
+
 module.exports = {
   stripInlineCode,
   iterateNonFencedLines,
   iterateProseLines,
+  iterateProseBlocks,
   iterateLinesWithFenceInfo,
   parseFenceInfo,
   extractHeadings,
@@ -526,6 +625,7 @@ module.exports = {
   matchGlob,
   pathMatchesAny,
   isRuleSuppressedByComment,
+  isSubCheckSuppressedByComment,
   RE_ATX_HEADING,
   RE_NUMBERING_PREFIX,
 };

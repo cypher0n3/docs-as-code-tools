@@ -2,6 +2,8 @@
 
 const {
   isRuleSuppressedByComment,
+  isSubCheckSuppressedByComment,
+  iterateProseBlocks,
   iterateProseLines,
   pathMatchesAny,
   stripInlineCode,
@@ -350,6 +352,35 @@ function getAllSentenceBoundaries(content, opts) {
 }
 
 /**
+ * Build a pair of fixInfo objects that together join `currentLine` with
+ * `nextLine` into one physical line. The primary fixInfo is applied to the
+ * current (open) line and appends a single space followed by the next line's
+ * left-trimmed content; the cleanup fixInfo deletes the next line entirely.
+ *
+ * markdownlint's applyFix is single-line, so the join must be split across
+ * two errors; see `tmp/fixinfo_join_encoding.md` for the rationale.
+ *
+ * @param {string} currentLine - Physical line that ends mid-sentence
+ * @param {string} nextLine - Next physical line inside the same prose block
+ * @returns {{
+ *   primary: { editColumn: number, deleteCount: number, insertText: string },
+ *   cleanup: { deleteCount: number },
+ * }}
+ */
+function buildJoinFixInfo(currentLine, nextLine) {
+  const trimmed = currentLine.replace(/\s+$/, "");
+  const trailingWhitespace = currentLine.length - trimmed.length;
+  return {
+    primary: {
+      editColumn: trimmed.length + 1,
+      deleteCount: trailingWhitespace,
+      insertText: " " + nextLine.replace(/^\s+/, ""),
+    },
+    cleanup: { deleteCount: -1 },
+  };
+}
+
+/**
  * Build fixInfo that splits all sentences in one pass (from first boundary to EOL).
  * @param {string} line - Full line
  * @param {{ content: string, contentIndent: number, type: string }} listInfo - From getListInfo
@@ -383,6 +414,88 @@ function buildFixInfo(line, listInfo, boundaryIndices, continuationOpts) {
   };
 }
 
+/** True when the trailing period at index i is part of an ellipsis run. */
+function trailingPeriodIsEllipsis(scanned, i) {
+  return i > 0 && scanned[i - 1] === ".";
+}
+
+/** True when the trailing period at index i terminates an abbreviation token. */
+function trailingPeriodIsAbbreviation(scanned, i, abbreviations) {
+  const word = getWordBefore(scanned, i);
+  if (word.length === 0) return false;
+  return abbreviations.has(word) || abbreviations.has(word.toLowerCase());
+}
+
+/** Resolve whether a trailing period at index i closes a sentence. */
+function trailingPeriodIsSentenceEnd(scanned, i, abbreviations) {
+  if (trailingPeriodIsEllipsis(scanned, i)) return false;
+  if (trailingPeriodIsAbbreviation(scanned, i, abbreviations)) return false;
+  return true;
+}
+
+/**
+ * Strip Markdown inline links and images from `s` so that the remaining text
+ * reflects only the visible prose. Handles inline (`[t](u)`, `![t](u)`),
+ * reference (`[t][r]`, `![t][r]`), and shortcut (`[r]`) forms iteratively so
+ * nested patterns such as `[![alt][ref1]][ref2]` fully collapse.
+ *
+ * @param {string} s - Input text (typically already inline-code stripped)
+ * @returns {string} Text with link/image structures removed.
+ */
+function stripMarkdownLinksAndImages(s) {
+  let prev;
+  let cur = String(s ?? "");
+  do {
+    prev = cur;
+    cur = cur.replace(/!?\[([^\][]*)\]\(([^)]*)\)/g, "");
+  } while (cur !== prev);
+  do {
+    prev = cur;
+    cur = cur.replace(/!?\[([^\][]*)\]\[([^\][]*)\]/g, "");
+  } while (cur !== prev);
+  do {
+    prev = cur;
+    cur = cur.replace(/!?\[([^\][]*)\]/g, "");
+  } while (cur !== prev);
+  return cur;
+}
+
+/**
+ * Classify the resolved sentence-ending state of a physical line.
+ * "ended" when the last non-whitespace character is a resolved sentence end
+ * (`.`, `?`, or `!` — not part of a decimal, abbreviation, numbering label,
+ * or ellipsis-inside-sentence), a trailing colon (`:`), or the line is
+ * non-prose (only inline code and/or Markdown link/image structures).
+ * Inline code is stripped before inspection so fenced content cannot flip
+ * the state.
+ *
+ * @param {string} content - Physical line (may include leading indent or list marker)
+ * @param {{ abbreviations?: Set<string> }} [opts] - Abbreviation override
+ * @returns {"ended"|"open"}
+ */
+/** True when a code-stripped line has no visible prose (only links/images). */
+function isNonProseLine(codeStripped) {
+  const linkStripped = stripMarkdownLinksAndImages(codeStripped).trim();
+  return !/[A-Za-z]/.test(linkStripped);
+}
+
+function classifyEndingPunctuation(trimmed, abbreviations) {
+  const last = trimmed[trimmed.length - 1];
+  if (last === ":" || last === "?" || last === "!") return "ended";
+  if (last !== ".") return "open";
+  const i = trimmed.length - 1;
+  return trailingPeriodIsSentenceEnd(trimmed, i, abbreviations) ? "ended" : "open";
+}
+
+function getLineEndingState(content, opts) {
+  const abbreviations = opts?.abbreviations ?? DEFAULT_ABBREVIATIONS;
+  const codeStripped = stripInlineCode(String(content ?? ""));
+  const trimmed = codeStripped.replace(/\s+$/, "");
+  if (trimmed.length === 0) return "open";
+  if (isNonProseLine(codeStripped)) return "ended";
+  return classifyEndingPunctuation(trimmed, abbreviations);
+}
+
 function getRuleConfig(params) {
   const ruleConfig = params.config?.["one-sentence-per-line"] ?? params.config ?? {};
   const excludePathPatterns = ruleConfig.excludePathPatterns;
@@ -392,31 +505,50 @@ function getRuleConfig(params) {
   const abbreviations = Array.isArray(strictAbbreviations)
     ? new Set(strictAbbreviations.map((s) => String(s).replace(/\.$/, "")))
     : DEFAULT_ABBREVIATIONS;
-  return { ruleConfig, excludePathPatterns, continuationIndent, hasExplicitContinuation, abbreviations };
+  const checkCrossLine = ruleConfig.checkCrossLine === true;
+  const maxFileLinesForCrossLine = typeof ruleConfig.maxFileLinesForCrossLine === "number"
+    ? ruleConfig.maxFileLinesForCrossLine
+    : 1500;
+  const maxBlockLinesForFix = typeof ruleConfig.maxBlockLinesForFix === "number"
+    ? ruleConfig.maxBlockLinesForFix
+    : 8;
+  return {
+    ruleConfig,
+    excludePathPatterns,
+    continuationIndent,
+    hasExplicitContinuation,
+    abbreviations,
+    checkCrossLine,
+    maxFileLinesForCrossLine,
+    maxBlockLinesForFix,
+  };
+}
+
+/** True when the given line begins a new list item (bullet or numbered marker). */
+function isNewListItem(line) {
+  return RE_BULLET.test(line) || RE_NUMBERED.test(line);
 }
 
 /**
- * markdownlint rule: enforce one sentence per line in prose and list content.
- * Reports one violation per line with multiple sentences; fixInfo splits all boundaries in one pass.
- *
- * @param {object} params - markdownlint params (lines, name, config)
- * @param {function(object): void} onError - Callback to report an error
+ * True when a line is effectively an HTML comment block (standalone). Used to
+ * exclude suppression comments and other inline HTML comment lines from the
+ * cross-line wrap scan, since they are not prose that could wrap.
  */
-function ruleFunction(params, onError) {
-  const lines = params.lines;
-  const filePath = params.name || "";
-  const { excludePathPatterns, continuationIndent, hasExplicitContinuation, abbreviations } = getRuleConfig(params);
-  if (Array.isArray(excludePathPatterns) && excludePathPatterns.length > 0 && pathMatchesAny(filePath, excludePathPatterns)) {
-    return;
-  }
+function isHtmlCommentLine(line) {
+  const trimmed = String(line ?? "").trim();
+  return trimmed.startsWith("<!--") && trimmed.endsWith("-->");
+}
 
+/** Per-line scan: report any physical line that contains more than one sentence. */
+function scanPerLine(params, onError, ruleCfg) {
+  const { continuationIndent, hasExplicitContinuation, abbreviations } = ruleCfg;
+  const lines = params.lines;
   for (const { lineNumber, line } of iterateProseLines(lines)) {
     const listInfo = getListInfo(line);
     if (!listInfo.content.trim()) continue;
     const boundaryIndices = getAllSentenceBoundaries(listInfo.content, { abbreviations });
     if (boundaryIndices.length === 0) continue;
     if (isRuleSuppressedByComment(lines, lineNumber, "one-sentence-per-line")) continue;
-
     const fixInfo = buildFixInfo(line, listInfo, boundaryIndices, {
       continuationIndent,
       hasExplicitContinuation,
@@ -430,6 +562,89 @@ function ruleFunction(params, onError) {
   }
 }
 
+/**
+ * Cross-line scan: flag consecutive prose-line pairs in the same block that
+ * form a wrapped sentence. When the enclosing block fits within
+ * `maxBlockLinesForFix`, emits a primary error on the open line with a
+ * fixInfo that appends a space and the left-trimmed next-line content, plus
+ * a secondary cleanup error on the next line with `deleteCount: -1` so
+ * `markdownlint --fix` merges the two lines into one.
+ */
+function shouldSkipCrossLinePair(lines, current, next, abbreviations) {
+  if (isHtmlCommentLine(current.line) || isHtmlCommentLine(next.line)) return true;
+  if (getLineEndingState(current.line, { abbreviations }) === "ended") return true;
+  if (isNewListItem(next.line)) return true;
+  if (isRuleSuppressedByComment(lines, current.lineNumber, "one-sentence-per-line")) return true;
+  if (isSubCheckSuppressedByComment(
+    lines, current.lineNumber, "one-sentence-per-line", "check_cross_line"
+  )) return true;
+  return false;
+}
+
+function emitCrossLineWrap(current, next, onError, withFix) {
+  const primaryError = {
+    lineNumber: current.lineNumber,
+    detail: "Sentence continues on next line; keep one sentence per physical line.",
+    context: current.line,
+  };
+  if (!withFix) {
+    onError(primaryError);
+    return;
+  }
+  const join = buildJoinFixInfo(current.line, next.line);
+  primaryError.fixInfo = join.primary;
+  onError(primaryError);
+  onError({
+    lineNumber: next.lineNumber,
+    detail: "Wrapped sentence continuation; --fix joins this line with the previous line.",
+    context: next.line,
+    fixInfo: join.cleanup,
+  });
+}
+
+function scanCrossLine(params, onError, ruleCfg) {
+  const { abbreviations, maxBlockLinesForFix } = ruleCfg;
+  const lines = params.lines;
+  for (const block of iterateProseBlocks(lines)) {
+    const withinFixSize = block.length <= maxBlockLinesForFix;
+    let firstWrapFixEmitted = false;
+    for (let i = 0; i + 1 < block.length; i++) {
+      const current = block[i];
+      const next = block[i + 1];
+      if (shouldSkipCrossLinePair(lines, current, next, abbreviations)) continue;
+      const withFix = withinFixSize && !firstWrapFixEmitted;
+      emitCrossLineWrap(current, next, onError, withFix);
+      if (withFix) firstWrapFixEmitted = true;
+    }
+  }
+}
+
+/**
+ * markdownlint rule: enforce one sentence per line in prose and list content.
+ * The default (per-line) check reports one violation per line with multiple
+ * sentences; `fixInfo` splits all boundaries in one pass.
+ * When `checkCrossLine` is true, also reports wrapped sentences inside the
+ * same prose block.
+ *
+ * @param {object} params - markdownlint params (lines, name, config)
+ * @param {function(object): void} onError - Callback to report an error
+ */
+function ruleFunction(params, onError) {
+  const filePath = params.name || "";
+  const ruleCfg = getRuleConfig(params);
+  const { excludePathPatterns, checkCrossLine, maxFileLinesForCrossLine } = ruleCfg;
+  if (Array.isArray(excludePathPatterns) && excludePathPatterns.length > 0
+      && pathMatchesAny(filePath, excludePathPatterns)) {
+    return;
+  }
+
+  scanPerLine(params, onError, ruleCfg);
+
+  if (!checkCrossLine) return;
+  if (maxFileLinesForCrossLine > 0 && params.lines.length > maxFileLinesForCrossLine) return;
+  scanCrossLine(params, onError, ruleCfg);
+}
+
 module.exports = {
   names: ["one-sentence-per-line"],
   description: "Enforce one sentence per line in prose and list content",
@@ -437,4 +652,5 @@ module.exports = {
   function: ruleFunction,
   getFirstSentenceBoundary,
   getAllSentenceBoundaries,
+  getLineEndingState,
 };

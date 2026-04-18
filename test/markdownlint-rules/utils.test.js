@@ -7,7 +7,13 @@
 const path = require("node:path");
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
-const { isRuleSuppressedByComment, matchGlob, pathMatchesAny } = require("../../markdownlint-rules/utils.js");
+const {
+  isRuleSuppressedByComment,
+  isSubCheckSuppressedByComment,
+  iterateProseBlocks,
+  matchGlob,
+  pathMatchesAny,
+} = require("../../markdownlint-rules/utils.js");
 
 describe("utils", () => {
   describe("matchGlob", () => {
@@ -187,6 +193,153 @@ describe("utils", () => {
       assert.strictEqual(isRuleSuppressedByComment(lines, 1, "ascii-only"), false);
       assert.strictEqual(isRuleSuppressedByComment(lines, 3, "ascii-only"), true);
       assert.strictEqual(isRuleSuppressedByComment(lines, 4, "ascii-only"), true);
+    });
+  });
+
+  describe("isSubCheckSuppressedByComment", () => {
+    const RULE = "one-sentence-per-line";
+    const SUB = "check_cross_line";
+
+    it("returns true when previous line is the sub-check allow comment", () => {
+      const lines = [`<!-- ${RULE} ${SUB} allow -->`, "first line"];
+      assert.strictEqual(isSubCheckSuppressedByComment(lines, 2, RULE, SUB), true);
+    });
+
+    it("returns true when line is inside a sub-check disable/enable block", () => {
+      const lines = [
+        `<!-- ${RULE} ${SUB} disable -->`,
+        "a",
+        "b",
+        `<!-- ${RULE} ${SUB} enable -->`,
+        "c",
+      ];
+      assert.strictEqual(isSubCheckSuppressedByComment(lines, 2, RULE, SUB), true);
+      assert.strictEqual(isSubCheckSuppressedByComment(lines, 3, RULE, SUB), true);
+      assert.strictEqual(isSubCheckSuppressedByComment(lines, 5, RULE, SUB), false);
+    });
+
+    it("returns false when sub-check token differs", () => {
+      const lines = [`<!-- ${RULE} other_check disable -->`, "a"];
+      assert.strictEqual(isSubCheckSuppressedByComment(lines, 2, RULE, SUB), false);
+    });
+
+    it("returns false for invalid inputs", () => {
+      assert.strictEqual(isSubCheckSuppressedByComment(null, 1, RULE, SUB), false);
+      assert.strictEqual(isSubCheckSuppressedByComment(["a"], 0, RULE, SUB), false);
+      assert.strictEqual(isSubCheckSuppressedByComment(["a"], 1, "", SUB), false);
+      assert.strictEqual(isSubCheckSuppressedByComment(["a"], 1, RULE, ""), false);
+    });
+
+    it("returns true when current line ends with sub-check allow comment", () => {
+      const lines = [`hello text <!-- ${RULE} ${SUB} allow -->`];
+      assert.strictEqual(isSubCheckSuppressedByComment(lines, 1, RULE, SUB), true);
+    });
+  });
+
+  describe("iterateProseBlocks", () => {
+    it("groups consecutive prose lines into one block", () => {
+      const lines = [
+        "First line.",
+        "Second line.",
+        "Third line.",
+      ];
+      const blocks = Array.from(iterateProseBlocks(lines)).map((b) =>
+        b.map(({ lineNumber, line }) => ({ lineNumber, line })),
+      );
+      assert.strictEqual(blocks.length, 1);
+      assert.deepStrictEqual(blocks[0], [
+        { lineNumber: 1, line: "First line." },
+        { lineNumber: 2, line: "Second line." },
+        { lineNumber: 3, line: "Third line." },
+      ]);
+    });
+
+    it("splits at blank lines", () => {
+      const lines = [
+        "Block one line one.",
+        "Block one line two.",
+        "",
+        "Block two line one.",
+        "Block two line two.",
+      ];
+      const blocks = Array.from(iterateProseBlocks(lines));
+      assert.strictEqual(blocks.length, 2);
+      assert.strictEqual(blocks[0].length, 2);
+      assert.strictEqual(blocks[0][0].lineNumber, 1);
+      assert.strictEqual(blocks[0][1].lineNumber, 2);
+      assert.strictEqual(blocks[1].length, 2);
+      assert.strictEqual(blocks[1][0].lineNumber, 4);
+      assert.strictEqual(blocks[1][1].lineNumber, 5);
+    });
+
+    it("splits at ATX heading", () => {
+      const lines = [
+        "Line one.",
+        "Line two.",
+        "## Heading",
+        "Line four.",
+      ];
+      const blocks = Array.from(iterateProseBlocks(lines));
+      assert.strictEqual(blocks.length, 2);
+      assert.strictEqual(blocks[0].length, 2);
+      assert.strictEqual(blocks[1].length, 1);
+      assert.strictEqual(blocks[1][0].lineNumber, 4);
+    });
+
+    it("excludes fenced code fences and their content", () => {
+      const lines = [
+        "Before fence.",
+        "```",
+        "Inside fence one.",
+        "Inside fence two.",
+        "```",
+        "After fence.",
+      ];
+      const blocks = Array.from(iterateProseBlocks(lines));
+      assert.strictEqual(blocks.length, 2);
+      assert.strictEqual(blocks[0][0].line, "Before fence.");
+      assert.strictEqual(blocks[0][0].lineNumber, 1);
+      assert.strictEqual(blocks[1][0].line, "After fence.");
+      assert.strictEqual(blocks[1][0].lineNumber, 6);
+    });
+
+    it("preserves absolute line numbers", () => {
+      const lines = [
+        "",
+        "",
+        "Line three.",
+        "Line four.",
+      ];
+      const blocks = Array.from(iterateProseBlocks(lines));
+      assert.strictEqual(blocks.length, 1);
+      assert.strictEqual(blocks[0][0].lineNumber, 3);
+      assert.strictEqual(blocks[0][1].lineNumber, 4);
+    });
+
+    it("breaks a block at a multi-line HTML comment", () => {
+      const lines = [
+        "Line one.",
+        "<!--",
+        "  comment body",
+        "-->",
+        "Line five.",
+      ];
+      const blocks = Array.from(iterateProseBlocks(lines));
+      assert.strictEqual(blocks.length, 2);
+      assert.strictEqual(blocks[0][0].line, "Line one.");
+      assert.strictEqual(blocks[1][0].line, "Line five.");
+      assert.strictEqual(blocks[1][0].lineNumber, 5);
+    });
+
+    it("ignores single-line HTML comments (still yields them as prose)", () => {
+      const lines = [
+        "Before comment.",
+        "<!-- single-line comment -->",
+        "After comment.",
+      ];
+      const blocks = Array.from(iterateProseBlocks(lines));
+      assert.strictEqual(blocks.length, 1);
+      assert.strictEqual(blocks[0].length, 3);
     });
   });
 });

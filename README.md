@@ -1,7 +1,6 @@
 # Docs-As-Code Tools
 
-[![CI](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/js-lint.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/js-lint.yml)
-[![Lint READMEs](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/lint-readmes.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/lint-readmes.yml)
+[![CI](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/js-lint.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/js-lint.yml) [![Lint READMEs](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/lint-readmes.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/lint-readmes.yml)
 [![Markdownlint tests](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/markdownlint-tests.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/markdownlint-tests.yml)
 [![Rule unit tests](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/rule-unit-tests.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/rule-unit-tests.yml)
 [![Python lint](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-lint.yml/badge.svg?branch=main)](https://github.com/cypher0n3/docs-as-code-tools/actions/workflows/python-lint.yml)
@@ -68,7 +67,8 @@ Lint and docs-as-code tooling: custom [markdownlint](https://github.com/DavidAns
     - Use when: enforcing that the only content under the doc title is a TOC.
   - [one-sentence-per-line.js](markdownlint-rules/one-sentence-per-line.js) - one sentence per line.
     - Enforce one sentence per line in prose and list content; skips decimals, abbreviations, inline code, filenames (period with no space after).
-      Fixable: splits all sentences on the line in one pass with configurable continuation indent.
+      Two checks: per-line (always on) splits multiple sentences; cross-line (opt-in via `checkCrossLine`) flags and joins sentences hard-wrapped across lines.
+      Fixable: per-line splits all sentences in one pass with configurable continuation indent; cross-line collapses one wrap per block per `--fix` pass and converges over repeats.
     - Use when: keeping prose and list items to one sentence per line for readability and diffs.
   - [document-length.js](markdownlint-rules/document-length.js) - maximum document length.
     - Disallow documents longer than a configured number of lines (default 1500); reports on line 1 when over the limit.

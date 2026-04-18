@@ -336,6 +336,33 @@ negative_one_sentence_per_line.md:
       rule: one-sentence-per-line
       message_contains: one sentence per line
 
+negative_one_sentence_per_line_cross_line.md:
+  errors:
+    - line: 8
+      rule: one-sentence-per-line
+      message_contains: continues on next line
+    - line: 9
+      rule: one-sentence-per-line
+      message_contains: joins this line with the previous line
+    - line: 13
+      rule: one-sentence-per-line
+      message_contains: continues on next line
+    - line: 14
+      rule: one-sentence-per-line
+      message_contains: joins this line with the previous line
+    - line: 18
+      rule: one-sentence-per-line
+      message_contains: continues on next line
+    - line: 19
+      rule: one-sentence-per-line
+      message_contains: joins this line with the previous line
+    - line: 19
+      rule: one-sentence-per-line
+      message_contains: continues on next line
+
+positive_one_sentence_per_line_cross_line.md:
+  errors: []
+
 negative_no_tables.md:
   errors:
     - line: 8
