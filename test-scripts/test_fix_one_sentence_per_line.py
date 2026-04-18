@@ -360,8 +360,8 @@ Promote this draft into canonical docs before implementation.
 """
         self._run_fix_and_assert(before, after, self.CROSS_ON_OVERRIDES)
 
-    def test_fix_converges_on_multiple_wraps_in_two_passes(self) -> None:
-        """Two consecutive wraps converge to one line in at most two --fix passes."""
+    def test_fix_converges_on_multiple_wraps_in_one_pass(self) -> None:
+        """A three-line chained wrap collapses to one line in a single --fix pass."""
         before = """# Doc
 
 ## Section
@@ -376,7 +376,7 @@ zeta eta theta.
 
 alpha beta gamma delta epsilon zeta eta theta.
 """
-        self._run_fix_and_assert(before, after, self.CROSS_ON_OVERRIDES, passes=2)
+        self._run_fix_and_assert(before, after, self.CROSS_ON_OVERRIDES)
 
     def test_sub_check_disable_block_suppresses_cross_line_only(self) -> None:
         """`check_cross_line disable`/`enable` block turns off cross-line but leaves per-line."""

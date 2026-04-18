@@ -359,6 +359,9 @@ negative_one_sentence_per_line_cross_line.md:
     - line: 19
       rule: one-sentence-per-line
       message_contains: continues on next line
+    - line: 20
+      rule: one-sentence-per-line
+      message_contains: joins this line with the previous line
 
 positive_one_sentence_per_line_cross_line.md:
   errors: []

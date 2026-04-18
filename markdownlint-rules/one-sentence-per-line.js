@@ -352,29 +352,20 @@ function getAllSentenceBoundaries(content, opts) {
 }
 
 /**
- * Build a pair of fixInfo objects that together join `currentLine` with
- * `nextLine` into one physical line. The primary fixInfo is applied to the
- * current (open) line and appends a single space followed by the next line's
- * left-trimmed content; the cleanup fixInfo deletes the next line entirely.
- *
- * markdownlint's applyFix is single-line, so the join must be split across
- * two errors; see `tmp/fixinfo_join_encoding.md` for the rationale.
- *
- * @param {string} currentLine - Physical line that ends mid-sentence
- * @param {string} nextLine - Next physical line inside the same prose block
- * @returns {{
- *   primary: { editColumn: number, deleteCount: number, insertText: string },
- *   cleanup: { deleteCount: number },
- * }}
+ * Build a primary+cleanup fixInfo pair that collapses `currentLine` with its
+ * downstream wrap `chainLines` into a single line. Each wrap in a multi-line
+ * chain emits its own pair; applying them all in one `--fix` pass converges
+ * the full chain. See `tmp/fixinfo_join_encoding.md` for the rationale.
  */
-function buildJoinFixInfo(currentLine, nextLine) {
+function buildJoinFixInfo(currentLine, chainLines) {
   const trimmed = currentLine.replace(/\s+$/, "");
   const trailingWhitespace = currentLine.length - trimmed.length;
+  const joined = chainLines.map((l) => String(l).replace(/^\s+/, "")).join(" ");
   return {
     primary: {
       editColumn: trimmed.length + 1,
       deleteCount: trailingWhitespace,
-      insertText: " " + nextLine.replace(/^\s+/, ""),
+      insertText: " " + joined,
     },
     cleanup: { deleteCount: -1 },
   };
@@ -434,29 +425,20 @@ function trailingPeriodIsSentenceEnd(scanned, i, abbreviations) {
 }
 
 /**
- * Strip Markdown inline links and images from `s` so that the remaining text
- * reflects only the visible prose. Handles inline (`[t](u)`, `![t](u)`),
- * reference (`[t][r]`, `![t][r]`), and shortcut (`[r]`) forms iteratively so
- * nested patterns such as `[![alt][ref1]][ref2]` fully collapse.
- *
- * @param {string} s - Input text (typically already inline-code stripped)
- * @returns {string} Text with link/image structures removed.
+ * Strip Markdown inline/reference/shortcut links and images iteratively so
+ * nested forms fully collapse. Used to detect "non-prose" lines.
  */
 function stripMarkdownLinksAndImages(s) {
-  let prev;
+  const PATTERNS = [
+    /!?\[([^\][]*)\]\(([^)]*)\)/g,
+    /!?\[([^\][]*)\]\[([^\][]*)\]/g,
+    /!?\[([^\][]*)\]/g,
+  ];
   let cur = String(s ?? "");
-  do {
-    prev = cur;
-    cur = cur.replace(/!?\[([^\][]*)\]\(([^)]*)\)/g, "");
-  } while (cur !== prev);
-  do {
-    prev = cur;
-    cur = cur.replace(/!?\[([^\][]*)\]\[([^\][]*)\]/g, "");
-  } while (cur !== prev);
-  do {
-    prev = cur;
-    cur = cur.replace(/!?\[([^\][]*)\]/g, "");
-  } while (cur !== prev);
+  for (const re of PATTERNS) {
+    let prev;
+    do { prev = cur; cur = cur.replace(re, ""); } while (cur !== prev);
+  }
   return cur;
 }
 
@@ -473,18 +455,30 @@ function stripMarkdownLinksAndImages(s) {
  * @param {{ abbreviations?: Set<string> }} [opts] - Abbreviation override
  * @returns {"ended"|"open"}
  */
-/** True when a code-stripped line has no visible prose (only links/images). */
+/** True when a code-stripped line has no visible prose (only links/images/HTML tags). */
 function isNonProseLine(codeStripped) {
-  const linkStripped = stripMarkdownLinksAndImages(codeStripped).trim();
-  return !/[A-Za-z]/.test(linkStripped);
+  const stripped = stripMarkdownLinksAndImages(codeStripped).replace(/<[^>]+>/g, "");
+  return !/[A-Za-z]/.test(stripped);
 }
 
 function classifyEndingPunctuation(trimmed, abbreviations) {
+  if (trimmed.length === 0) return "open";
   const last = trimmed[trimmed.length - 1];
   if (last === ":" || last === "?" || last === "!") return "ended";
   if (last !== ".") return "open";
   const i = trimmed.length - 1;
   return trailingPeriodIsSentenceEnd(trimmed, i, abbreviations) ? "ended" : "open";
+}
+
+/**
+ * Strip trailing Markdown emphasis markers (`**`, `__`, `~~`, `*`, `_`) and
+ * trailing link/image/reference structures so a wrapped sentence like
+ * `**Hello.**` or `Hello. [docs](…)` reveals its true terminal punctuation.
+ */
+const RE_TRAILING_MARKERS =
+  /(?:\s+|<[^>]+>|!?\[[^\][]*\](?:\([^)]*\)|\[[^\][]*\])?|\*\*|__|~~|\*|_)+$/;
+function stripTrailingStructuralMarkers(s) {
+  return s.replace(RE_TRAILING_MARKERS, "");
 }
 
 function getLineEndingState(content, opts) {
@@ -493,34 +487,26 @@ function getLineEndingState(content, opts) {
   const trimmed = codeStripped.replace(/\s+$/, "");
   if (trimmed.length === 0) return "open";
   if (isNonProseLine(codeStripped)) return "ended";
-  return classifyEndingPunctuation(trimmed, abbreviations);
+  const stripped = stripTrailingStructuralMarkers(trimmed);
+  return classifyEndingPunctuation(stripped, abbreviations);
 }
 
 function getRuleConfig(params) {
   const ruleConfig = params.config?.["one-sentence-per-line"] ?? params.config ?? {};
-  const excludePathPatterns = ruleConfig.excludePathPatterns;
   const hasExplicitContinuation = Object.prototype.hasOwnProperty.call(ruleConfig, "continuationIndent");
-  const continuationIndent = typeof ruleConfig.continuationIndent === "number" ? ruleConfig.continuationIndent : 4;
+  const numOrDefault = (v, d) => (typeof v === "number" ? v : d);
   const strictAbbreviations = ruleConfig.strictAbbreviations;
-  const abbreviations = Array.isArray(strictAbbreviations)
-    ? new Set(strictAbbreviations.map((s) => String(s).replace(/\.$/, "")))
-    : DEFAULT_ABBREVIATIONS;
-  const checkCrossLine = ruleConfig.checkCrossLine === true;
-  const maxFileLinesForCrossLine = typeof ruleConfig.maxFileLinesForCrossLine === "number"
-    ? ruleConfig.maxFileLinesForCrossLine
-    : 1500;
-  const maxBlockLinesForFix = typeof ruleConfig.maxBlockLinesForFix === "number"
-    ? ruleConfig.maxBlockLinesForFix
-    : 8;
   return {
     ruleConfig,
-    excludePathPatterns,
-    continuationIndent,
+    excludePathPatterns: ruleConfig.excludePathPatterns,
+    continuationIndent: numOrDefault(ruleConfig.continuationIndent, 4),
     hasExplicitContinuation,
-    abbreviations,
-    checkCrossLine,
-    maxFileLinesForCrossLine,
-    maxBlockLinesForFix,
+    abbreviations: Array.isArray(strictAbbreviations)
+      ? new Set(strictAbbreviations.map((s) => String(s).replace(/\.$/, "")))
+      : DEFAULT_ABBREVIATIONS,
+    checkCrossLine: ruleConfig.checkCrossLine === true,
+    maxFileLinesForCrossLine: numOrDefault(ruleConfig.maxFileLinesForCrossLine, 1500),
+    maxBlockLinesForFix: numOrDefault(ruleConfig.maxBlockLinesForFix, 8),
   };
 }
 
@@ -581,7 +567,32 @@ function shouldSkipCrossLinePair(lines, current, next, abbreviations) {
   return false;
 }
 
-function emitCrossLineWrap(current, next, onError, withFix) {
+/**
+ * Collect the downstream wrap chain starting at block index `i` (the open
+ * line). Returns the array of subsequent line strings (from i+1 through the
+ * first line that closes the sentence, inclusive) that together form the
+ * wrapped sentence.
+ */
+function collectChainLines(block, i, abbreviations, lines) {
+  const chain = [];
+  for (let k = i + 1; k < block.length; k++) {
+    const entry = block[k];
+    if (isHtmlCommentLine(entry.line)) break;
+    chain.push(entry.line);
+    if (getLineEndingState(entry.line, { abbreviations }) === "ended") break;
+    if (k + 1 >= block.length) break;
+    const nextEntry = block[k + 1];
+    if (isNewListItem(nextEntry.line)) break;
+    if (isRuleSuppressedByComment(lines, entry.lineNumber, "one-sentence-per-line")) break;
+    if (isSubCheckSuppressedByComment(
+      lines, entry.lineNumber, "one-sentence-per-line", "check_cross_line"
+    )) break;
+  }
+  return chain;
+}
+
+function emitCrossLineWrap(wrap, onError, withFix) {
+  const { current, next, chain } = wrap;
   const primaryError = {
     lineNumber: current.lineNumber,
     detail: "Sentence continues on next line; keep one sentence per physical line.",
@@ -591,7 +602,7 @@ function emitCrossLineWrap(current, next, onError, withFix) {
     onError(primaryError);
     return;
   }
-  const join = buildJoinFixInfo(current.line, next.line);
+  const join = buildJoinFixInfo(current.line, chain);
   primaryError.fixInfo = join.primary;
   onError(primaryError);
   onError({
@@ -607,14 +618,12 @@ function scanCrossLine(params, onError, ruleCfg) {
   const lines = params.lines;
   for (const block of iterateProseBlocks(lines)) {
     const withinFixSize = block.length <= maxBlockLinesForFix;
-    let firstWrapFixEmitted = false;
     for (let i = 0; i + 1 < block.length; i++) {
       const current = block[i];
       const next = block[i + 1];
       if (shouldSkipCrossLinePair(lines, current, next, abbreviations)) continue;
-      const withFix = withinFixSize && !firstWrapFixEmitted;
-      emitCrossLineWrap(current, next, onError, withFix);
-      if (withFix) firstWrapFixEmitted = true;
+      const chain = collectChainLines(block, i, abbreviations, lines);
+      emitCrossLineWrap({ current, next, chain }, onError, withinFixSize);
     }
   }
 }

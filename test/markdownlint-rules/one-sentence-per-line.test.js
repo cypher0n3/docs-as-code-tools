@@ -380,6 +380,59 @@ describe("one-sentence-per-line", () => {
         "open",
       );
     });
+
+    it("returns 'ended' when sentence-ending punctuation is wrapped in bold", () => {
+      assert.strictEqual(rule.getLineEndingState("**A sentence in bold.**"), "ended");
+      assert.strictEqual(rule.getLineEndingState("1. **A sentence in bold.**"), "ended");
+    });
+
+    it("returns 'ended' when sentence-ending punctuation is wrapped in italics", () => {
+      assert.strictEqual(rule.getLineEndingState("*An italic sentence.*"), "ended");
+      assert.strictEqual(rule.getLineEndingState("_An underscored sentence._"), "ended");
+    });
+
+    it("returns 'ended' when sentence-ending punctuation is wrapped in strikethrough", () => {
+      assert.strictEqual(rule.getLineEndingState("~~A struck sentence.~~"), "ended");
+    });
+
+    it("returns 'ended' for sentence ending with period followed by a trailing link", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("See the docs. [here](https://example.com)"),
+        "ended",
+      );
+    });
+
+    it("returns 'open' when only emphasis markers wrap a non-ended phrase", () => {
+      assert.strictEqual(rule.getLineEndingState("**an ongoing phrase**"), "open");
+    });
+
+    it("returns 'ended' for a line that is only an HTML anchor tag", () => {
+      assert.strictEqual(rule.getLineEndingState("<a id=\"req-persna-0205\"></a>"), "ended");
+    });
+
+    it("returns 'ended' for a line that is only a void HTML tag", () => {
+      assert.strictEqual(rule.getLineEndingState("<br />"), "ended");
+      assert.strictEqual(rule.getLineEndingState("<img src=\"x.png\" alt=\"x\" />"), "ended");
+    });
+
+    it("returns 'ended' for a line that mixes link(s) and an HTML anchor", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("[link](url) <a id=\"x\"></a>"),
+        "ended",
+      );
+    });
+
+    it("returns 'ended' for a sentence followed by a trailing HTML anchor", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("This is prose. <a id=\"x\"></a>"),
+        "ended",
+      );
+    });
+
+    it("still classifies wrapped prose inside HTML tags by terminal punctuation", () => {
+      assert.strictEqual(rule.getLineEndingState("<div>Actual prose.</div>"), "ended");
+      assert.strictEqual(rule.getLineEndingState("<div>Actual prose</div>"), "open");
+    });
   });
 
   describe("checkCrossLine", () => {
@@ -431,6 +484,25 @@ describe("one-sentence-per-line", () => {
       const lines = [
         "- First item starts here",
         "- Second item starts here.",
+      ];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    it("does not report when a bold sentence ends on the previous line", () => {
+      const lines = [
+        "1. **A sentence in bold.**",
+        "   Another sentence.",
+      ];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    it("does not report across an anchor-only line preceded by a link cluster", () => {
+      const lines = [
+        "- **REQ-PERSNA-0205:** Sentence content.",
+        "  [CAI.PERSNA.SessionPersona](../tech_specs/personas.md#spec-cai-persna-sessionpersona)",
+        "  [CAI.INFRNC.ModelSelection](../tech_specs/inference_backend.md#spec-cai-infrnc-modelselection)",
+        "  <a id=\"req-persna-0205\"></a>",
+        "  Description continues here.",
       ];
       assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
     });
@@ -586,6 +658,39 @@ describe("one-sentence-per-line", () => {
         assert.strictEqual(errors.length, 1);
         assert.strictEqual(errors[0].lineNumber, 1);
         assert.strictEqual(errors[0].fixInfo, undefined);
+      });
+
+      it("chained 3-line wrap: every wrap emits primary+cleanup with full-chain insertText", () => {
+        const lines = ["alpha beta gamma", "delta epsilon", "zeta eta theta."];
+        const errors = runRule(rule, lines, CROSS_ON);
+        assert.strictEqual(errors.length, 4, "two wraps × (primary + cleanup)");
+
+        const p1 = errors[0];
+        assert.strictEqual(p1.lineNumber, 1);
+        assert.ok(p1.fixInfo, "first wrap primary has fixInfo");
+        assert.strictEqual(
+          p1.fixInfo.insertText,
+          " delta epsilon zeta eta theta.",
+          "primary on line 1 carries the full downstream chain",
+        );
+        assert.strictEqual(p1.fixInfo.editColumn, lines[0].length + 1);
+
+        const c1 = errors[1];
+        assert.strictEqual(c1.lineNumber, 2);
+        assert.strictEqual(c1.fixInfo.deleteCount, -1);
+
+        const p2 = errors[2];
+        assert.strictEqual(p2.lineNumber, 2);
+        assert.ok(p2.fixInfo, "second wrap primary also has fixInfo");
+        assert.strictEqual(
+          p2.fixInfo.insertText,
+          " zeta eta theta.",
+          "primary on line 2 carries the chain from line 3 onward",
+        );
+
+        const c2 = errors[3];
+        assert.strictEqual(c2.lineNumber, 3);
+        assert.strictEqual(c2.fixInfo.deleteCount, -1);
       });
     });
   });
