@@ -232,10 +232,16 @@ allow-custom-anchors:
 #   maxBlockLinesForFix: number (default 8); when a prose block has more physical lines than this, cross-line violations are reported but fixInfo is omitted (fix safety guard)
 #   maxFileLinesForCrossLine: number (default 1500); skip cross-line check on files longer than this; per-line check unaffected; set to 0 or negative to disable the guard
 #   excludePathPatterns: list of globs; skip this rule for matching file paths
+#   exceptionPatterns: list of entries (cross-line only); each entry { pathGlobs?: list<glob>, linePatterns: list<regex> }; lines matching any applicable regex are treated as non-prose so a wrap is not reported across them; invalid regexes and malformed entries are silently skipped
 one-sentence-per-line:
   checkCrossLine: true
 #   continuationIndent: 4
 #   maxBlockLinesForFix: 8
 #   maxFileLinesForCrossLine: 1500
 #   # excludePathPatterns: ["**/README.md"]
+#   # exceptionPatterns:
+#   #   - pathGlobs: ["requirements/*.md"]
+#   #     linePatterns:
+#   #       - "^\\s*\\[[A-Z][A-Z0-9.]*\\]\\([^)]+\\)\\s*$"
+#   #       - "^\\s*<a id=\"[^\"]+\"></a>\\s*$"
 ...

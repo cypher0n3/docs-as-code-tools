@@ -8,9 +8,11 @@ const path = require("node:path");
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
 const {
+  compileExceptionPatterns,
   isRuleSuppressedByComment,
   isSubCheckSuppressedByComment,
   iterateProseBlocks,
+  lineMatchesException,
   matchGlob,
   pathMatchesAny,
 } = require("../../markdownlint-rules/utils.js");
@@ -55,6 +57,44 @@ describe("utils", () => {
 
     it("returns true when any pattern matches", () => {
       assert.strictEqual(pathMatchesAny("README.md", ["other.md", "README.md"]), true);
+    });
+  });
+
+  describe("compileExceptionPatterns / lineMatchesException", () => {
+    it("returns [] for non-array input", () => {
+      assert.deepStrictEqual(compileExceptionPatterns(null), []);
+      assert.deepStrictEqual(compileExceptionPatterns("nope"), []);
+    });
+
+    it("skips entries without linePatterns array", () => {
+      const compiled = compileExceptionPatterns([{}, { linePatterns: "x" }, null]);
+      assert.deepStrictEqual(compiled, []);
+    });
+
+    it("silently drops invalid regexes but keeps valid ones", () => {
+      const compiled = compileExceptionPatterns([
+        { linePatterns: ["(bad", "^ok$"] },
+      ]);
+      assert.strictEqual(compiled.length, 1);
+      assert.strictEqual(compiled[0].regexes.length, 1);
+    });
+
+    it("lineMatchesException returns false when no compiled entries", () => {
+      assert.strictEqual(lineMatchesException("x", "any.md", []), false);
+      assert.strictEqual(lineMatchesException("x", "any.md", null), false);
+    });
+
+    it("lineMatchesException honors pathGlobs scope", () => {
+      const compiled = compileExceptionPatterns([
+        { pathGlobs: ["requirements/*.md"], linePatterns: ["^SPEC-\\d+$"] },
+      ]);
+      assert.strictEqual(lineMatchesException("SPEC-1", "requirements/a.md", compiled), true);
+      assert.strictEqual(lineMatchesException("SPEC-1", "other/a.md", compiled), false);
+    });
+
+    it("lineMatchesException applies to all paths when pathGlobs is omitted", () => {
+      const compiled = compileExceptionPatterns([{ linePatterns: ["^TOKEN$"] }]);
+      assert.strictEqual(lineMatchesException("TOKEN", "any/path.md", compiled), true);
     });
   });
 

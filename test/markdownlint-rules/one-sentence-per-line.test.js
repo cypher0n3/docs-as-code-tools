@@ -295,6 +295,15 @@ describe("one-sentence-per-line", () => {
       assert.strictEqual(rule.getLineEndingState("This is a sentence."), "ended");
     });
 
+    it("runs in bounded time on lines with long inline-code runs (no regex catastrophic backtracking)", () => {
+      const line = "  Example: `" + " ".repeat(31) + "` on the previous line suppresses that heading's empty-section violation.";
+      const start = Date.now();
+      const state = rule.getLineEndingState(line);
+      const elapsed = Date.now() - start;
+      assert.strictEqual(state, "ended");
+      assert.ok(elapsed < 50, `expected <50ms, took ${elapsed}ms`);
+    });
+
     it("returns 'ended' for line ending with question mark", () => {
       assert.strictEqual(rule.getLineEndingState("Is this a sentence?"), "ended");
     });
@@ -505,6 +514,124 @@ describe("one-sentence-per-line", () => {
         "  Description continues here.",
       ];
       assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    it("does not wrap an open prose line into a non-prose next line", () => {
+      const lines = ["Open sentence", "[link](url)"];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    describe("exceptionPatterns", () => {
+      it("treats a line matching a user pattern (with matching pathGlob) as non-prose", () => {
+        const lines = [
+          "Open sentence",
+          "SPEC-FOO-123",
+          "Next prose line.",
+        ];
+        const cfg = {
+          "one-sentence-per-line": {
+            checkCrossLine: true,
+            exceptionPatterns: [
+              {
+                pathGlobs: ["requirements/*.md"],
+                linePatterns: ["^SPEC-[A-Z]+-[0-9]+$"],
+              },
+            ],
+          },
+        };
+        assert.strictEqual(runRule(rule, lines, cfg, "requirements/foo.md").length, 0);
+      });
+
+      it("applies to all paths when pathGlobs is omitted", () => {
+        const lines = ["Open sentence", "@@TOKEN@@"];
+        const cfg = {
+          "one-sentence-per-line": {
+            checkCrossLine: true,
+            exceptionPatterns: [
+              { linePatterns: ["^@@[A-Z]+@@$"] },
+            ],
+          },
+        };
+        assert.strictEqual(runRule(rule, lines, cfg, "any/path.md").length, 0);
+      });
+
+      it("does not apply when pathGlobs do not match the file path", () => {
+        const lines = ["Open sentence", "SPEC-FOO-123"];
+        const cfg = {
+          "one-sentence-per-line": {
+            checkCrossLine: true,
+            exceptionPatterns: [
+              {
+                pathGlobs: ["requirements/*.md"],
+                linePatterns: ["^SPEC-[A-Z]+-[0-9]+$"],
+              },
+            ],
+          },
+        };
+        const errors = runRule(rule, lines, cfg, "other/foo.md");
+        assert.ok(errors.length >= 1, "pattern scoped to requirements/*.md must not apply elsewhere");
+      });
+
+      it("silently ignores invalid regex entries and still applies valid ones", () => {
+        const lines = ["Open sentence", "SPEC-FOO-123"];
+        const cfg = {
+          "one-sentence-per-line": {
+            checkCrossLine: true,
+            exceptionPatterns: [
+              {
+                linePatterns: ["(unterminated", "^SPEC-[A-Z]+-[0-9]+$"],
+              },
+            ],
+          },
+        };
+        assert.strictEqual(runRule(rule, lines, cfg, "any.md").length, 0);
+      });
+
+      it("exception on current line also suppresses wrap from that line", () => {
+        const lines = [
+          "SPEC-FOO-123",
+          "Next prose line.",
+        ];
+        const cfg = {
+          "one-sentence-per-line": {
+            checkCrossLine: true,
+            exceptionPatterns: [
+              { linePatterns: ["^SPEC-[A-Z]+-[0-9]+$"] },
+            ],
+          },
+        };
+        assert.strictEqual(runRule(rule, lines, cfg, "any.md").length, 0);
+      });
+
+      it("accepts multiple entries and multiple patterns per entry", () => {
+        const lines = [
+          "Open sentence",
+          "TAG-A",
+          "TAG-B",
+          "next prose line.",
+        ];
+        const cfg = {
+          "one-sentence-per-line": {
+            checkCrossLine: true,
+            exceptionPatterns: [
+              { linePatterns: ["^TAG-A$", "^TAG-B$"] },
+            ],
+          },
+        };
+        assert.strictEqual(runRule(rule, lines, cfg, "any.md").length, 0);
+      });
+
+      it("is ignored when not an array or contains malformed entries", () => {
+        const lines = ["Open sentence", "more sentence here."];
+        const cfg = {
+          "one-sentence-per-line": {
+            checkCrossLine: true,
+            exceptionPatterns: "not-an-array",
+          },
+        };
+        const errors = runRule(rule, lines, cfg, "any.md");
+        assert.ok(errors.length >= 1, "malformed exceptionPatterns should not suppress real wraps");
+      });
     });
 
     it("does not report when file path matches excludePathPatterns", () => {

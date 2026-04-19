@@ -1,10 +1,12 @@
 "use strict";
 
 const {
+  compileExceptionPatterns,
   isRuleSuppressedByComment,
   isSubCheckSuppressedByComment,
   iterateProseBlocks,
   iterateProseLines,
+  lineMatchesException,
   pathMatchesAny,
   stripInlineCode,
 } = require("./utils.js");
@@ -359,14 +361,10 @@ function getAllSentenceBoundaries(content, opts) {
  */
 function buildJoinFixInfo(currentLine, chainLines) {
   const trimmed = currentLine.replace(/\s+$/, "");
-  const trailingWhitespace = currentLine.length - trimmed.length;
   const joined = chainLines.map((l) => String(l).replace(/^\s+/, "")).join(" ");
   return {
-    primary: {
-      editColumn: trimmed.length + 1,
-      deleteCount: trailingWhitespace,
-      insertText: " " + joined,
-    },
+    primary: { editColumn: trimmed.length + 1,
+      deleteCount: currentLine.length - trimmed.length, insertText: " " + joined },
     cleanup: { deleteCount: -1 },
   };
 }
@@ -382,26 +380,21 @@ function buildJoinFixInfo(currentLine, chainLines) {
 function buildFixInfo(line, listInfo, boundaryIndices, continuationOpts) {
   const { continuationIndent, hasExplicitContinuation } = continuationOpts;
   const firstBoundary = boundaryIndices[0];
-  const prefixLength = line.length - listInfo.content.length;
-  const lineBoundaryIndex = prefixLength + firstBoundary;
-  const continuationSpaces = listInfo.contentIndent === 0
-    ? 0
+  const lineBoundaryIndex = line.length - listInfo.content.length + firstBoundary;
+  const continuationSpaces = listInfo.contentIndent === 0 ? 0
     : (listInfo.type === "paragraph" && hasExplicitContinuation
-      ? continuationIndent
-      : listInfo.contentIndent);
+      ? continuationIndent : listInfo.contentIndent);
   const indent = " ".repeat(continuationSpaces);
   const content = listInfo.content;
   const parts = [];
   for (let k = 0; k < boundaryIndices.length; k++) {
-    const start = boundaryIndices[k];
     const end = k + 1 < boundaryIndices.length ? boundaryIndices[k + 1] : content.length;
-    parts.push("\n" + indent + content.slice(start, end).replace(/^\s+/, ""));
+    parts.push("\n" + indent + content.slice(boundaryIndices[k], end).replace(/^\s+/, ""));
   }
-  const insertText = parts.join("");
   return {
     editColumn: lineBoundaryIndex + 1,
     deleteCount: line.length - lineBoundaryIndex,
-    insertText,
+    insertText: parts.join(""),
   };
 }
 
@@ -475,10 +468,27 @@ function classifyEndingPunctuation(trimmed, abbreviations) {
  * trailing link/image/reference structures so a wrapped sentence like
  * `**Hello.**` or `Hello. [docs](…)` reveals its true terminal punctuation.
  */
-const RE_TRAILING_MARKERS =
-  /(?:\s+|<[^>]+>|!?\[[^\][]*\](?:\([^)]*\)|\[[^\][]*\])?|\*\*|__|~~|\*|_)+$/;
+/**
+ * Iteratively strip trailing whitespace, emphasis markers, inline
+ * links/images, and HTML tags. Each regex is individually anchored at `$`
+ * to avoid catastrophic backtracking on long whitespace runs (a single
+ * combined alternation with `+$` would explore exponentially many
+ * partitions before giving up on an unmatched end).
+ */
+const TRAIL_REGEXES = [
+  /\s+$/,
+  /<[^>]+>$/,
+  /!?\[[^\][]*\](?:\([^)]*\)|\[[^\][]*\])?$/,
+  /(?:\*\*|__|~~|\*|_)$/,
+];
 function stripTrailingStructuralMarkers(s) {
-  return s.replace(RE_TRAILING_MARKERS, "");
+  let prev;
+  let cur = s;
+  do {
+    prev = cur;
+    for (const re of TRAIL_REGEXES) cur = cur.replace(re, "");
+  } while (cur !== prev);
+  return cur;
 }
 
 function getLineEndingState(content, opts) {
@@ -507,6 +517,7 @@ function getRuleConfig(params) {
     checkCrossLine: ruleConfig.checkCrossLine === true,
     maxFileLinesForCrossLine: numOrDefault(ruleConfig.maxFileLinesForCrossLine, 1500),
     maxBlockLinesForFix: numOrDefault(ruleConfig.maxBlockLinesForFix, 8),
+    compiledExceptions: compileExceptionPatterns(ruleConfig.exceptionPatterns),
   };
 }
 
@@ -548,81 +559,72 @@ function scanPerLine(params, onError, ruleCfg) {
   }
 }
 
-/**
- * Cross-line scan: flag consecutive prose-line pairs in the same block that
- * form a wrapped sentence. When the enclosing block fits within
- * `maxBlockLinesForFix`, emits a primary error on the open line with a
- * fixInfo that appends a space and the left-trimmed next-line content, plus
- * a secondary cleanup error on the next line with `deleteCount: -1` so
- * `markdownlint --fix` merges the two lines into one.
- */
-function shouldSkipCrossLinePair(lines, current, next, abbreviations) {
-  if (isHtmlCommentLine(current.line) || isHtmlCommentLine(next.line)) return true;
-  if (getLineEndingState(current.line, { abbreviations }) === "ended") return true;
-  if (isNewListItem(next.line)) return true;
-  if (isRuleSuppressedByComment(lines, current.lineNumber, "one-sentence-per-line")) return true;
-  if (isSubCheckSuppressedByComment(
-    lines, current.lineNumber, "one-sentence-per-line", "check_cross_line"
-  )) return true;
-  return false;
+/** True when a line is natively non-prose (links/images/HTML only) or matches a user exception. */
+function isNonProseOrException(line, filePath, compiledExceptions) {
+  return isNonProseLine(stripInlineCode(String(line ?? "")))
+    || lineMatchesException(line, filePath, compiledExceptions);
+}
+
+function shouldSkipCrossLinePair(lines, current, next, ruleCfg) {
+  const { abbreviations, compiledExceptions, filePath } = ruleCfg;
+  const ln = current.lineNumber;
+  return isHtmlCommentLine(current.line)
+    || isHtmlCommentLine(next.line)
+    || getLineEndingState(current.line, { abbreviations }) === "ended"
+    || lineMatchesException(current.line, filePath, compiledExceptions)
+    || isNewListItem(next.line)
+    || isNonProseOrException(next.line, filePath, compiledExceptions)
+    || isRuleSuppressedByComment(lines, ln, "one-sentence-per-line")
+    || isSubCheckSuppressedByComment(lines, ln, "one-sentence-per-line", "check_cross_line");
 }
 
 /**
  * Collect the downstream wrap chain starting at block index `i` (the open
  * line). Returns the array of subsequent line strings (from i+1 through the
  * first line that closes the sentence, inclusive) that together form the
- * wrapped sentence.
+ * wrapped sentence. Stops before a line that is non-prose or matches a
+ * user-configured exception.
  */
-function collectChainLines(block, i, abbreviations, lines) {
+function collectChainLines(block, i, ruleCfg, lines) {
+  const { abbreviations, compiledExceptions, filePath } = ruleCfg;
   const chain = [];
   for (let k = i + 1; k < block.length; k++) {
     const entry = block[k];
-    if (isHtmlCommentLine(entry.line)) break;
+    const ln = entry.lineNumber;
+    if (isHtmlCommentLine(entry.line)
+      || isNonProseOrException(entry.line, filePath, compiledExceptions)) break;
     chain.push(entry.line);
     if (getLineEndingState(entry.line, { abbreviations }) === "ended") break;
     if (k + 1 >= block.length) break;
-    const nextEntry = block[k + 1];
-    if (isNewListItem(nextEntry.line)) break;
-    if (isRuleSuppressedByComment(lines, entry.lineNumber, "one-sentence-per-line")) break;
-    if (isSubCheckSuppressedByComment(
-      lines, entry.lineNumber, "one-sentence-per-line", "check_cross_line"
-    )) break;
+    if (isNewListItem(block[k + 1].line)
+      || isRuleSuppressedByComment(lines, ln, "one-sentence-per-line")
+      || isSubCheckSuppressedByComment(lines, ln, "one-sentence-per-line", "check_cross_line")) break;
   }
   return chain;
 }
 
 function emitCrossLineWrap(wrap, onError, withFix) {
   const { current, next, chain } = wrap;
-  const primaryError = {
-    lineNumber: current.lineNumber,
-    detail: "Sentence continues on next line; keep one sentence per physical line.",
-    context: current.line,
-  };
-  if (!withFix) {
-    onError(primaryError);
-    return;
-  }
+  const primary = { lineNumber: current.lineNumber, context: current.line,
+    detail: "Sentence continues on next line; keep one sentence per physical line." };
+  if (!withFix) { onError(primary); return; }
   const join = buildJoinFixInfo(current.line, chain);
-  primaryError.fixInfo = join.primary;
-  onError(primaryError);
-  onError({
-    lineNumber: next.lineNumber,
-    detail: "Wrapped sentence continuation; --fix joins this line with the previous line.",
-    context: next.line,
-    fixInfo: join.cleanup,
-  });
+  primary.fixInfo = join.primary;
+  onError(primary);
+  onError({ lineNumber: next.lineNumber, context: next.line, fixInfo: join.cleanup,
+    detail: "Wrapped sentence continuation; --fix joins this line with the previous line." });
 }
 
 function scanCrossLine(params, onError, ruleCfg) {
-  const { abbreviations, maxBlockLinesForFix } = ruleCfg;
   const lines = params.lines;
+  const scanCfg = { ...ruleCfg, filePath: params.name || "" };
   for (const block of iterateProseBlocks(lines)) {
-    const withinFixSize = block.length <= maxBlockLinesForFix;
+    const withinFixSize = block.length <= ruleCfg.maxBlockLinesForFix;
     for (let i = 0; i + 1 < block.length; i++) {
       const current = block[i];
       const next = block[i + 1];
-      if (shouldSkipCrossLinePair(lines, current, next, abbreviations)) continue;
-      const chain = collectChainLines(block, i, abbreviations, lines);
+      if (shouldSkipCrossLinePair(lines, current, next, scanCfg)) continue;
+      const chain = collectChainLines(block, i, scanCfg, lines);
       emitCrossLineWrap({ current, next, chain }, onError, withinFixSize);
     }
   }

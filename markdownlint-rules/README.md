@@ -357,7 +357,7 @@ Not fixable when no replacement is available.
 
 **Configuration:** In `.markdownlint.yml` (or `.markdownlint.json`) under `ascii-only`:
 
-Example: minimal (default letters plus path / Unicode allowlist)
+#### Example: Minimal (Default Letters Plus Path / Unicode Allowlist)
 
 ```yaml
 ascii-only:
@@ -370,7 +370,9 @@ ascii-only:
     - "⚠️"
 ```
 
-Example: extend default allowed characters (e.g. degree sign, or `ń` for Polish)
+#### Example: Extend Default Allowed Characters
+
+Add characters to the built-in set (e.g. degree sign, or `ń` for Polish):
 
 ```yaml
 ascii-only:
@@ -380,7 +382,7 @@ ascii-only:
   # allowedUnicodeReplaceDefault: false  # default; true = use only the list above
 ```
 
-Example: override default (strict allowlist only)
+#### Example: Override Default (Strict Allowlist Only)
 
 ```yaml
 ascii-only:
@@ -390,7 +392,9 @@ ascii-only:
   allowedUnicodeReplaceDefault: true
 ```
 
-Example: check unicode inside code blocks (e.g. only in `text` and `bash` blocks)
+#### Example: Check Unicode Inside Code Blocks
+
+Only `text` and `bash` blocks are checked; other languages are skipped:
 
 ````yaml
 ascii-only:
@@ -400,7 +404,7 @@ ascii-only:
     - "bash" # ```text and ```bash checked; ```go skipped
 ````
 
-Example: custom replacement suggestions in error messages
+#### Example: Custom Replacement Suggestions in Error Messages
 
 ```yaml
 ascii-only:
@@ -412,7 +416,7 @@ ascii-only:
   # unicodeReplacements: [["→", "->"], ["←", "<-"]]
 ```
 
-Example: full configuration combining options
+#### Example: Full Configuration Combining Options
 
 ```yaml
 ascii-only:
@@ -437,7 +441,7 @@ ascii-only:
 
 - **`anyUnicodePathPatterns`** (formerly `"allowedPathPatternsUnicode"`; list of strings, default none): Glob patterns for files where any non-ASCII is allowed.
 - **`unicodeAllowlistPathPatterns`** (formerly `"allowedPathPatternsEmoji"`; list of strings, default none): Glob patterns for files where only `unicodeAllowlist` sequences are allowed.
-- **`unicodeAllowlist`** (formerly `"allowedEmoji"`; list of strings, default none): Unicode sequences allowed on paths matching `unicodeAllowlistPathPatterns`; each entry may be multi-codepoint (e.g. ⚠️); all code points from those entries are allowed.
+- **`unicodeAllowlist`** (formerly `"allowedEmoji"`; list of strings, default none): Unicode sequences allowed on paths matching `unicodeAllowlistPathPatterns`; each entry may be a multi-codepoint sequence (e.g. a glyph followed by a variation selector); all code points from those entries are allowed.
   If both a canonical key and a former name are set, values are merged (unique strings, order preserved).
 - **`allowedUnicode`** (list of single-character strings, optional): Characters allowed in all files (global allowlist).
   By default these **extend** the built-in set of common non-English letters (e.g. é, ï, è, ñ, ç).
@@ -574,7 +578,9 @@ heading-title-case:
   Set **`lowercaseWordsReplaceDefault: true`** to **override** and use only your list.
 - **`lowercaseWordsReplaceDefault`** (boolean, default false): When true, only `lowercaseWords` is used (no built-in default list).
 
-Built-in default list (when not replaced):
+#### Built-In Default Lowercase Word List
+
+Applies when `lowercaseWordsReplaceDefault` is not set (or is false):
 
 ```text
 a, an, the,
@@ -681,6 +687,10 @@ one-sentence-per-line:
   # maxBlockLinesForFix: 8         # fix-safety cap for cross-line join
   # maxFileLinesForCrossLine: 1500 # skip cross-line scan on very long files
   # excludePathPatterns: ["**/README.md"]
+  # exceptionPatterns:             # user-defined non-prose patterns (cross-line only)
+  #   - pathGlobs: ["requirements/*.md"]
+  #     linePatterns:
+  #       - "^\\s*\\[[A-Z][A-Z0-9.]*\\]\\([^)]+\\)\\s*$"
 ```
 
 - **`continuationIndent`** (number, optional): When set, spaces used for continuation lines on indented paragraphs (overrides alignment with the paragraph's leading indent).
@@ -695,6 +705,14 @@ one-sentence-per-line:
 - **`maxFileLinesForCrossLine`** (number, default `1500`): Skip the cross-line check on files longer than this; the per-line check is unaffected.
   Set to `0` or negative to disable the guard.
 - **`excludePathPatterns`** (array of globs, optional): Skip this rule for matching file paths.
+- **`exceptionPatterns`** (array of entries, optional, **cross-line only**): User-defined line patterns that are treated as non-prose when `checkCrossLine` is true.
+  Useful for project-specific markers such as spec IDs, trailing anchors, or boilerplate link clusters that should never be considered part of a wrapped sentence.
+  Each entry is `{ pathGlobs?: string[], linePatterns: string[] }`:
+  - `pathGlobs` (optional): glob patterns; the entry applies only when the file path matches.
+    When omitted, the entry applies to all paths.
+  - `linePatterns` (required): JavaScript regex sources; a line matching any pattern is treated as non-prose.
+    A wrap is not reported into or out of such a line, and chain collection stops before it.
+  - Invalid regexes and malformed entries are silently skipped (one bad pattern never disables the rest).
 
 #### Behavior (`one-sentence-per-line`)
 

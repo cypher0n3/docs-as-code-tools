@@ -415,6 +415,47 @@ function pathMatchesAny(path, patterns) {
 }
 
 /**
+ * Compile user-provided exception-pattern entries of the form
+ * `{ pathGlobs?: string[], linePatterns: string[] }` into
+ * `{ pathGlobs, regexes }`. Invalid regexes and malformed entries are
+ * silently skipped so one bad pattern cannot disable the rest.
+ */
+function compileExceptionPatterns(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const entry of raw) {
+    if (!entry || !Array.isArray(entry.linePatterns)) continue;
+    const regexes = [];
+    for (const src of entry.linePatterns) {
+      // eslint-disable-next-line security/detect-non-literal-regexp
+      try { regexes.push(new RegExp(src)); } catch { /* invalid regex: skip */ }
+    }
+    if (regexes.length === 0) continue;
+    const pathGlobs = Array.isArray(entry.pathGlobs) ? entry.pathGlobs : null;
+    out.push({ pathGlobs, regexes });
+  }
+  return out;
+}
+
+/**
+ * True when `line` matches any compiled exception entry applicable to
+ * `filePath`. An entry's `pathGlobs` (if present) must match; a null or
+ * empty `pathGlobs` means the entry applies to all paths.
+ */
+function lineMatchesException(line, filePath, compiledExceptions) {
+  if (!Array.isArray(compiledExceptions) || compiledExceptions.length === 0) return false;
+  const s = String(line ?? "");
+  for (const entry of compiledExceptions) {
+    if (entry.pathGlobs && entry.pathGlobs.length > 0
+      && !pathMatchesAny(filePath, entry.pathGlobs)) continue;
+    for (const re of entry.regexes) {
+      if (re.test(s)) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Parse fence line (e.g. "```text" or "~~~") to get info string (first word, lowercased).
  * @param {string} line - Fence delimiter line
  * @returns {string} Block type or ""
@@ -624,6 +665,8 @@ module.exports = {
   globToRegExp,
   matchGlob,
   pathMatchesAny,
+  compileExceptionPatterns,
+  lineMatchesException,
   isRuleSuppressedByComment,
   isSubCheckSuppressedByComment,
   RE_ATX_HEADING,
