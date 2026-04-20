@@ -207,6 +207,11 @@ function globToRegExp(pattern) {
  * Match path against a single glob pattern. Path normalized to forward slashes.
  * Relative inputs use `path.normalize` before matching so e.g. `docs/../README.md`
  * matches the same as `README.md`.
+ *
+ * Absolute file paths (as markdownlint-cli2 passes via `params.name`) are also
+ * re-tested against their cwd-relative form so patterns like `defaults/*.md`
+ * or `docs/requirements/**` written relative to the project root still match.
+ *
  * A pattern with no `/` matches only project-root files: the path relative to
  * `process.cwd()` must be a single segment below cwd, or one `..` segment then a
  * filename (e.g. `../README.md` when linting from a subdir). Nested paths like
@@ -215,36 +220,34 @@ function globToRegExp(pattern) {
  * @param {string} pattern - Glob pattern
  * @returns {boolean}
  */
-function matchGlob(filePath, pattern) {
-  if (!filePath || !pattern) {
-    return false;
+function cwdRelative(filePath) {
+  try {
+    return path.relative(process.cwd(), path.resolve(filePath)).replace(/\\/g, "/");
+  } catch {
+    return null;
   }
-  const normalized = path.normalize(filePath).replace(/\\/g, "/").replace(/^\.\//, "");
-  if (globToRegExp(pattern).test(normalized)) {
+}
+
+function matchSinglePatternFallback(re, relToCwd) {
+  if (!relToCwd.startsWith("..") && !relToCwd.includes("/") && re.test(relToCwd)) {
     return true;
   }
-  if (!pattern.includes("/")) {
-    let resolved;
-    try {
-      resolved = path.resolve(filePath);
-    } catch {
-      return false;
-    }
-    const rel = path.relative(process.cwd(), resolved).replace(/\\/g, "/");
-    if (!rel) {
-      return false;
-    }
-    let segmentForGlob = rel;
-    if (rel.startsWith("..")) {
-      if (!/^\.\.\/[^/]+$/.test(rel)) {
-        return false;
-      }
-      segmentForGlob = path.basename(resolved);
-    } else if (rel.includes("/")) {
-      return false;
-    }
-    return globToRegExp(pattern).test(segmentForGlob);
+  if (/^\.\.\/[^/]+$/.test(relToCwd) && re.test(path.basename(relToCwd))) {
+    return true;
   }
+  return false;
+}
+
+function matchGlob(filePath, pattern) {
+  if (!filePath || !pattern) return false;
+  const normalized = path.normalize(filePath).replace(/\\/g, "/").replace(/^\.\//, "");
+  const re = globToRegExp(pattern);
+  if (re.test(normalized)) return true;
+
+  const relToCwd = cwdRelative(filePath);
+  if (!relToCwd) return false;
+  if (!relToCwd.startsWith("..") && re.test(relToCwd)) return true;
+  if (!pattern.includes("/")) return matchSinglePatternFallback(re, relToCwd);
   return false;
 }
 

@@ -415,6 +415,47 @@ describe("one-sentence-per-line", () => {
       assert.strictEqual(rule.getLineEndingState("**an ongoing phrase**"), "open");
     });
 
+    it("returns 'ended' for sentence-ending punctuation inside a trailing quoted phrase", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("It always means \"was supplied.\""),
+        "ended",
+      );
+      assert.strictEqual(
+        rule.getLineEndingState("The question is \"right replacement?\""),
+        "ended",
+      );
+      assert.strictEqual(
+        rule.getLineEndingState("They shouted \"stop!\""),
+        "ended",
+      );
+      assert.strictEqual(
+        rule.getLineEndingState("He said 'that is fine.'"),
+        "ended",
+      );
+    });
+
+    it("returns 'ended' for sentence-ending punctuation inside typographic quotes", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("It always means \u201cwas supplied.\u201d"),
+        "ended",
+      );
+      assert.strictEqual(
+        rule.getLineEndingState("He said \u2018that is fine.\u2019"),
+        "ended",
+      );
+    });
+
+    it("returns 'open' when trailing quote is not preceded by sentence-ending punctuation", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("The tag said \"hello\""),
+        "open",
+      );
+      assert.strictEqual(
+        rule.getLineEndingState("He said 'hi'"),
+        "open",
+      );
+    });
+
     it("returns 'ended' for a line that is only an HTML anchor tag", () => {
       assert.strictEqual(rule.getLineEndingState("<a id=\"req-persna-0205\"></a>"), "ended");
     });
@@ -455,6 +496,24 @@ describe("one-sentence-per-line", () => {
       assert.ok(errors[0].detail.includes("next line"));
       assert.strictEqual(errors[1].lineNumber, 2);
       assert.strictEqual(errors[1].fixInfo.deleteCount, -1);
+    });
+
+    it("does not report when the open line ends with sentence-ending punctuation inside trailing quotes", () => {
+      const lines = [
+        "- **`unexpected_field`** always means \"an input key not in the contract was supplied.\"",
+        "  This covers both the `old_text` case and any future accidental extra key.",
+        "",
+      ];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
+    });
+
+    it("does not report when the open line ends with a quoted question", () => {
+      const lines = [
+        "The model's job collapses to \"did I point at the right lines?\"",
+        "That is the whole contract.",
+        "",
+      ];
+      assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
     });
 
     it("does not report when checkCrossLine is false (default)", () => {

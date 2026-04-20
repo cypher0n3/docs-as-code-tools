@@ -5,6 +5,7 @@
  * list-of-links, HTML comments) is allowed; any other content is reported.
  */
 
+const path = require("node:path");
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
 const rule = require("../../markdownlint-rules/no-h1-content.js");
@@ -160,6 +161,14 @@ describe("no-h1-content", () => {
     const config = { excludePathPatterns: ["**/other.md"] };
     const errors = runRule(rule, lines, config, "md_test_files/foo.md");
     assert.strictEqual(errors.length, 1);
+  });
+
+  it("skips when absolute file path matches a cwd-relative excludePathPatterns glob", () => {
+    const lines = ["# Title", "Prose under h1."];
+    const absName = path.join(process.cwd(), "defaults", "foo.md");
+    const config = { excludePathPatterns: ["defaults/*.md"] };
+    const errors = runRule(rule, lines, config, absName);
+    assert.strictEqual(errors.length, 0);
   });
 
   describe("edge cases", () => {

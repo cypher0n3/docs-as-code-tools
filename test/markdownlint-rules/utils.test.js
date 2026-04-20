@@ -48,6 +48,20 @@ describe("utils", () => {
       assert.strictEqual(matchGlob(parentReadme, "README.md"), true);
       assert.strictEqual(matchGlob(path.resolve(process.cwd(), "..", "other", "README.md"), "README.md"), false);
     });
+
+    it("matches multi-segment patterns against absolute paths (cli2 passes abs names)", () => {
+      const absDefaults = path.join(process.cwd(), "defaults", "foo.md");
+      assert.strictEqual(matchGlob(absDefaults, "defaults/*.md"), true);
+      assert.strictEqual(matchGlob(absDefaults, "defaults/**"), true);
+      assert.strictEqual(matchGlob(absDefaults, "defaults/foo.md"), true);
+      const absOther = path.join(process.cwd(), "other", "foo.md");
+      assert.strictEqual(matchGlob(absOther, "defaults/*.md"), false);
+    });
+
+    it("rejects multi-segment patterns for abs paths outside cwd", () => {
+      const outside = path.resolve(process.cwd(), "..", "elsewhere", "defaults", "foo.md");
+      assert.strictEqual(matchGlob(outside, "defaults/*.md"), false);
+    });
   });
 
   describe("pathMatchesAny", () => {

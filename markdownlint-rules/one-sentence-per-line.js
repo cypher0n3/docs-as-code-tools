@@ -470,16 +470,21 @@ function classifyEndingPunctuation(trimmed, abbreviations) {
  */
 /**
  * Iteratively strip trailing whitespace, emphasis markers, inline
- * links/images, and HTML tags. Each regex is individually anchored at `$`
- * to avoid catastrophic backtracking on long whitespace runs (a single
- * combined alternation with `+$` would explore exponentially many
- * partitions before giving up on an unmatched end).
+ * links/images, HTML tags, and closing quote characters (straight and
+ * typographic). Each regex is individually anchored at `$` to avoid
+ * catastrophic backtracking on long whitespace runs (a single combined
+ * alternation with `+$` would explore exponentially many partitions
+ * before giving up on an unmatched end). Stripping trailing quotes lets
+ * sentence-ending punctuation immediately inside a quoted phrase (e.g.
+ * `"...was supplied."` or `"...right replacement?"`) be detected as a
+ * sentence end rather than leaving the line classified as `"open"`.
  */
 const TRAIL_REGEXES = [
   /\s+$/,
   /<[^>]+>$/,
   /!?\[[^\][]*\](?:\([^)]*\)|\[[^\][]*\])?$/,
   /(?:\*\*|__|~~|\*|_)$/,
+  /["'\u201c\u201d\u2018\u2019]$/,
 ];
 function stripTrailingStructuralMarkers(s) {
   let prev;
