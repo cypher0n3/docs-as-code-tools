@@ -448,8 +448,9 @@ function stripMarkdownLinksAndImages(s) {
  * @param {{ abbreviations?: Set<string> }} [opts] - Abbreviation override
  * @returns {"ended"|"open"}
  */
-/** True when a code-stripped line has no visible prose (only links/images/HTML tags). */
+/** True when a code-stripped line has no visible prose. A non-empty inline code span (matched backticks with content) counts as prose so continuations like `` `foo`, `bar`. `` are not mis-classified. */
 function isNonProseLine(codeStripped) {
+  if (/`+[^`]+`+/.test(codeStripped)) return false;
   const stripped = stripMarkdownLinksAndImages(codeStripped).replace(/<[^>]+>/g, "");
   return !/[A-Za-z]/.test(stripped);
 }
@@ -624,12 +625,17 @@ function scanCrossLine(params, onError, ruleCfg) {
   const lines = params.lines;
   const scanCfg = { ...ruleCfg, filePath: params.name || "" };
   for (const block of iterateProseBlocks(lines)) {
-    const withinFixSize = block.length <= ruleCfg.maxBlockLinesForFix;
     for (let i = 0; i + 1 < block.length; i++) {
       const current = block[i];
       const next = block[i + 1];
       if (shouldSkipCrossLinePair(lines, current, next, scanCfg)) continue;
       const chain = collectChainLines(block, i, scanCfg, lines);
+      // Fix-safety guard: scope `maxBlockLinesForFix` to this single fix's
+      // footprint (open line + chain lines joined into one). Prose blocks
+      // like bullet lists can stack many independent 2-line wraps, so a
+      // block-level cap incorrectly suppressed every fix in the block.
+      const fixLineCount = chain.length + 1;
+      const withinFixSize = fixLineCount <= ruleCfg.maxBlockLinesForFix;
       emitCrossLineWrap({ current, next, chain }, onError, withinFixSize);
     }
   }

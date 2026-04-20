@@ -325,6 +325,19 @@ describe("one-sentence-per-line", () => {
       assert.strictEqual(rule.getLineEndingState("Run `cmd.exe` now."), "ended");
     });
 
+    it("treats a line composed only of inline-code spans as prose (not 'ended')", () => {
+      assert.strictEqual(
+        rule.getLineEndingState("  `formatDebugEvent`, `buildDebugRequest`, `injectDebugRequest`."),
+        "ended",
+        "ends with period, so still 'ended' even though all letters are inside code spans",
+      );
+      assert.strictEqual(
+        rule.getLineEndingState("- See details below `foo`"),
+        "open",
+        "open line ending in a backtick (no terminal punct) must remain 'open'",
+      );
+    });
+
     it("returns 'open' after an e.g. abbreviation", () => {
       assert.strictEqual(rule.getLineEndingState("See examples e.g."), "open");
     });
@@ -580,6 +593,33 @@ describe("one-sentence-per-line", () => {
       assert.strictEqual(runRule(rule, lines, CROSS_ON).length, 0);
     });
 
+    it("reports a wrap when the next line is only inline-code spans and punctuation", () => {
+      const lines = [
+        "- [x] New file `internal/agent/debug.go`: helpers `formatDebugRequest`,",
+        "  `formatDebugEvent`, `buildDebugRequest`, `injectDebugRequest`.",
+      ];
+      const errors = runRule(rule, lines, CROSS_ON);
+      assert.strictEqual(errors.length, 2, "wrap across code-span-only continuation must report");
+      assert.strictEqual(errors[0].lineNumber, 1);
+      assert.ok(errors[0].fixInfo, "primary error must carry fixInfo");
+      assert.strictEqual(typeof errors[0].fixInfo.editColumn, "number");
+      assert.ok(errors[0].fixInfo.insertText.includes("`formatDebugEvent`"));
+      assert.strictEqual(errors[1].lineNumber, 2);
+      assert.strictEqual(errors[1].fixInfo.deleteCount, -1);
+    });
+
+    it("reports a wrap when the open line ends with an inline-code span (no trailing punctuation)", () => {
+      const lines = [
+        "- See details below `foo`",
+        "  is the answer.",
+      ];
+      const errors = runRule(rule, lines, CROSS_ON);
+      assert.strictEqual(errors.length, 2, "open line ending in backtick must still wrap");
+      assert.strictEqual(errors[0].lineNumber, 1);
+      assert.ok(errors[0].fixInfo.insertText.includes("is the answer."));
+      assert.strictEqual(errors[1].fixInfo.deleteCount, -1);
+    });
+
     describe("exceptionPatterns", () => {
       it("treats a line matching a user pattern (with matching pathGlob) as non-prose", () => {
         const lines = [
@@ -832,7 +872,7 @@ describe("one-sentence-per-line", () => {
         assert.strictEqual(primary.fixInfo.insertText, " keeps going.");
       });
 
-      it("omits fixInfo when block exceeds maxBlockLinesForFix (reports primary only)", () => {
+      it("omits fixInfo when the wrap would join more lines than maxBlockLinesForFix", () => {
         const lines = ["first part", "keeps going here"];
         const cfg = {
           "one-sentence-per-line": {
@@ -844,6 +884,77 @@ describe("one-sentence-per-line", () => {
         assert.strictEqual(errors.length, 1);
         assert.strictEqual(errors[0].lineNumber, 1);
         assert.strictEqual(errors[0].fixInfo, undefined);
+      });
+
+      it("per-wrap guard also applies to numbered-list blocks", () => {
+        const lines = [
+          "1. item one",
+          "   continues A.",
+          "2. item two",
+          "   continues B.",
+          "3. item three",
+          "   continues C.",
+          "4. item four",
+          "   continues D.",
+          "5. item five",
+          "   continues E.",
+          "6. item six",
+          "   continues F.",
+        ];
+        const errors = runRule(rule, lines, CROSS_ON);
+        assert.strictEqual(errors.length, 12, "six 2-line wraps × (primary + cleanup)");
+        for (const e of errors) {
+          assert.ok(e.fixInfo, `error on line ${e.lineNumber} must carry fixInfo`);
+        }
+      });
+
+      it("still emits fixInfo for short wraps inside a long block (per-wrap guard, not per-block)", () => {
+        const lines = [
+          "- [x] bullet one",
+          "  continues A.",
+          "- [x] bullet two",
+          "  continues B.",
+          "- [x] bullet three",
+          "  continues C.",
+          "- [x] bullet four",
+          "  continues D.",
+          "- [x] bullet five",
+          "  continues E.",
+          "- [x] bullet six",
+          "  continues F.",
+        ];
+        const errors = runRule(rule, lines, CROSS_ON);
+        assert.strictEqual(errors.length, 12, "six 2-line wraps × (primary + cleanup)");
+        for (const e of errors) {
+          assert.ok(e.fixInfo, `error on line ${e.lineNumber} must carry fixInfo`);
+        }
+      });
+
+      it("omits fixInfo only for the chain that exceeds the threshold; siblings remain fixable", () => {
+        const lines = [
+          "- [x] bullet one",
+          "  continues A.",
+          "",
+          "alpha beta gamma",
+          "delta epsilon zeta",
+          "eta theta iota",
+          "kappa lambda mu.",
+        ];
+        const cfg = {
+          "one-sentence-per-line": {
+            checkCrossLine: true,
+            maxBlockLinesForFix: 3,
+          },
+        };
+        const errors = runRule(rule, lines, cfg);
+        const byLine = new Map();
+        for (const e of errors) byLine.set(`${e.lineNumber}:${e.detail}`, e);
+        const bulletPrimary = errors.find((e) => e.lineNumber === 1);
+        assert.ok(bulletPrimary && bulletPrimary.fixInfo, "short 2-line wrap must still have fixInfo");
+        const longPrimary = errors.find((e) => e.lineNumber === 4);
+        assert.ok(longPrimary, "long wrap must still be reported");
+        assert.strictEqual(longPrimary.fixInfo, undefined,
+          "4-line chain exceeds threshold=3, fixInfo must be omitted");
       });
 
       it("chained 3-line wrap: every wrap emits primary+cleanup with full-chain insertText", () => {

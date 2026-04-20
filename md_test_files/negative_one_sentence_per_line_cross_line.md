@@ -19,6 +19,16 @@ Alpha beta gamma
 delta epsilon zeta
 eta theta iota.
 
+## Wrap Into Inline-Code-Only Continuation
+
+- [x] New file `internal/agent/debug.go`: helpers `formatDebugRequest`,
+  `formatDebugEvent`, `buildDebugRequest`, `injectDebugRequest`.
+
+## Wrap From Inline-Code Tail
+
+- See details below `foo`
+  is the answer.
+
 ## Suppressed (Should Not Report)
 
 <!-- one-sentence-per-line check_cross_line disable -->

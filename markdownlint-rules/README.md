@@ -674,7 +674,7 @@ Sentence boundaries are detected conservatively: periods/question marks/exclamat
   Indented paragraphs align continuation with the line's leading spaces by default; set `continuationIndent` only when you want a fixed width instead.
 - **Cross-line:** Each wrap is reported with a `fixInfo` that joins the two lines with a single space (stripping any continuation indent on the next line).
   To keep fixes deterministic and safe, `--fix` collapses **one wrap per prose block per pass**; blocks with multiple chained wraps converge over repeated `--fix` invocations.
-  Blocks longer than `maxBlockLinesForFix` physical lines are reported without `fixInfo` (so editor `Fix all` leaves them alone).
+  Wraps that would collapse more than `maxBlockLinesForFix` physical lines (open line + continuation chain) are reported without `fixInfo` (so editor `Fix all` leaves them alone).
   Files longer than `maxFileLinesForCrossLine` skip the cross-line scan entirely (per-line still runs).
 
 **Configuration:** In `.markdownlint.yml` under `one-sentence-per-line` (all optional):
@@ -700,8 +700,7 @@ one-sentence-per-line:
   When set, replaces the built-in set; when omitted, the rule uses a default set (e.g., i.e., etc., Dr., Mr., U.S., ...).
 - **`checkCrossLine`** (boolean, default `false`): When `true`, also flag single sentences that are hard-wrapped across multiple non-blank lines inside the same prose block.
   A trailing colon (`:`) still closes a line; a trailing two-space or `<br>` does **not** opt out.
-- **`maxBlockLinesForFix`** (number, default `8`): When a prose block has more physical lines than this, cross-line violations are still reported but `fixInfo` is omitted so `--fix` leaves them alone.
-  Set higher at your own risk.
+- **`maxBlockLinesForFix`** (number, default `8`): Maximum number of physical lines a single cross-line fix may collapse (open line + continuation chain). Wraps whose fix would join more than this many lines are still reported, but `fixInfo` is omitted so `--fix` leaves them alone. The guard is scoped per wrap, so dense bullet lists with many short 2-line wraps all remain fixable. Set higher at your own risk.
 - **`maxFileLinesForCrossLine`** (number, default `1500`): Skip the cross-line check on files longer than this; the per-line check is unaffected.
   Set to `0` or negative to disable the guard.
 - **`excludePathPatterns`** (array of globs, optional): Skip this rule for matching file paths.

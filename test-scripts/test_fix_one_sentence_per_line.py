@@ -418,6 +418,110 @@ Alpha. Beta.
                 f"no cross-line errors expected on oversized file: {proc.stderr}",
             )
 
+    def test_fix_joins_when_next_line_is_only_inline_code_spans(self) -> None:
+        """
+        Next line made entirely of inline-code spans + punctuation still joins
+        (was a regression).
+        """
+        before = """# Doc
+
+## Section
+
+- [x] New file `internal/agent/debug.go`: helpers `formatDebugRequest`,
+  `formatDebugEvent`, `buildDebugRequest`, `injectDebugRequest`.
+"""
+        after = """# Doc
+
+## Section
+
+- [x] New file `internal/agent/debug.go`: helpers `formatDebugRequest`, \
+`formatDebugEvent`, `buildDebugRequest`, `injectDebugRequest`.
+"""
+        self._run_fix_and_assert(before, after, self.CROSS_ON_OVERRIDES)
+
+    def test_fix_joins_when_open_line_ends_with_inline_code(self) -> None:
+        """Open line ending with a backtick code span (no terminal punct) still joins."""
+        before = """# Doc
+
+## Section
+
+- See details below `foo`
+  is the answer.
+"""
+        after = """# Doc
+
+## Section
+
+- See details below `foo` is the answer.
+"""
+        self._run_fix_and_assert(before, after, self.CROSS_ON_OVERRIDES)
+
+    def test_fix_collapses_all_wraps_in_numbered_list_under_default_guard(self) -> None:
+        """Numbered list with many short 2-line wraps is fully fixable under the default guard."""
+        before = """# Doc
+
+## Section
+
+1. item one
+   continues A.
+2. item two
+   continues B.
+3. item three
+   continues C.
+4. item four
+   continues D.
+5. item five
+   continues E.
+6. item six
+   continues F.
+"""
+        after = """# Doc
+
+## Section
+
+1. item one continues A.
+2. item two continues B.
+3. item three continues C.
+4. item four continues D.
+5. item five continues E.
+6. item six continues F.
+"""
+        self._run_fix_and_assert(before, after, self.CROSS_ON_OVERRIDES)
+
+    def test_fix_collapses_all_wraps_in_large_bullet_list_under_default_guard(self) -> None:
+        """
+        Dense bullet lists with many short 2-line wraps are all fixable under the default guard.
+        """
+        before = """# Doc
+
+## Section
+
+- [x] bullet one
+  continues A.
+- [x] bullet two
+  continues B.
+- [x] bullet three
+  continues C.
+- [x] bullet four
+  continues D.
+- [x] bullet five
+  continues E.
+- [x] bullet six
+  continues F.
+"""
+        after = """# Doc
+
+## Section
+
+- [x] bullet one continues A.
+- [x] bullet two continues B.
+- [x] bullet three continues C.
+- [x] bullet four continues D.
+- [x] bullet five continues E.
+- [x] bullet six continues F.
+"""
+        self._run_fix_and_assert(before, after, self.CROSS_ON_OVERRIDES)
+
     def test_max_block_lines_for_fix_guard_reports_without_fix(self) -> None:
         """`maxBlockLinesForFix: 1` reports wraps but emits no fixInfo (file unchanged)."""
         before = """# Doc
