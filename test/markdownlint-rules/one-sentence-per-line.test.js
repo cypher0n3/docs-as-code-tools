@@ -87,6 +87,26 @@ describe("one-sentence-per-line", () => {
     assert.strictEqual((insert.match(/\n/g) || []).length, 2, "one newline before Two, one before Three");
   });
 
+  it("fix preserves bold wrapper across split sentences", () => {
+    const lines = ["**This is a bold sentence. This is a second bold sentence. This is a third**"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(
+      errors[0].fixInfo.insertText,
+      "**\n**This is a second bold sentence.**\n**This is a third**",
+    );
+  });
+
+  it("fix preserves italic wrapper across split sentences", () => {
+    const lines = ["*First italic sentence. Second italic sentence. Third italic sentence*"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(
+      errors[0].fixInfo.insertText,
+      "*\n*Second italic sentence.*\n*Third italic sentence*",
+    );
+  });
+
   it("does not split on e.g. abbreviation", () => {
     const lines = ["Use examples e.g. and more text here."];
     const errors = runRule(rule, lines);
@@ -1073,7 +1093,7 @@ describe("one-sentence-per-line", () => {
       assert.strictEqual(errors.length, 0, "trailing space after period with no second sentence");
     });
 
-    it("version number 1. not treated as sentence end", () => {
+    it("splits when compact numeric token ends regular prose", () => {
       const lines = ["Use version 1. It is stable."];
       const errors = runRule(rule, lines);
       assert.strictEqual(errors.length, 1);
@@ -1091,6 +1111,19 @@ describe("one-sentence-per-line", () => {
       const lines = ["1. First. Second."];
       const errors = runRule(rule, lines);
       assert.strictEqual(errors.length, 1);
+    });
+
+    it("does not split on compact alphanumeric numbering labels like D1.", () => {
+      const lines = ["- **D1. This is a complete statement.**"];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 0);
+    });
+
+    it("splits when compact label token appears at sentence end in regular prose", () => {
+      const lines = ["- This is a real sentence that ends in D2. This is another sentence."];
+      const errors = runRule(rule, lines);
+      assert.strictEqual(errors.length, 1);
+      assert.ok(errors[0].fixInfo.insertText.includes("This is another sentence."));
     });
   });
 });

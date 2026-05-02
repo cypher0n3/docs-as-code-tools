@@ -267,6 +267,51 @@ Inference connectivity configuration... supplied by the orchestrator in the \
             msg = f"no {RULE} errors expected: {proc.stderr}"
             self.assertEqual(proc.returncode, 0, msg)
 
+    def test_no_split_on_compact_alphanumeric_numbering_label(self) -> None:
+        """Compact numbering label tokens like D1. are not treated as sentence endings."""
+        content = """# Doc
+
+## Section
+
+- **D1. This is a complete statement.**
+"""
+        with tempfile.TemporaryDirectory(prefix="fix_one_sentence_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content, encoding="utf-8")
+            overrides = {"default": False, RULE: True}
+            proc = _run_markdownlint(path, fix=False, config_overrides=overrides)
+            msg = f"no {RULE} errors expected for compact numbering labels: {proc.stderr}"
+            self.assertEqual(proc.returncode, 0, msg)
+            before_fix = path.read_text(encoding="utf-8")
+            proc_fix = _run_markdownlint(path, fix=True, config_overrides=overrides)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            self.assertEqual(path.read_text(encoding="utf-8"), before_fix)
+
+    def test_fix_rewraps_bold_each_sentence(self) -> None:
+        """Whole-line bold with multiple sentences stays bold after sentence splitting."""
+        content_before = """# Doc
+
+## Section
+
+**This is a bold sentence. This is a second bold sentence. This is a third**
+"""
+        content_after = """# Doc
+
+## Section
+
+**This is a bold sentence.**
+**This is a second bold sentence.**
+**This is a third**
+"""
+        overrides = {"default": False, RULE: True}
+        with tempfile.TemporaryDirectory(prefix="fix_one_sentence_") as tmp:
+            path = Path(tmp) / "test.md"
+            path.write_text(content_before, encoding="utf-8")
+            proc_fix = _run_markdownlint(path, fix=True, config_overrides=overrides)
+            self.assertEqual(proc_fix.returncode, 0, f"--fix should succeed: {proc_fix.stderr}")
+            actual = path.read_text(encoding="utf-8")
+            self.assertEqual(actual, content_after)
+
     def test_exclude_path_patterns_skips_rule(self) -> None:
         """With excludePathPatterns matching file, no error and fix not needed."""
         content = """# Doc

@@ -375,7 +375,19 @@ negative_one_sentence_per_line_cross_line.md:
       rule: one-sentence-per-line
       message_contains: joins this line with the previous line
 
+negative_one_sentence_per_line_numbering_label.md:
+  errors:
+    - line: 8
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+    - line: 9
+      rule: one-sentence-per-line
+      message_contains: one sentence per line
+
 positive_one_sentence_per_line_cross_line.md:
+  errors: []
+
+positive_one_sentence_per_line_numbering_label.md:
   errors: []
 
 negative_no_tables.md:

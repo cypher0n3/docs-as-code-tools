@@ -655,7 +655,7 @@ heading-numbering:
 
 ### `one-sentence-per-line`
 
-**File:** `one-sentence-per-line.js`
+**Files:** `one-sentence-per-line.js` (rule entry point), `one-sentence-per-line-sentence.js` (sentence-boundary helpers; copy both when reusing this rule).
 
 **Description:** Enforce one sentence per line in prose and list content.
 The rule runs two checks:
@@ -700,7 +700,10 @@ one-sentence-per-line:
   When set, replaces the built-in set; when omitted, the rule uses a default set (e.g., i.e., etc., Dr., Mr., U.S., ...).
 - **`checkCrossLine`** (boolean, default `false`): When `true`, also flag single sentences that are hard-wrapped across multiple non-blank lines inside the same prose block.
   A trailing colon (`:`) still closes a line; a trailing two-space or `<br>` does **not** opt out.
-- **`maxBlockLinesForFix`** (number, default `8`): Maximum number of physical lines a single cross-line fix may collapse (open line + continuation chain). Wraps whose fix would join more than this many lines are still reported, but `fixInfo` is omitted so `--fix` leaves them alone. The guard is scoped per wrap, so dense bullet lists with many short 2-line wraps all remain fixable. Set higher at your own risk.
+- **`maxBlockLinesForFix`** (number, default `8`): Maximum number of physical lines a single cross-line fix may collapse (open line + continuation chain).
+  Wraps whose fix would join more than this many lines are still reported, but `fixInfo` is omitted so `--fix` leaves them alone.
+  The guard is scoped per wrap, so dense bullet lists with many short 2-line wraps all remain fixable.
+  Set higher at your own risk.
 - **`maxFileLinesForCrossLine`** (number, default `1500`): Skip the cross-line check on files longer than this; the per-line check is unaffected.
   Set to `0` or negative to disable the guard.
 - **`excludePathPatterns`** (array of globs, optional): Skip this rule for matching file paths.
