@@ -99,6 +99,7 @@ no-tables:
 #   # excludePathPatterns: ["**/README.md"]
 
 # no-h1-content: under first h1 allow only TOC (blank lines, list-of-links, badges, HTML comments including multi-line).
+# Suppress the whole first H1 block with "<!-- no-h1-content allow -->" anywhere in that block.
 # Options:
 #   excludePathPatterns: list of globs; skip this rule for matching file paths
 # no-h1-content:

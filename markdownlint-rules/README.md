@@ -273,6 +273,7 @@ no-h1-content:
 
 **Behavior:** The block of lines after the first `#` heading and before the next heading (any level) may only contain blank lines, list items that are anchor links (e.g. `- [Section](#section)` or `1. [Section](#section)`), badge lines (e.g. `[![alt](url)](url)`), and HTML comments.
 Any other line (prose, code blocks, etc.) is reported.
+Suppress the whole first H1 block by placing `<!-- no-h1-content allow -->` anywhere in that block.
 
 ### `no-empty-heading`
 
@@ -646,6 +647,8 @@ heading-numbering:
    The numbering root is the nearest ancestor heading that has no numbering (or document root, level 1).
    Example: H2 under doc root -> 1 segment; H3 under unnumbered `## Section` -> 1 segment; H4 under `### 1. First` -> 1 segment.
    Headings without a numeric prefix are ignored.
+   Bare four-or-more-digit headings without an explicit outline dot are treated as title text, not numbering, so timeline headings such as `### 2110 to 2180: The Pattern Break` do not start a numbered section.
+   Use an explicit period (`### 2110. Title`) or dotted outline (`### 2110.1 Title`) to treat a large segment as numbering and subject it to the normal sequence and section-consistency checks.
 2. **Section-scoped consistency:** For each section (siblings under the same parent), if any sibling has numbering then all siblings at that level must be numbered sequentially and use consistent period style (all `## 1. Title` or all `## 1 Title`).
    **Index base:** Default is 1-based (e.g. 1., 2., 3.).
     If the first numbered sibling in a section has last segment `0` (e.g. `0.`, `0.0.`, `1.0.`), that section is treated as 0-based (0., 1., 2. or 0.0., 0.1., etc.) and no sequence error is reported.

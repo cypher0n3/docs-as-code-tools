@@ -8,7 +8,7 @@ const path = require("node:path");
  */
 
 const RE_ATX_HEADING = /^(#{1,6})\s+(.+)$/;
-const RE_NUMBERING_PREFIX = /^(\d+(?:\.\d+)*)\.?\s+(.*)$/;
+const RE_NUMBERING_PREFIX = /^(\d+(?:\.\d+)*)(\.?)\s+(.*)$/;
 
 /**
  * Strip inline code spans from a line (multi-backtick aware).
@@ -120,8 +120,12 @@ function parseHeadingNumberPrefix(text) {
   }
 
   const numbering = numMatch[1];
-  const after = numMatch[2].trim();
-  const hasH2Dot = numMatch[0].startsWith(numbering + ".");
+  const hasH2Dot = numMatch[2] === ".";
+  if (/^\d{4,}$/.test(numbering) && !hasH2Dot) {
+    return { numbering: null, hasH2Dot: false, titleText };
+  }
+
+  const after = numMatch[3].trim();
   return {
     numbering,
     hasH2Dot,

@@ -19,6 +19,60 @@ describe("heading-numbering", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("does not treat bare year timeline headings as numbered sections", () => {
+    const lines = [
+      "# History and Alien Powers",
+      "## Default Historical Timeline",
+      "### 2020s to 2100s: The Quiet Age",
+      "### 2110 to 2180: The Pattern Break",
+      "### 2180 to 2240: The First Gate Age",
+      "### 2240 to 2500: Expansion and Hubris",
+      "### 2500 to 2580: The Severance",
+      "### 2580 to 2750: The Concordiat Rebuild",
+      "### 2750 and After: The Default Campaign Era",
+    ];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("allows bare year timeline headings beside a separate numbered section", () => {
+    const lines = [
+      "# Campaign Guide",
+      "## Default Historical Timeline",
+      "### 2110 to 2180: The Pattern Break",
+      "### 2180 to 2240: The First Gate Age",
+      "## Release Process",
+      "### 1. Draft",
+      "### 2. Review",
+    ];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("still requires numbering for bare year headings under numbered parents", () => {
+    const lines = [
+      "# Campaign Guide",
+      "## 1. Default Historical Timeline",
+      "### 2110 to 2180: The Pattern Break",
+    ];
+    const errors = runRule(rule, lines);
+    const missingNum = errors.find((e) => e.detail.includes("no number prefix"));
+    assert.ok(missingNum, "numbered parents still require numbered child headings");
+    assert.strictEqual(missingNum.lineNumber, 3);
+  });
+
+  it("checks explicit large numeric prefixes as numbering", () => {
+    const lines = [
+      "# Release Notes",
+      "## Version Timeline",
+      "### 2024. Current Release",
+    ];
+    const errors = runRule(rule, lines);
+    const sequenceErr = errors.find((e) => e.detail.includes("expected \"1\""));
+    assert.ok(sequenceErr, "explicit large numeric prefix should enter numbering checks");
+    assert.strictEqual(sequenceErr.lineNumber, 3);
+  });
+
   it("skips when file path matches excludePathPatterns", () => {
     const lines = ["# Doc", "## 1. First", "## 4. Skip"];
     const config = { excludePathPatterns: ["**/skip.md"] };

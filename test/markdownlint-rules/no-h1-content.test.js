@@ -130,6 +130,64 @@ describe("no-h1-content", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("suppresses the whole h1 block when allow comment appears after prose", () => {
+    const lines = [
+      "# Title",
+      "This prose appears before the suppression comment.",
+      "<!-- no-h1-content allow -->",
+      "This prose appears after the suppression comment.",
+      "## Section",
+    ];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("suppresses all h1 block errors when allow comment appears inline", () => {
+    const lines = [
+      "# Title",
+      "This prose appears before the inline suppression comment.",
+      "More prose here. <!-- no-h1-content allow -->",
+      "```",
+      "code",
+      "```",
+      "## Section",
+    ];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("recognizes markdownlint-cleared allow comments during section suppression", () => {
+    const lines = [
+      "# Title",
+      "This prose appears before the cleared suppression comment.",
+      "<!-- ............. ..... -->",
+      "This prose appears after the cleared suppression comment.",
+      "## Section",
+    ];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("does not suppress h1 content when allow comment appears after h1 block", () => {
+    const lines = [
+      "# Title",
+      "This prose is still under the first h1.",
+      "## Section",
+      "<!-- no-h1-content allow -->",
+      "Section content.",
+    ];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 2);
+  });
+
+  it("does not suppress h1 content for a wrong-rule allow comment", () => {
+    const lines = ["# Title", "<!-- ascii-only allow -->", "This is not allowed.", "## Section"];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.strictEqual(errors[0].lineNumber, 3);
+  });
+
   it("reports error for code block under h1", () => {
     const lines = ["# Title", "```", "code", "```", "## Next"];
     const errors = runRule(rule, lines);

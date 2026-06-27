@@ -14,10 +14,65 @@ const {
   iterateProseBlocks,
   lineMatchesException,
   matchGlob,
+  parseHeadingNumberPrefix,
   pathMatchesAny,
 } = require("../../markdownlint-rules/utils.js");
 
 describe("utils", () => {
+  describe("parseHeadingNumberPrefix", () => {
+    it("does not parse bare four-or-more-digit headings as numbering", () => {
+      const cases = [
+        "1000 Overview",
+        "2110 to 2180: The Pattern Break",
+        "12345 Campaign Era",
+        "2750 and After: The Default Campaign Era",
+      ];
+
+      for (const text of cases) {
+        assert.deepStrictEqual(parseHeadingNumberPrefix(text), {
+          numbering: null,
+          hasH2Dot: false,
+          titleText: text,
+        });
+      }
+    });
+
+    it("still parses shorter bare numeric outline prefixes", () => {
+      assert.deepStrictEqual(parseHeadingNumberPrefix("999 Release Notes"), {
+        numbering: "999",
+        hasH2Dot: false,
+        titleText: "Release Notes",
+      });
+    });
+
+    it("still parses explicit large numeric outline prefixes", () => {
+      assert.deepStrictEqual(
+        parseHeadingNumberPrefix("2024. Release Notes"),
+        {
+          numbering: "2024",
+          hasH2Dot: true,
+          titleText: "Release Notes",
+        },
+      );
+      assert.deepStrictEqual(
+        parseHeadingNumberPrefix("2024.1 Release Notes"),
+        {
+          numbering: "2024.1",
+          hasH2Dot: false,
+          titleText: "Release Notes",
+        },
+      );
+      assert.deepStrictEqual(
+        parseHeadingNumberPrefix("2024.1. Release Notes"),
+        {
+          numbering: "2024.1",
+          hasH2Dot: true,
+          titleText: "Release Notes",
+        },
+      );
+    });
+  });
+
   describe("matchGlob", () => {
     it("matches bare filename only at path root (single segment)", () => {
       assert.strictEqual(matchGlob("README.md", "README.md"), true);

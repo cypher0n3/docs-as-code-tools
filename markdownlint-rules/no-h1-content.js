@@ -11,6 +11,11 @@ const RE_TOC_LIST_ITEM = /^\s*([-*]|\d+\.)\s+\[.+\]\(#\S+\)\s*$/;
 /** Match badge line(s): [![alt](img-url)](link-url) or [![alt][img-ref]][link-ref], optionally repeated. */
 const RE_BADGE_LINE = /^\s*(\[!\[[^\]]*\](?:\([^)]*\)|\[[^\]]*\])\](?:\([^)]*\)|\[[^\]]*\])\s*)+\s*$/;
 
+/** Match a no-h1-content allow comment anywhere on a line in the H1 block. */
+const RE_H1_SECTION_ALLOW_COMMENT = /<!--\s*no-h1-content\s+allow\s*-->/;
+/** Match markdownlint-cleared no-h1-content allow comment form. */
+const RE_H1_SECTION_ALLOW_COMMENT_CLEARED = /<!--\s*\.{13}\s+\.{5}\s*-->/;
+
 /**
  * Update multi-line HTML comment state and return whether this line is part of a comment.
  *
@@ -70,24 +75,20 @@ function getH1BlockRange(headings, lines) {
   return { startLine: firstH1.lineNumber + 1, endLine };
 }
 
-/**
- * markdownlint rule: under the first h1 heading, only table-of-contents content
- * is allowed (blank lines, list items that are anchor links, badges, HTML comments).
- * Any other content (prose, code blocks, etc.) is reported.
- *
- * @param {object} params - markdownlint params (lines, name, config)
- * @param {function(object): void} onError - Callback to report an error
- */
-function ruleFunction(params, onError) {
-  const lines = params.lines;
-  const filePath = params.name || "";
-  const block = params.config?.["no-h1-content"] ?? params.config ?? {};
-  if (shouldSkipByPath(filePath, block)) return;
+function h1BlockHasAllowComment(lines, range) {
+  for (let lineNumber = range.startLine; lineNumber <= range.endLine; lineNumber++) {
+    const line = lines[lineNumber - 1] || "";
+    if (
+      RE_H1_SECTION_ALLOW_COMMENT.test(line)
+      || RE_H1_SECTION_ALLOW_COMMENT_CLEARED.test(line)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
 
-  const headings = extractHeadings(lines);
-  const range = getH1BlockRange(headings, lines);
-  if (!range) return;
-
+function reportH1ContentErrors(lines, range, onError) {
   let multilineCommentState = { inMultilineComment: false };
   for (let lineNumber = range.startLine; lineNumber <= range.endLine; lineNumber++) {
     const line = lines[lineNumber - 1];
@@ -108,6 +109,28 @@ function ruleFunction(params, onError) {
       context: line,
     });
   }
+}
+
+/**
+ * markdownlint rule: under the first h1 heading, only table-of-contents content
+ * is allowed (blank lines, list items that are anchor links, badges, HTML comments).
+ * Any other content (prose, code blocks, etc.) is reported.
+ *
+ * @param {object} params - markdownlint params (lines, name, config)
+ * @param {function(object): void} onError - Callback to report an error
+ */
+function ruleFunction(params, onError) {
+  const lines = params.lines;
+  const filePath = params.name || "";
+  const block = params.config?.["no-h1-content"] ?? params.config ?? {};
+  if (shouldSkipByPath(filePath, block)) return;
+
+  const headings = extractHeadings(lines);
+  const range = getH1BlockRange(headings, lines);
+  if (!range) return;
+  if (h1BlockHasAllowComment(lines, range)) return;
+
+  reportH1ContentErrors(lines, range, onError);
 }
 
 module.exports = {

@@ -8,6 +8,9 @@ positive_general.md:
 positive_heading_numbering_zero.md:
   errors: []
 
+positive_heading_numbering_timeline.md:
+  errors: []
+
 positive_general_index.md:
   errors: []
 
@@ -18,6 +21,9 @@ positive_heading_like.md:
   errors: []
 
 positive_no_h1_content_suppress_blank_line.md:
+  errors: []
+
+positive_no_h1_content_suppress_anywhere.md:
   errors: []
 
 positive_no_h1_content_suppress_immediate.md:
