@@ -67,11 +67,11 @@ function* iterateNonFencedLines(lines) {
 
     const fenceMatch = trimmed.match(/^(```+|~~~+)/);
     if (fenceMatch) {
-      const marker = fenceMatch[1][0] === "`" ? "```" : "~~~";
+      const marker = fenceMatch[1];
       if (!inFence) {
         inFence = true;
         fenceMarker = marker;
-      } else if (fenceMarker === marker) {
+      } else if (fenceMarker[0] === marker[0] && marker.length >= fenceMarker.length) {
         inFence = false;
         fenceMarker = null;
       }
@@ -496,12 +496,12 @@ function* iterateLinesWithFenceInfo(lines) {
     const fenceMatch = trimmed.match(/^(```+|~~~+)/);
 
     if (fenceMatch) {
-      const marker = fenceMatch[1][0] === "`" ? "```" : "~~~";
+      const marker = fenceMatch[1];
       if (!inFence) {
         inFence = true;
         fenceMarker = marker;
         blockType = parseFenceInfo(line);
-      } else if (fenceMarker === marker) {
+      } else if (fenceMarker[0] === marker[0] && marker.length >= fenceMarker.length) {
         inFence = false;
         fenceMarker = null;
         blockType = "";

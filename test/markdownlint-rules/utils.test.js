@@ -412,6 +412,24 @@ describe("utils", () => {
       assert.strictEqual(blocks[1][0].lineNumber, 6);
     });
 
+    it("does not close an outer backtick fence with a shorter nested fence", () => {
+      const lines = [
+        "Before fence.",
+        "````markdown",
+        "```go",
+        "Inside nested fence.",
+        "```",
+        "````",
+        "After fence.",
+      ];
+      const blocks = Array.from(iterateProseBlocks(lines));
+      assert.strictEqual(blocks.length, 2);
+      assert.deepStrictEqual(blocks.map((block) => block[0].line), [
+        "Before fence.",
+        "After fence.",
+      ]);
+    });
+
     it("preserves absolute line numbers", () => {
       const lines = [
         "",

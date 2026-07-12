@@ -182,6 +182,22 @@ describe("one-sentence-per-line", () => {
     assert.strictEqual(errors.length, 0);
   });
 
+  it("keeps shorter nested backtick fences inside the outer fenced block", () => {
+    const lines = [
+      "````markdown",
+      "```go",
+      "func estimateTokens(msgs []inference.Message) int {",
+      "    for _, message := range msgs {",
+      "    }",
+      "}",
+      "```",
+      "````",
+    ];
+    const config = { "one-sentence-per-line": { checkCrossLine: true } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(errors.length, 0);
+  });
+
   it("skips ATX headings", () => {
     const lines = ["## Heading with. Multiple parts."];
     const errors = runRule(rule, lines);
