@@ -54,6 +54,44 @@ describe("no-tables", () => {
     }
   });
 
+  it("sentence-splits generated list content with proper nesting indentation when enabled", () => {
+    const lines = [
+      "| heading 1 | heading 2 |",
+      "| --- | --- |",
+      "| First top-level sentence. Second top-level sentence. | First nested sentence. Second nested sentence. |",
+    ];
+    const config = {
+      "no-tables": {
+        "convert-to": "list",
+        "one-sentence-per-line": true,
+      },
+    };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(
+      errors[0].fixInfo.insertText,
+      [
+        "- **heading 1:** First top-level sentence.",
+        "  Second top-level sentence.",
+        "  - heading 2: First nested sentence.",
+        "    Second nested sentence.",
+      ].join("\n"),
+    );
+  });
+
+  it("leaves generated list sentences on one line when sentence splitting is disabled", () => {
+    const lines = [
+      "| heading 1 | heading 2 |",
+      "| --- | --- |",
+      "| First sentence. Second sentence. | Nested first. Nested second. |",
+    ];
+    const config = { "no-tables": { "convert-to": "list" } };
+    const errors = runRule(rule, lines, config);
+    assert.strictEqual(
+      errors[0].fixInfo.insertText,
+      "- **heading 1:** First sentence. Second sentence.\n  - heading 2: Nested first. Nested second.",
+    );
+  });
+
   it("does not report table inside fenced code block", () => {
     const lines = [
       "## Code",

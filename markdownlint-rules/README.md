@@ -228,7 +228,7 @@ The rule degrades gracefully when those files are absent.
 
 ### `no-tables`
 
-**File:** `no-tables.js`
+**Files:** `no-tables.js`, plus `one-sentence-per-line.js` and `one-sentence-per-line-sentence.js` for sentence-aware list conversion.
 
 **Description:** Disallow GFM tables.
 When `convert-to` is `"list"`, the rule suggests converting each table to a list (first column as **Header:**, remaining columns as indented `- header: cell`).
@@ -239,12 +239,16 @@ When `convert-to` is `"none"` (default), only a short message is reported and th
 ```yaml
 no-tables:
   convert-to: none   # optional; "none" (default) or "list"
+  one-sentence-per-line: false # optional; split sentences in generated lists
   # excludePathPatterns:
   #   - "**/README.md"
 ```
 
 - **`convert-to`** (string, default `"none"`): `"none"` = report violation with short message only (no suggested list). `"list"` = include suggested list format in the error detail.
   Only `"list"` and `"none"` are valid; invalid values are treated as `"none"`.
+- **`one-sentence-per-line`** (boolean, default `false`): When `true`, sentence-split the generated list text using the same boundary detection as the `one-sentence-per-line` rule.
+  Continuation lines align with each list item's body: two spaces for top-level items and four spaces for the generated nested items.
+  Enable this option when the `one-sentence-per-line` rule is enabled because markdownlint isolates each custom rule's configuration.
 - **`excludePathPatterns`** (list of strings, default none): Glob patterns for file paths where this rule is skipped.
 
 **Behavior:** Reports every GFM table (outside fenced code blocks).
@@ -253,6 +257,7 @@ When `convert-to` is `"list"`, one error per table line (so `--fix` can replace 
 Suppress per table: put `<!-- no-tables allow -->` on the line before the table's first line, or at the end of that line.
 
 **Fixable:** When `convert-to` is `"list"`, the rule reports `fixInfo` so `--fix` converts each table to the list format.
+With `one-sentence-per-line: true`, the generated list is sentence-split during the same fix pass.
 
 ### `no-h1-content`
 

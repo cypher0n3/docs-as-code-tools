@@ -138,6 +138,26 @@ function buildFixInfo(line, listInfo, boundaryIndices, continuationOpts) {
   };
 }
 
+/**
+ * Format one prose or list line so every detected sentence occupies its own
+ * physical line. This is shared with rules that generate Markdown content.
+ *
+ * @param {string} line - Full Markdown line
+ * @param {{ abbreviations?: Set<string> }} [opts] - Sentence-boundary options
+ * @returns {string} Original or sentence-split line
+ */
+function formatLineAsOneSentencePerLine(line, opts) {
+  const listInfo = getListInfo(line);
+  const boundaryIndices = getAllSentenceBoundaries(listInfo.content, opts);
+  if (boundaryIndices.length === 0) return line;
+  const fixInfo = buildFixInfo(line, listInfo, boundaryIndices, {
+    continuationIndent: 4,
+    hasExplicitContinuation: false,
+  });
+  const editIndex = fixInfo.editColumn - 1;
+  return line.slice(0, editIndex) + fixInfo.insertText;
+}
+
 /** Detect whole-content emphasis wrapper (e.g. **...**, *...*, _..._, ~~...~~). */
 function getFullLineEmphasisWrapper(content) {
   const TOKENS = ["**", "__", "~~", "*", "_"];
@@ -426,4 +446,5 @@ module.exports = {
   getFirstSentenceBoundary,
   getAllSentenceBoundaries,
   getLineEndingState,
+  formatLineAsOneSentencePerLine,
 };

@@ -1,6 +1,7 @@
 "use strict";
 
 const { isRuleSuppressedByComment, pathMatchesAny } = require("./utils.js");
+const { formatLineAsOneSentencePerLine } = require("./one-sentence-per-line.js");
 
 /** Each cell of a GFM separator row contains only spaces, dashes, and colons. */
 const RE_SEPARATOR_CELL = /^[\s\-:]*$/;
@@ -105,9 +106,10 @@ function findTables(lines) {
  * Build list-format suggestion from parsed table (first column bold header, rest indented "  - header: cell").
  * @param {string[]} headerRow
  * @param {string[][]} bodyRows
+ * @param {boolean} applyOneSentencePerLine
  * @returns {string}
  */
-function tableToListSuggestion(headerRow, bodyRows) {
+function tableToListSuggestion(headerRow, bodyRows, applyOneSentencePerLine) {
   if (headerRow.length === 0) return "";
   const h0 = headerRow[0];
   const restHeaders = headerRow.slice(1);
@@ -122,7 +124,10 @@ function tableToListSuggestion(headerRow, bodyRows) {
       lines.push(`  - ${label}: ${cell}`);
     }
   }
-  return lines.join("\n");
+  const formattedLines = applyOneSentencePerLine
+    ? lines.map((line) => formatLineAsOneSentencePerLine(line))
+    : lines;
+  return formattedLines.join("\n");
 }
 
 const SHORT_MESSAGE = "Tables are not allowed.";
@@ -158,11 +163,16 @@ function reportTableError(opts) {
  * @param {object} opts
  * @param {{ startLine: number, endLine: number, headerRow: string[], bodyRows: string[][] }} opts.table
  * @param {string[]} opts.lines
+ * @param {boolean} opts.applyOneSentencePerLine
  * @param {function(object): void} opts.onError
  */
 function reportTableWithFix(opts) {
-  const { table, lines, onError } = opts;
-  const suggestedList = tableToListSuggestion(table.headerRow, table.bodyRows);
+  const { table, lines, applyOneSentencePerLine, onError } = opts;
+  const suggestedList = tableToListSuggestion(
+    table.headerRow,
+    table.bodyRows,
+    applyOneSentencePerLine,
+  );
   const firstLineIndex = table.startLine - 1;
   const firstLine = lines[firstLineIndex];
   /* c8 ignore next 1 -- defensive: firstLine missing (sparse array) */
@@ -193,16 +203,20 @@ function reportTableWithFix(opts) {
 }
 
 /**
- * Normalize rule config: convert-to ("list" or "none") and excludePathPatterns.
+ * Normalize conversion, sentence-splitting, and path-exclusion configuration.
  * @param {object} ruleConfig
- * @returns {{ convertTo: "list"|"none", excludePathPatterns: string[]|undefined }}
+ * @returns {{ convertTo: "list"|"none", applyOneSentencePerLine: boolean, excludePathPatterns: string[]|undefined }}
  */
 function getConfig(ruleConfig) {
   const convertTo =
     typeof ruleConfig["convert-to"] === "string" && ruleConfig["convert-to"].toLowerCase() === "list"
       ? "list"
       : "none";
-  return { convertTo, excludePathPatterns: ruleConfig.excludePathPatterns };
+  return {
+    convertTo,
+    applyOneSentencePerLine: ruleConfig["one-sentence-per-line"] === true,
+    excludePathPatterns: ruleConfig.excludePathPatterns,
+  };
 }
 
 /**
@@ -210,13 +224,14 @@ function getConfig(ruleConfig) {
  * When convertTo is "list", reports one error per table line with fixInfo so --fix converts table to list.
  * @param {string[]} lines
  * @param {{ startLine: number, endLine: number, headerRow: string[], bodyRows: string[][] }[]} tables
- * @param {"list"|"none"} convertTo
+ * @param {{ convertTo: "list"|"none", applyOneSentencePerLine: boolean }} fixConfig
  * @param {function(object): void} onError
  */
-function reportTables(lines, tables, convertTo, onError) {
+function reportTables(lines, tables, fixConfig, onError) {
+  const { convertTo, applyOneSentencePerLine } = fixConfig;
   for (const table of tables) {
     if (convertTo === "list") {
-      reportTableWithFix({ table, lines, onError });
+      reportTableWithFix({ table, lines, applyOneSentencePerLine, onError });
     } else {
       const suggestedList = "";
       reportTableError({
@@ -242,12 +257,12 @@ function ruleFunction(params, onError) {
   const filePath = params.name || "";
   /* c8 ignore next 1 -- config fallback when params.config undefined */
   const ruleConfig = params.config?.["no-tables"] ?? params.config ?? {};
-  const { convertTo, excludePathPatterns } = getConfig(ruleConfig);
+  const { convertTo, applyOneSentencePerLine, excludePathPatterns } = getConfig(ruleConfig);
   if (Array.isArray(excludePathPatterns) && excludePathPatterns.length > 0 && pathMatchesAny(filePath, excludePathPatterns)) {
     return;
   }
   const tables = findTables(lines);
-  reportTables(lines, tables, convertTo, onError);
+  reportTables(lines, tables, { convertTo, applyOneSentencePerLine }, onError);
 }
 
 module.exports = {

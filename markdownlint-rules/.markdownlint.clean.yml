@@ -352,13 +352,17 @@ default: true
 # -----------------------------------------------------------------------------
 # no-tables (custom)
 # -----------------------------------------------------------------------------
-# To override: Uncomment the block; set convert-to and/or excludePathPatterns. Disallow GFM tables; when convert-to is "list", suggest converting each table to a list.
+# To override: Uncomment the block; set convert-to, one-sentence-per-line,
+# and/or excludePathPatterns. Disallow GFM tables; when convert-to is "list",
+# suggest converting each table to a list.
 # Options (all optional):
 #   convert-to: string (default "none"); "none" = short message only, "list" = show suggested list format in detail
+#   one-sentence-per-line: bool (default false); split sentences in generated list items with list-body indentation
 #   excludePathPatterns: list of globs; skip this rule for matching file paths
 # ---
 # no-tables:
 #   # convert-to: none
+#   # one-sentence-per-line: false
 #   # excludePathPatterns:
 #   #   - "**/*.md"
 

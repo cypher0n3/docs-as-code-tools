@@ -49,21 +49,28 @@ class TestFixNoTables(unittest.TestCase):
 
 | heading 1 | heading 2 | heading 3 |
 | --- | --- | --- |
-| h1c1 content | h2c1 content | h3c1 content |
+| Top first. Top second. | Nested first. Nested second. | h3c1 content |
 | h1c2 content | h2c2 content | h3c2 content |
 """
         content_after = """# Doc
 
 ## Table
 
-- **heading 1:** h1c1 content
-  - heading 2: h2c1 content
+- **heading 1:** Top first.
+  Top second.
+  - heading 2: Nested first.
+    Nested second.
   - heading 3: h3c1 content
 - **heading 1:** h1c2 content
   - heading 2: h2c2 content
   - heading 3: h3c2 content
 """
-        overrides = {"no-tables": {"convert-to": "list"}}
+        overrides = {
+            "no-tables": {
+                "convert-to": "list",
+                "one-sentence-per-line": True,
+            }
+        }
         with tempfile.TemporaryDirectory(prefix="fix_no_tables_") as tmp:
             path = Path(tmp) / "test.md"
             path.write_text(content_before, encoding="utf-8")

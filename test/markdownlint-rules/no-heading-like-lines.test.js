@@ -10,7 +10,6 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert");
 const fs = require("fs");
 const path = require("path");
-const { spawnSync } = require("child_process");
 const rule = require("../../markdownlint-rules/no-heading-like-lines.js");
 const { runRule } = require("./run-rule.js");
 
@@ -377,19 +376,16 @@ describe("no-heading-like-lines", () => {
           path.join(RULES_DIR, "no-heading-like-lines.js"),
           path.join(tmpDir, "no-heading-like-lines.js")
         );
-        const script = `
-          const rule = require("./no-heading-like-lines.js");
-          const errors = [];
-          rule.function({ lines: ["**Hi:**", "content"], config: { "no-heading-like-lines": { convertToHeading: false } } }, (e) => errors.push(e));
-          console.log(JSON.stringify(errors.length > 0 ? errors[0].fixInfo : null));
-        `;
-        const result = spawnSync(
-          process.execPath,
-          ["-e", script],
-          { cwd: tmpDir, encoding: "utf8", maxBuffer: 10 * 1024 }
+        const standaloneRule = require(path.join(tmpDir, "no-heading-like-lines.js"));
+        const errors = [];
+        standaloneRule.function(
+          {
+            lines: ["**Hi:**", "content"],
+            config: { "no-heading-like-lines": { convertToHeading: false } },
+          },
+          (error) => errors.push(error),
         );
-        assert.strictEqual(result.status, 0, result.stderr || result.error);
-        const fixInfo = JSON.parse(result.stdout.trim());
+        const fixInfo = errors[0]?.fixInfo;
         assert.ok(fixInfo, "should report one error with fixInfo");
         assert.strictEqual(fixInfo.insertText, "Hi", "stripEmphasis and trailing colon when optional deps missing");
       } finally {
