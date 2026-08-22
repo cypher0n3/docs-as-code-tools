@@ -37,6 +37,19 @@ describe("document-length", () => {
     assert.ok(errors[0].detail.includes("maximum") || errors[0].detail.includes("Consider splitting"));
   });
 
+  it("does not count a trailing empty line from a well-formed trailing newline", () => {
+    const lines = [...makeLines(1500), ""];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 0);
+  });
+
+  it("still reports over-limit when content itself exceeds max, trailing newline aside", () => {
+    const lines = [...makeLines(1501), ""];
+    const errors = runRule(rule, lines);
+    assert.strictEqual(errors.length, 1);
+    assert.ok(errors[0].detail.includes("1501") && errors[0].detail.includes("1500"));
+  });
+
   it("respects custom maximum: 11 lines with max 10 reports one error", () => {
     const lines = makeLines(11);
     const errors = runRule(rule, lines, { maximum: 10 });

@@ -29,13 +29,20 @@ function ruleFunction(params, onError) {
   if (shouldSkipByPath(filePath, block)) return;
 
   const lines = params.lines;
+  // A well-formed file ends with a trailing newline, which produces one
+  // extra empty trailing entry in params.lines (splitting "a\nb\n" yields
+  // ["a", "b", ""]) - that phantom line is not real document content and
+  // must not count toward the limit, or a file at exactly the maximum
+  // (by any normal line-count tool, e.g. `wc -l`) is falsely flagged as
+  // one line over.
+  const lineCount = lines.length > 0 && lines[lines.length - 1] === "" ? lines.length - 1 : lines.length;
   const maximum = getMaximum(block, params.config);
-  if (lines.length <= maximum) return;
+  if (lineCount <= maximum) return;
   if (isRuleSuppressedByComment(lines, 1, "document-length")) return;
 
   onError({
     lineNumber: 1,
-    detail: `Document has ${lines.length} lines (maximum ${maximum}). Consider splitting into smaller files.`,
+    detail: `Document has ${lineCount} lines (maximum ${maximum}). Consider splitting into smaller files.`,
     context: lines[0] ?? "",
   });
 }
